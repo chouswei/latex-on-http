@@ -94,6 +94,7 @@ COPY vendor/diagram/diagram.lua /usr/local/share/colophon/diagram.lua
 COPY colophon/share/ /usr/local/share/colophon/
 COPY colophon/ /opt/colophon/colophon/
 COPY container/stamp_reference_docx.py /tmp/stamp_reference_docx.py
+COPY container/bake_package_set.py /tmp/colophon-bake-package-set.py
 
 RUN set -eu; \
     printf 'shell_escape = f\n' > /etc/texmf/texmf.d/00colophon.cnf; \
@@ -125,6 +126,8 @@ RUN set -eu; \
     kpsewhich xeCJK.sty; \
     kpsewhich fontspec.sty; \
     kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
+    python3 /tmp/colophon-bake-package-set.py; \
+    rm -f /tmp/colophon-bake-package-set.py; \
     if command -v asy >/dev/null || command -v asymptote >/dev/null; then \
       echo "asymptote binary must not be installed"; \
       exit 1; \

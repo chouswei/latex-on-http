@@ -2,9 +2,14 @@
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import hashlib
+from pathlib import Path
+
 import pytest
 
-from colophon.revision import source_url, version_payload
+from colophon.revision import package_set, package_set_hash, source_url, version_payload
+
+PACKAGE_SET_SOURCE = Path(__file__).resolve().parents[2] / "colophon" / "package_set.txt"
 
 
 def test_version_requires_token(client):
@@ -32,6 +37,38 @@ def test_missing_revision_is_unknown(monkeypatch):
     assert body["commit"] == "unknown"
     assert body["source"].startswith("https://github.com/chouswei/latex-on-http")
     assert "/commit/" not in body["source"]
+
+
+def test_version_package_set_is_sorted_and_hashed(client, auth, monkeypatch):
+    monkeypatch.delenv("COLOPHON_GIT_COMMIT", raising=False)
+    response = client.get("/version", headers=auth)
+    assert response.status_code == 200
+    body = response.get_json()
+    names = package_set()
+    assert "colophon-floorplan" in names
+    assert names == sorted(names)
+    assert body["packageSet"] == names
+    digest = hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
+    assert body["packageSetHash"] == digest
+    assert digest == package_set_hash(names)
+    assert not digest.endswith("\n")
+    source = [
+        line.strip()
+        for line in PACKAGE_SET_SOURCE.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert names == source
+
+
+def test_baked_package_set_file_is_what_version_reads(tmp_path, monkeypatch):
+    baked = tmp_path / "PACKAGE_SET"
+    baked.write_text("siunitx\ncircuitikz\n", encoding="utf-8")
+    monkeypatch.setattr("colophon.revision._package_set_file", lambda: baked)
+    body = version_payload()
+    assert body["packageSet"] == ["circuitikz", "siunitx"]
+    assert body["packageSetHash"] == hashlib.sha256(
+        b"circuitikz\nsiunitx"
+    ).hexdigest()
 
 
 @pytest.mark.parametrize(

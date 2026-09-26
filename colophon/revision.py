@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Revision baked at build time, for GET /version."""
 
+import hashlib
 import os
 import re
 from pathlib import Path
@@ -45,10 +46,35 @@ def source_url(commit):
     return SOURCE_REPOSITORY
 
 
+def _package_set_file():
+    """Prefer the file the image build writes. Tests use the source list."""
+    baked = Path(__file__).with_name("PACKAGE_SET")
+    if baked.is_file():
+        return baked
+    return Path(__file__).with_name("package_set.txt")
+
+
+def package_set():
+    """Sorted TeX package names. Read from the baked file; no shell."""
+    text = _package_set_file().read_text(encoding="utf-8")
+    names = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(names) != len(set(names)):
+        raise ValueError("package set has duplicate names")
+    return sorted(names)
+
+
+def package_set_hash(names):
+    """SHA-256 of the sorted names joined by newlines, with no trailing newline."""
+    return hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
+
+
 def version_payload():
     commit = revision()
+    names = package_set()
     return {
         "version": __version__,
         "commit": commit,
         "source": source_url(commit),
+        "packageSet": names,
+        "packageSetHash": package_set_hash(names),
     }

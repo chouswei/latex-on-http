@@ -6,7 +6,9 @@
   Podman sandboxes. The listener binds only to one address inside
   `COLOPHON_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.
   Host-side LaTeX is disabled. See NOTICE.
-* `GET /version` returns the git commit or tag baked at build time.
+* `GET /version` returns the git commit or tag baked at build time, plus
+  `packageSet` and `packageSetHash` from the package list written at image
+  build.
 * Floor-plan TikZ styles and the listed tlmgr packages are in the image.
   Shell-escape, `\write18`, minted, TikZ `external`, and Asymptote are
   refused before compilation. There is no Asymptote binary.

@@ -60,6 +60,12 @@ compile service.
   and `floorplan dimension`. The dimension label uses `tikz-dimline` and
   `siunitx`, in millimetres or metres, from the `/floorplan/plan-scale` key.
   The style file is pure TeX.
+- `GET /version` includes `packageSet` and `packageSetHash`. The set is the
+  sorted TeX package names in `colophon/package_set.txt`, including
+  `colophon-floorplan`. The image build writes that list to `PACKAGE_SET`
+  after checking each `kpsewhich` name. The hash is the sha256 of the names
+  joined by newlines, with no trailing newline. The request reads the baked
+  file and does not run a shell.
 
 Third-party pieces added with this fork
 ----------------------------------------

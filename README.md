@@ -120,7 +120,7 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 | `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
 | `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. |
-| `GET /version` | Version, and the git commit or tag baked at build time, with a source link. |
+| `GET /version` | Version, the git commit or tag baked at build time, a source link, `packageSet` (sorted TeX package names, including `colophon-floorplan`), and `packageSetHash` (sha256 of those names joined by newlines). The list is written at image build. The request does not run a shell. |
 
 A second job while one is running is `429` with `Retry-After` and is not
 queued. The same response is used when load average is above 3.0, available
