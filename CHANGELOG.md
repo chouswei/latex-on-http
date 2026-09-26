@@ -41,10 +41,10 @@
   code, including Podman 4.3's timeout exit 255. An earlier 255 stays a
   render error.
 * `GET /v1/host-load` is the token-gated load report. JSON keys are
-  `loadavg` (1-minute), `memAvailableMiB`, `activeJobs`, `queued`, and
-  `reportedAt` (UTC, ISO-8601 with a `+00:00` offset). There is no `/load`
-  path. `503` means the sample could not be read. A sample older than 30 s
-  stays `200`; `reportedAt` is how a caller detects that.
+  `loadAvg1m`, `memAvailableMiB`, `busy`, `stale`, `intervalSec`,
+  `readable`, and `reportedAt` (UTC, ISO-8601 with a `+00:00` offset).
+  `stale: true` is a shed. `readable: false` is HTTP 503. There is no
+  `/load` path. `POST /v1/jobs/abort` kills the running container.
 * Rootless storage on the Pi must be `driver=overlay` with
   `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
 * Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli

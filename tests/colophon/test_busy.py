@@ -20,7 +20,7 @@ def test_busy_refuses_immediately(client, supervisor, runner, auth):
 def test_abort_while_idle(client, auth):
     response = client.post("/v1/jobs/abort", headers=auth)
     assert response.status_code == 404
-    assert response.get_json()["aborted"] is False
+    assert response.get_json() == {"aborted": False, "error": "idle"}
 
 
 def test_missing_token_is_unauthorized(client):

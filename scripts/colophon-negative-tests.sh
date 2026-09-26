@@ -150,19 +150,41 @@ if status not in (200, 503):
 if headers.get("Cache-Control") != "no-store":
     fail("host-load Cache-Control")
 report = expect_json(status, headers, body, _elapsed)
-expected = {"loadavg", "memAvailableMiB", "activeJobs", "queued", "reportedAt"}
+expected = {
+    "loadAvg1m",
+    "memAvailableMiB",
+    "busy",
+    "stale",
+    "intervalSec",
+    "readable",
+    "reportedAt",
+}
 if set(report) != expected:
     fail(f"host-load keys {sorted(report)}")
-if not isinstance(report["activeJobs"], int) or report["activeJobs"] not in (0, 1):
-    fail(f"activeJobs {report['activeJobs']!r}")
-if report["queued"] != 0:
-    fail(f"queued {report['queued']!r}")
+if status == 503:
+    if report["readable"] is not False or report["stale"] is not True:
+        fail(f"unreadable host-load {report}")
+else:
+    if report["readable"] is not True:
+        fail(f"readable host-load {report}")
+    if not isinstance(report["loadAvg1m"], (int, float)) or isinstance(report["loadAvg1m"], bool):
+        fail(f"loadAvg1m {report['loadAvg1m']!r}")
+if not isinstance(report["busy"], bool) or not isinstance(report["stale"], bool):
+    fail(f"host-load flags {report}")
+if report["intervalSec"] != 10:
+    fail(f"intervalSec {report['intervalSec']!r}")
 if report["reportedAt"] is None:
     fail("reportedAt is null")
 observed = datetime.fromisoformat(report["reportedAt"])
 if observed.tzinfo is None or observed.utcoffset() != timedelta(0):
     fail(f"reportedAt {report['reportedAt']}")
-print("host-load", {key: report[key] for key in ("loadavg", "memAvailableMiB", "activeJobs", "queued", "reportedAt")})
+print("host-load", report)
+
+print("POST /v1/jobs/abort")
+status, _headers, body, _elapsed = request("POST", "/v1/jobs/abort", timeout=30)
+payload = expect_json(status, _headers, body, _elapsed)
+if status != 404 or payload.get("aborted") is not False or payload.get("error") != "idle":
+    fail(f"idle abort {status} {payload}")
 
 print("D5 write18 refused before compile")
 for source in (

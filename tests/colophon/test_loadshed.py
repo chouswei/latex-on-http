@@ -12,6 +12,16 @@ from colophon.worker import create_app
 from colophon.killswitch import KillSwitch
 from tests.colophon.conftest import valid_body
 
+_HOST_LOAD_KEYS = {
+    "loadAvg1m",
+    "memAvailableMiB",
+    "busy",
+    "stale",
+    "intervalSec",
+    "readable",
+    "reportedAt",
+}
+
 
 def test_thresholds_accept_exact_bounds():
     assert (
@@ -55,26 +65,12 @@ def test_http_load_shed(config, switch_path, supervisor, auth):
     assert body["error"] == "rejectLoadShed"
     assert body["result"] == "refused"
     assert body["reason"] == "loadavg"
-    assert set(body["load"]) == {
-        "loadavg",
-        "memAvailableMiB",
-        "activeJobs",
-        "queued",
-        "reportedAt",
-    }
-    assert body["load"]["loadavg"] == 3.5
-    assert body["load"]["activeJobs"] == 0
-    assert body["load"]["queued"] == 0
+    assert set(body["load"]) == _HOST_LOAD_KEYS
+    assert body["load"]["loadAvg1m"] == 3.5
+    assert body["load"]["busy"] is False
+    assert body["load"]["stale"] is False
+    assert body["load"]["readable"] is True
     assert supervisor.busy() is False
-
-
-_HOST_LOAD_KEYS = {
-    "loadavg",
-    "memAvailableMiB",
-    "activeJobs",
-    "queued",
-    "reportedAt",
-}
 
 
 def _assert_reported_at(value):
@@ -91,11 +87,13 @@ def test_host_load_report_shape(client, auth):
     assert response.headers["Cache-Control"] == "no-store"
     body = response.get_json()
     assert set(body) == _HOST_LOAD_KEYS
-    assert body["loadavg"] == 0.2
-    assert isinstance(body["loadavg"], float)
+    assert body["loadAvg1m"] == 0.2
+    assert isinstance(body["loadAvg1m"], float)
     assert body["memAvailableMiB"] == 8192
-    assert body["activeJobs"] == 0
-    assert body["queued"] == 0
+    assert body["busy"] is False
+    assert body["stale"] is False
+    assert body["intervalSec"] == 10
+    assert body["readable"] is True
     _assert_reported_at(body["reportedAt"])
 
 
@@ -121,16 +119,16 @@ def test_host_load_when_memory_is_under_the_threshold(
     assert response.status_code == 200
     body = response.get_json()
     assert body["memAvailableMiB"] == 4095
-    assert body["activeJobs"] == 0
-    assert body["queued"] == 0
+    assert body["busy"] is False
+    assert body["stale"] is False
+    assert body["readable"] is True
     refused = client.post("/v1/jobs", json=valid_body(), headers=auth)
     assert refused.status_code == 429
     refused_body = refused.get_json()
     assert refused_body["error"] == "rejectLoadShed"
     assert refused_body["reason"] == "mem"
     assert set(refused_body["load"]) == _HOST_LOAD_KEYS
-    assert refused_body["load"]["activeJobs"] == 0
-    assert refused_body["load"]["queued"] == 0
+    assert refused_body["load"]["busy"] is False
     assert refused_body["load"]["memAvailableMiB"] == 4095
 
 
@@ -142,8 +140,8 @@ def test_host_load_reports_the_running_job_and_an_empty_queue(client, auth, supe
         supervisor._busy.release()
     body = response.get_json()
     assert response.status_code == 200
-    assert body["activeJobs"] == 1
-    assert body["queued"] == 0
+    assert body["busy"] is True
+    assert body["readable"] is True
 
 
 def test_unreadable_host_load_is_503(config, switch_path, supervisor, auth):
@@ -157,10 +155,11 @@ def test_unreadable_host_load_is_503(config, switch_path, supervisor, auth):
     assert response.status_code == 503
     body = response.get_json()
     assert set(body) == _HOST_LOAD_KEYS
-    assert body["loadavg"] is None
+    assert body["loadAvg1m"] is None
     assert body["memAvailableMiB"] is None
-    assert body["activeJobs"] == 0
-    assert body["queued"] == 0
+    assert body["readable"] is False
+    assert body["stale"] is True
+    assert body["busy"] is False
     _assert_reported_at(body["reportedAt"])
 
 
@@ -173,7 +172,10 @@ def test_stale_host_load_stays_200(config, switch_path, supervisor, auth):
     client = app.test_client()
     response = client.get("/v1/host-load", headers=auth)
     assert response.status_code == 200
-    assert response.get_json()["loadavg"] == 0.2
+    body = response.get_json()
+    assert body["loadAvg1m"] == 0.2
+    assert body["stale"] is True
+    assert body["readable"] is True
     refused = client.post("/v1/jobs", json=valid_body(), headers=auth)
     assert refused.status_code == 429
     assert refused.get_json()["reason"] == "stale"

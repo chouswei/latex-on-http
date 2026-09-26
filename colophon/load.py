@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from colophon.limits import (
+    HOST_LOAD_REPORT_INTERVAL_SEC,
     LOAD_AVG_1M_THRESHOLD,
     MEM_AVAILABLE_MIB_THRESHOLD,
     REPORT_MAX_AGE_SEC,
@@ -81,16 +82,20 @@ class LoadMonitor:
     def report(self, busy):
         """JSON body of ``GET /v1/host-load``.
 
-        ``loadavg`` is the 1-minute load average. ``activeJobs`` is 0 or 1.
-        ``queued`` is always 0: a second job is refused, not queued.
-        ``reportedAt`` is the sample time in UTC, ISO-8601 with a numeric
-        offset, so a caller can reject a report older than 30 s.
+        ``loadAvg1m`` is the 1-minute load average. ``stale`` is true when
+        the sample is older than 30 s or could not be read. ``readable`` is
+        false only when the sample could not be read; that response is HTTP
+        503. ``reportedAt`` is the sample time in UTC, ISO-8601 with a
+        numeric offset.
         """
+        reason = self.decision()
         observed = self.sampled_at_utc
         return {
-            "loadavg": self.load_avg,
+            "loadAvg1m": self.load_avg,
             "memAvailableMiB": self.mem_available_mib,
-            "activeJobs": 1 if busy else 0,
-            "queued": 0,
+            "busy": bool(busy),
+            "stale": reason in ("stale", "unreadable"),
+            "intervalSec": HOST_LOAD_REPORT_INTERVAL_SEC,
+            "readable": reason != "unreadable",
             "reportedAt": None if observed is None else observed.isoformat(),
         }

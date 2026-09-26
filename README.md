@@ -236,34 +236,36 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 
 ### HTTP
 
-Canonical paths: `POST /v1/jobs`, `GET /v1/host-load`, `POST /v1/switch`,
-`POST /builds/sync`, `GET /version`. `POST /v1/jobs/abort` kills the running
-container. There is no `/load` path.
+Canonical paths: `POST /v1/jobs`, `GET /v1/host-load`, `POST /v1/jobs/abort`,
+`POST /v1/switch`, `POST /builds/sync`, `GET /version`. There is no `/load`
+path.
 
 Every token-gated route answers `401` with `{"error":"unauthorized"}` when
 the bearer token is missing or wrong. `Cache-Control` is `no-store`.
 
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. |
-| `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. Success and error bodies match `POST /v1/jobs`. |
+| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. A non-200 body is JSON and the reason is `error`. |
+| `GET /v1/host-load` | Host sample, refreshed every 10 s. `200` when the sample was read, including a sample older than 30 s (`stale` is then `true`). `503` when the sample could not be read (`readable` is `false`). |
 | `POST /v1/jobs/abort` | Kills the running container only. `200` `{"aborted":true}`. Idle is `404` `{"aborted":false,"error":"idle"}`. |
-| `GET /v1/host-load` | Host sample, refreshed every 10 s. `200` when the sample was read, including a sample older than 30 s. `503` when the sample could not be read. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. Success JSON is `readable` and `engaged`. |
+| `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. Success and error bodies match `POST /v1/jobs`. |
 | `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `colophon-floorplan`), and `packageSetHash` (sha256 of those names joined by newlines, no trailing newline). The list is written at image build. The request does not run a shell. |
 
-`GET /v1/host-load` JSON keys, and no others:
+`GET /v1/host-load` JSON keys:
 
 | Key | JSON type | Meaning |
 | --- | --- | --- |
-| `loadavg` | number or `null` | 1-minute load average (`/proc/loadavg` field 1). |
+| `loadAvg1m` | number or `null` | 1-minute load average (`/proc/loadavg` field 1). |
 | `memAvailableMiB` | integer or `null` | `MemAvailable` in MiB. |
-| `activeJobs` | integer | `0` or `1`. |
-| `queued` | integer | Always `0`. A second job is refused, not queued. |
-| `reportedAt` | string or `null` | Sample time, UTC, ISO-8601 with a numeric offset (`+00:00`). A caller treats a report older than 30 s as stale. |
+| `busy` | boolean | True while a job holds the worker. |
+| `stale` | boolean | True when the sample is older than 30 s, or could not be read. A caller sheds on `stale: true`. |
+| `intervalSec` | integer | Sample interval, 10. |
+| `readable` | boolean | False when the sample could not be read. That is also HTTP 503. |
+| `reportedAt` | string or `null` | Sample time, UTC, ISO-8601 with a numeric offset (`+00:00`). |
 
-On `503`, `loadavg` and `memAvailableMiB` are `null`. `reportedAt` is still
-the time of that failed sample.
+On `503`, `loadAvg1m` and `memAvailableMiB` are `null`, `readable` is `false`,
+and `stale` is `true`. `reportedAt` is still the time of that failed sample.
 
 `POST /v1/jobs` success is HTTP `200`. The body is the artifact bytes, not
 JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
@@ -285,13 +287,13 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 | `error` | HTTP | `result` | Extra keys |
 | --- | --- | --- | --- |
 | `rejectBusy` | 429, `Retry-After` | `refused` | none when the worker is already busy |
-| `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the five `GET /v1/host-load` keys; `activeJobs` is `0`) |
+| `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the `GET /v1/host-load` object; `busy` is `false`) |
 | `rejectKillSwitch` | 403 | `refused` | `readable`, `engaged` |
 | `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `inputKind`, `input`, `documentclass`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
 | `rejectSpawnFail` | 500 | `refused` | none |
 | `rejectRenderError` | 422 | `renderError` | `diagnostic` when the sandbox reported one: `engine`, `message`, `file`, `line`, `fence` |
 | `failTimeout` | 408 | `failTimeout` | none |
-| `failCapHit` | 413 | `failCapHit` | none. Output over 20 MiB uses this kind. The body does not contain `failOutputCap`. |
+| `failCapHit` | 413 | `failCapHit` | none. Output over 20 MiB uses this kind. The gate also accepts `failOutputCap`; this worker emits `failCapHit`. |
 
 A request body over 16 MiB is `rejectInvalidInput` with `field` `input`
 (HTTP 400).

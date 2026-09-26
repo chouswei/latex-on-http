@@ -168,7 +168,7 @@ def create_app(config, switch, monitor, supervisor):
         if not authorized():
             return _error_status_401()
         report = monitor.report(busy=supervisor.busy())
-        status = 503 if monitor.decision() == "unreadable" else 200
+        status = 200 if report["readable"] else 503
         response = jsonify(report)
         response.status_code = status
         response.headers["Cache-Control"] = "no-store"
