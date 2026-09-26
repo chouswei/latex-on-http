@@ -61,13 +61,24 @@ def _render(payload, *, image, podman):
     raw = json.dumps(payload).encode("utf-8")
     if image:
         from colophon.cgroup_caps import CpuControllerMissing
-        from colophon.podman_args import build_podman_run_args
+        from colophon.podman_args import (
+            build_podman_run_args,
+            ensure_rlimit_hook_dir,
+            podman_supports_ulimit_as,
+            probe_podman_version,
+        )
 
+        version = probe_podman_version(podman)
+        hooks_dir = None
+        if not podman_supports_ulimit_as(version):
+            hooks_dir = ensure_rlimit_hook_dir()
         try:
             args = build_podman_run_args(
                 podman=podman,
                 image=image,
                 name=f"colophon-kind-{uuid.uuid4().hex[:12]}",
+                podman_version=version,
+                hooks_dir=hooks_dir,
             )
         except CpuControllerMissing as exc:
             sys.exit(f"refusing to start: {exc}")

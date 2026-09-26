@@ -127,6 +127,30 @@ def test_wall_clock_kill_beats_an_allocation_phrase():
     assert _classify(137, b"fatal: memory exhausted\n", elapsed=60) == "failTimeout"
 
 
+def test_podman_255_at_timeout_is_fail_timeout():
+    assert _classify(255, b"Error: timed out\n", elapsed=60.9) == "failTimeout"
+    assert _classify(255, b"", elapsed=60) == "failTimeout"
+
+
+def test_podman_255_early_stays_a_render_error():
+    assert (
+        _classify(255, b"Error: invalid argument\n", elapsed=2) == "rejectRenderError"
+    )
+    assert _classify(255, b"", elapsed=59.9) == "rejectRenderError"
+
+
+def test_sigkill_at_the_wall_is_fail_timeout():
+    assert _classify(137, b"", elapsed=60) == "failTimeout"
+    assert _classify(-9, b"", elapsed=60.9) == "failTimeout"
+
+
+def test_any_exit_at_the_job_timeout_is_fail_timeout():
+    assert (
+        _classify(1, b"job.tex:1: Undefined control sequence.\n", elapsed=60)
+        == "failTimeout"
+    )
+
+
 def test_timeout_is_not_a_render_error():
     assert (
         classify_result(

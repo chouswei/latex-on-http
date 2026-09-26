@@ -72,8 +72,30 @@ sudo loginctl enable-linger colophon
 id colophon
 ```
 
-As that user, install rootless Podman and this repo, then build the image
-above. Do not mount the Docker socket into the user session.
+As that user, install rootless Podman and `fuse-overlayfs`, then this repo,
+and build the image above. Do not mount the Docker socket into the user
+session.
+
+Rootless Podman picks the `vfs` storage driver when `fuse-overlayfs` is
+absent. On the Pi that store used about 57 GB. Pin `overlay` with
+`fuse-overlayfs` before the first pull or build. A store already created
+as `vfs` is not converted by this file; remove
+`~/.local/share/containers/storage` only when the images in it can be
+rebuilt, then build again.
+
+```sh
+sudo apt-get install -y podman fuse-overlayfs
+sudo -u colophon -H bash -lc 'mkdir -p ~/.config/containers && cat > ~/.config/containers/storage.conf <<EOF
+[storage]
+driver = "overlay"
+
+[storage.options]
+mount_program = "/usr/bin/fuse-overlayfs"
+EOF'
+```
+
+`mount_program` is the `fuse-overlayfs` binary (`command -v fuse-overlayfs`
+when it is not `/usr/bin/fuse-overlayfs`).
 
 ```sh
 sudo -u colophon -H bash -lc 'cd /opt/colophon && uv sync'
@@ -135,10 +157,21 @@ tmpfs, uid 10001, `--pids-limit=256`, `--timeout=60`, shell-escape off, and
 `--cpus=1`. Output over 20 MiB is `failCapHit`. A second job is refused.
 Load above 3.0, or MemAvailable below 4096 MiB, sheds the job.
 
-The memory ceiling is always `--ulimit as=<soft>:<hard>` (`RLIMIT_AS`),
-with soft and hard set to the same value. The default is
-`2147483648:2147483648` (2048 MiB), from `COLOPHON_RLIMIT_AS_BYTES`.
-That limit is virtual address space, not resident set size.
+The memory ceiling is always an `RLIMIT_AS` of soft and hard equal to the
+same value. The default is `2147483648:2147483648` (2048 MiB), from
+`COLOPHON_RLIMIT_AS_BYTES`. That limit is virtual address space, not
+resident set size.
+
+Podman 4.4 and newer receive `--ulimit as=<soft>:<hard>`. Podman 4.3
+(the Pi's rootless 4.3.1) rejects that flag: its go-units build leaves
+`as` disabled. The worker reads `podman version` and, below 4.4, does not
+pass `--ulimit as=` and does not replace `/usr/bin/podman`. It passes the
+global flag `--hooks-dir` and `--annotation io.colophon.rlimit.as=<bytes>`.
+A Colophon precreate hook reads that annotation and writes
+`process.rlimits` entry `RLIMIT_AS` into the OCI spec. crun 1.8 applies
+that rlimit when it creates the container. A missing annotation fails the
+hook, so the job does not start without the cap. A failed version probe
+uses this hook path.
 
 `--memory=2048m` and `--memory-swap=2048m` are added only when the memory
 controller is available. The worker reads `/sys/fs/cgroup/cgroup.controllers`
@@ -183,6 +216,12 @@ Pandoc 3 is not installed on the host used for that check; its Haskell
 runtime prints `Heap exhausted`. Those exits are `failCapHit`, the same
 outcome as the early SIGKILL. A normal TeX error is still `renderError`.
 
+A run whose wall clock is at least 60 s is `failTimeout`, whatever the
+exit code. Podman 4.3 `run --timeout` exits 255 when it kills the job
+(measured at 60.9 s for an infinite `\loop`). Exit 255 before 60 s is a
+different Podman error and stays `renderError`. A SIGKILL (137 or -9) at
+the timeout is the same `failTimeout`.
+
 `RLIMIT_AS` applies per process, not per container. With `--pids-limit=256`
 and a 2048 MiB ceiling, the worst-case total is 256 × 2 GiB. In practice
 the total stays far below that. A TeX job spawns few processes, the worker
@@ -202,7 +241,8 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 | `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, `memory.mode` (`cgroup` or `rlimit`, when the sandbox reports it), and `pids.peak`. When HTML or DOCX input contains inline `siunitx` or `mhchem`, that header also carries `warnings` (`notationPdfOnly`) and the artifact keeps the source text. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. |
 | `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
-| `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |
+| `GET /load` | Token-gated, same as `GET /version`. This is the path the Colophon gate calls. JSON: `loadAvg1m`, `memAvailableMiB` (free memory), `memThresholdMiB` (4096), `jobs` (0 or 1), `queue` (always 0; a second job is refused), `shed` (true when a new job would be load-shed), `shedReason` (`loadavg`, `mem`, `stale`, `unreadable`, or null), `observedAt` (ISO-8601 sample time with a timezone). The gate uses `loadAvg1m`, `memAvailableMiB`, and `observedAt`. Refresh every 10 s. |
+| `GET /v1/host-load` | Same sample as `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. The gate does not call this path. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. |
 | `GET /version` | Version, the git commit or tag baked at build time, a source link, `packageSet` (sorted TeX package names, including `colophon-floorplan`), and `packageSetHash` (sha256 of those names joined by newlines). The list is written at image build. The request does not run a shell. |
 

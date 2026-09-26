@@ -20,8 +20,12 @@
 * A job result carries a result class, wall time, cgroup `memory.peak` and
   `pids.peak`, and on a render error the first diagnostic. `memory.mode`
   is `cgroup` or `rlimit` when the sandbox reports it.
-* Each job sets `--ulimit as=<soft>:<hard>` (`COLOPHON_RLIMIT_AS_BYTES`,
-  default `2147483648:2147483648`). `--memory` and `--memory-swap` are
+* Each job sets an `RLIMIT_AS` ceiling (`COLOPHON_RLIMIT_AS_BYTES`,
+  default `2147483648:2147483648`). Podman 4.4 and newer get
+  `--ulimit as=<soft>:<hard>`. Podman below 4.4, including rootless 4.3.1,
+  rejects that flag. The worker then passes `--hooks-dir` and annotation
+  `io.colophon.rlimit.as`, and a precreate hook writes OCI `RLIMIT_AS` for
+  crun. `/usr/bin/podman` is not replaced. `--memory` and `--memory-swap` are
   passed only when the memory controller is present. Preflight requires
   `cpu` and `pids`; a missing memory controller is a warning and the job
   uses rlimit mode. A missing `cpu` controller refuses startup. An
@@ -33,7 +37,15 @@
   Other caps are unchanged (60 s, 20 MiB output, 256 pids, 512 MiB tmpfs,
   no network, shell-escape off, load shed at loadavg 3 or MemAvailable
   4096 MiB). The default ceiling fits the measured XeLaTeX and LuaLaTeX
-  jobs.
+  jobs. A wall clock at or after 60 s is `failTimeout` for every exit
+  code, including Podman 4.3's timeout exit 255. An earlier 255 stays a
+  render error.
+* `GET /load` is the token-gated load report the Colophon gate calls.
+  It returns free memory against the 4096 MiB shed threshold, the current
+  job count, an empty queue, whether a new job would shed, and
+  `observedAt`.
+* Rootless storage on the Pi must be `driver=overlay` with
+  `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
 * Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli
   (`mmdc`), d2, and their pandoc-ext/diagram engines are not in the worker.
   A Mermaid or D2 fence is `rejectInvalidInput`. Those kind fixtures are

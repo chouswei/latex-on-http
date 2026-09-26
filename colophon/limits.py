@@ -31,6 +31,8 @@ SUPERVISOR_TIMEOUT_SEC = WALL_SEC + 5
 # SIGKILL is the cgroup memory or pids cap. Under RLIMIT_AS the process is
 # not signalled: the allocator fails and the engine exits nonzero. That
 # exit is the same memory-cap outcome. See ``allocation_failure``.
+# Podman 4.3 ``run --timeout`` exits 255, not 137. Elapsed time at or after
+# ``WALL_SEC`` is the timeout whatever the exit code is. An earlier 255 is not.
 TIMEOUT_ELAPSED_FLOOR_SEC = WALL_SEC - 1
 SANDBOX_UID = 10001
 SANDBOX_GID = 10001

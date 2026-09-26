@@ -18,12 +18,16 @@ from colophon.limits import (
     STDERR_KEEP_BYTES,
     SUPERVISOR_TIMEOUT_SEC,
     TIMEOUT_ELAPSED_FLOOR_SEC,
+    WALL_SEC,
     allocation_failure,
 )
 from colophon.podman_args import (
     build_podman_kill_args,
     build_podman_rm_args,
     build_podman_run_args,
+    ensure_rlimit_hook_dir,
+    podman_supports_ulimit_as,
+    probe_podman_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,14 +76,21 @@ def classify_result(
     """Map a finished sandbox to a fail-closed result kind.
 
     A wall-clock kill is ``failTimeout``, which is not a render error.
-    Output over the cap, a memory or pid kill inside the wall, and an
-    allocation failure (``RLIMIT_AS``) are ``failCapHit``.
+    The primary rule is the runner's own elapsed time: at or after the
+    job timeout, every exit code is ``failTimeout``. Podman 4.3
+    ``run --timeout`` exits 255 in that case. Exit 255 before the timeout
+    is some other Podman error and stays a render error. A SIGKILL at the
+    timeout floor (137 or -9) is the same wall-clock kill. Output over the
+    cap, an earlier memory or pid kill, and an allocation failure
+    (``RLIMIT_AS``) are ``failCapHit``.
     """
     marker = _marker(stderr or b"")
-    wall = timed_out or (
-        elapsed >= TIMEOUT_ELAPSED_FLOOR_SEC and returncode in (137, -9)
-    )
-    if wall:
+    at_job_timeout = elapsed >= WALL_SEC
+    # Same threshold as the primary rule. Kept so a 255 is not treated as
+    # a timeout unless the job has already used its wall clock.
+    podman_timeout = returncode == 255 and elapsed >= WALL_SEC
+    sigkill_wall = elapsed >= TIMEOUT_ELAPSED_FLOOR_SEC and returncode in (137, -9)
+    if timed_out or at_job_timeout or podman_timeout or sigkill_wall:
         return "failTimeout"
     if abort:
         return "rejectKillSwitch"
@@ -227,6 +238,14 @@ def _podman_rm(podman, name):
 
 def make_podman_runner(config, switch):
     """Return a runner bound to this worker's image, token-free sandbox, and switch."""
+    podman_version = probe_podman_version(config.podman)
+    hooks_dir = None
+    if not podman_supports_ulimit_as(podman_version):
+        hooks_dir = ensure_rlimit_hook_dir()
+        logger.warning(
+            "podman %s rejects --ulimit as=; injecting RLIMIT_AS with a precreate hook",
+            ".".join(str(part) for part in podman_version),
+        )
 
     def kill_name(name):
         _podman_kill(config.podman, name)
@@ -256,6 +275,8 @@ def make_podman_runner(config, switch):
                 image=config.image,
                 name=name,
                 as_bytes=config.rlimit_as_bytes,
+                podman_version=podman_version,
+                hooks_dir=hooks_dir,
             )
         except CpuControllerMissing:
             logger.error(

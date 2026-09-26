@@ -14,13 +14,16 @@ compile service.
 
 - Each job runs in a new rootless Podman container (`--network=none`,
   read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 256 pids, 60 s wall
-  clock, 20 MiB output cap). The address-space ceiling is `--ulimit as=`
-  (`RLIMIT_AS`, default 2048 MiB, `COLOPHON_RLIMIT_AS_BYTES`).
+  clock, 20 MiB output cap). The address-space ceiling is `RLIMIT_AS`
+  (default 2048 MiB, `COLOPHON_RLIMIT_AS_BYTES`). Podman 4.4 and newer
+  receive `--ulimit as=`. Podman 4.3 rejects that flag, so the worker
+  injects the rlimit with a precreate hook that crun applies. A wall
+  clock at or after 60 s is `failTimeout`, including Podman 4.3 exit 255.
+  `GET /load` is the token-gated report the gate calls.
   `--memory=2048m` and `--memory-swap=2048m` are set only when the cgroup
   memory controller is available. Without it (for example
   `cgroup_disable=memory`) both flags are omitted and the process logs a
-  warning. The address-space ceiling is `--ulimit as=<soft>:<hard>`
-  (default `2147483648:2147483648`). A missing `cpu` controller refuses
+  warning. Soft and hard are both `2147483648` by default. A missing `cpu` controller refuses
   startup. Preflight requires `cpu` and `pids`; memory is optional.
   `RLIMIT_AS` limits virtual address space per process, not resident set
   size and not the whole container (worst case 256 × 2 GiB; one job at a

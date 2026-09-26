@@ -163,6 +163,14 @@ def create_app(config, switch, monitor, supervisor):
             sandbox="rootless-podman",
         )
 
+    @app.get("/load")
+    def load():
+        if not authorized():
+            return _error_status_401()
+        response = jsonify(monitor.load_payload(jobs=1 if supervisor.busy() else 0))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.get("/v1/host-load")
     def host_load():
         if not authorized():

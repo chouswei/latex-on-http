@@ -66,3 +66,74 @@ def test_host_load_report_shape(client, auth):
     assert body["busy"] is False
     assert body["stale"] is False
     assert body["intervalSec"] == 10
+
+
+def test_load_requires_the_worker_token(client):
+    response = client.get("/load")
+    assert response.status_code == 401
+
+
+def test_load_matches_the_gate_contract(client, auth):
+    from datetime import datetime
+
+    response = client.get("/load", headers=auth)
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    body = response.get_json()
+    assert body["loadAvg1m"] == 0.2
+    assert body["memAvailableMiB"] == 8192
+    assert body["memThresholdMiB"] == 4096
+    assert body["jobs"] == 0
+    assert body["queue"] == 0
+    assert body["shed"] is False
+    assert body["shedReason"] is None
+    observed = datetime.fromisoformat(body["observedAt"])
+    assert observed.tzinfo is not None
+
+
+def test_load_shed_when_memory_is_under_the_threshold(
+    config, switch_path, supervisor, auth
+):
+    monitor = LoadMonitor(reader=lambda: (0.2, 4095))
+    monitor.sample()
+    app = create_app(config, KillSwitch(switch_path), monitor, supervisor)
+    response = app.test_client().get("/load", headers=auth)
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["memAvailableMiB"] == 4095
+    assert body["memThresholdMiB"] == 4096
+    assert body["shed"] is True
+    assert body["shedReason"] == "mem"
+    assert body["jobs"] == 0
+    assert body["queue"] == 0
+
+
+def test_load_reports_the_running_job_and_an_empty_queue(client, auth, supervisor):
+    supervisor._busy.acquire()
+    try:
+        response = client.get("/load", headers=auth)
+    finally:
+        supervisor._busy.release()
+    body = response.get_json()
+    assert response.status_code == 200
+    assert body["jobs"] == 1
+    assert body["queue"] == 0
+    assert body["shed"] is False
+
+
+def test_unreadable_load_still_answers_and_would_shed(
+    config, switch_path, supervisor, auth
+):
+    def boom():
+        raise OSError("meminfo")
+
+    monitor = LoadMonitor(reader=boom)
+    monitor.sample()
+    app = create_app(config, KillSwitch(switch_path), monitor, supervisor)
+    response = app.test_client().get("/load", headers=auth)
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["shed"] is True
+    assert body["shedReason"] == "unreadable"
+    assert body["loadAvg1m"] is None
+    assert body["memAvailableMiB"] is None

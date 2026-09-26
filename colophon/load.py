@@ -4,6 +4,7 @@
 """Host load sample and shed decision."""
 
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from colophon.limits import (
@@ -52,6 +53,7 @@ class LoadMonitor:
         self.mem_available_mib = None
         self.error = None
         self.sampled_at = None
+        self.sampled_at_utc = None
 
     def sample(self):
         try:
@@ -65,6 +67,7 @@ class LoadMonitor:
             self.load_avg = load_avg
             self.mem_available_mib = mem_mib
         self.sampled_at = self._clock()
+        self.sampled_at_utc = datetime.now(timezone.utc)
 
     def age_sec(self):
         if self.sampled_at is None:
@@ -86,4 +89,26 @@ class LoadMonitor:
             "stale": stale,
             "intervalSec": HOST_LOAD_REPORT_INTERVAL_SEC,
             "readable": reason != "unreadable",
+        }
+
+    def load_payload(self, jobs):
+        """Body for ``GET /load``. The gate reads three of these fields.
+
+        ``loadAvg1m``, ``memAvailableMiB``, and ``observedAt`` are what
+        Colophon gate ``fetch_load`` requires. ``jobs`` is 0 or 1. ``queue``
+        is always 0: a second job is refused, not queued. ``shed`` is the
+        load-shed decision (load average, free memory against 4096 MiB, or
+        a stale or unreadable sample). Occupancy is ``jobs``, not ``shed``.
+        """
+        reason = self.decision()
+        observed = self.sampled_at_utc
+        return {
+            "loadAvg1m": self.load_avg,
+            "memAvailableMiB": self.mem_available_mib,
+            "memThresholdMiB": MEM_AVAILABLE_MIB_THRESHOLD,
+            "jobs": int(jobs),
+            "queue": 0,
+            "shed": reason is not None,
+            "shedReason": reason,
+            "observedAt": None if observed is None else observed.isoformat(),
         }

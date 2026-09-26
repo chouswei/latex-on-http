@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
+import sys
 from pathlib import Path
 
 import pytest
@@ -161,8 +162,8 @@ def test_runner_refuses_to_start_when_cpu_is_absent(monkeypatch, config, switch_
     def _spawn(*_args, **_kwargs):
         raise AssertionError("podman was started")
 
-    monkeypatch.setattr(runner_mod.subprocess, "Popen", _spawn)
     runner = make_podman_runner(config, KillSwitch(switch_path))
+    monkeypatch.setattr(runner_mod.subprocess, "Popen", _spawn)
     job = parse_job(
         {
             "input": "Hello",
@@ -174,6 +175,117 @@ def test_runner_refuses_to_start_when_cpu_is_absent(monkeypatch, config, switch_
     outcome = runner(job, "colophon-job-abc", threading.Event())
     assert outcome.kind == "rejectSpawnFail"
     assert outcome.detail == "cpu-controller"
+
+
+def test_podman_43_injects_rlimit_as_with_a_precreate_hook(tmp_path):
+    hooks = tmp_path / "hooks"
+    args = _args(podman_version=(4, 3, 1), hooks_dir=hooks)
+    assert args[:4] == ["podman", "--hooks-dir", str(hooks), "run"]
+    assert "--ulimit" not in args
+    assert not any(str(arg).startswith("as=") for arg in args)
+    assert f"io.colophon.rlimit.as={DEFAULT_RLIMIT_AS_BYTES}" in args
+    assert f"--memory={MEMORY_MIB}m" in args
+    assert f"--timeout={WALL_SEC}" in args
+    assert "--network=none" in args
+
+
+def test_podman_44_keeps_ulimit_as():
+    args = _args(podman_version=(4, 4, 0))
+    assert "--hooks-dir" not in args
+    assert args[1] == "run"
+    assert "--ulimit" in args
+    assert f"as={DEFAULT_RLIMIT_AS_BYTES}:{DEFAULT_RLIMIT_AS_BYTES}" in args
+
+
+def test_podman_version_selects_the_rlimit_form():
+    from colophon.podman_args import parse_podman_version, podman_supports_ulimit_as
+
+    assert parse_podman_version('{"Version":"4.3.1"}') == (4, 3, 1)
+    assert parse_podman_version('{"Client":{"Version":"4.4.0"}}') == (4, 4, 0)
+    assert parse_podman_version("podman version 4.3.1\n") == (4, 3, 1)
+    assert podman_supports_ulimit_as((4, 3, 1)) is False
+    assert podman_supports_ulimit_as((4, 4, 0)) is True
+    assert podman_supports_ulimit_as((5, 0, 0)) is True
+
+
+def test_probe_reads_podman_43(tmp_path):
+    from colophon.podman_args import probe_podman_version
+
+    binary = tmp_path / "podman"
+    binary.write_text(
+        "#!/bin/sh\nprintf '%s\\n' '{\"Version\":\"4.3.1\"}'\n",
+        encoding="utf-8",
+    )
+    binary.chmod(0o755)
+    assert probe_podman_version(str(binary)) == (4, 3, 1)
+
+
+def test_probe_without_podman_selects_the_hook(tmp_path):
+    from colophon.podman_args import probe_podman_version
+
+    assert probe_podman_version(str(tmp_path / "missing-podman")) == (4, 3, 0)
+
+
+def test_precreate_hook_writes_rlimit_as():
+    import json
+    import subprocess
+
+    from colophon.podman_args import hook_script_path
+
+    spec = {
+        "annotations": {"io.colophon.rlimit.as": "2147483648"},
+        "process": {
+            "args": ["colophon-sandbox-render"],
+            "rlimits": [{"type": "RLIMIT_NOFILE", "soft": 1024, "hard": 1024}],
+        },
+    }
+    completed = subprocess.run(
+        [sys.executable, str(hook_script_path())],
+        input=json.dumps(spec).encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    body = json.loads(completed.stdout)
+    by_type = {item["type"]: item for item in body["process"]["rlimits"]}
+    assert by_type["RLIMIT_AS"] == {
+        "type": "RLIMIT_AS",
+        "soft": 2147483648,
+        "hard": 2147483648,
+    }
+    assert by_type["RLIMIT_NOFILE"]["soft"] == 1024
+
+
+def test_precreate_hook_refuses_a_spec_without_the_ceiling():
+    import json
+    import subprocess
+
+    from colophon.podman_args import hook_script_path
+
+    completed = subprocess.run(
+        [sys.executable, str(hook_script_path())],
+        input=b'{"process":{"args":["colophon-sandbox-render"]}}',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode != 0
+    assert b"RLIMIT_AS" not in completed.stdout
+
+
+def test_hook_dir_points_at_the_precreate_script(tmp_path):
+    import json
+
+    from colophon.podman_args import ensure_rlimit_hook_dir, hook_script_path
+
+    directory = ensure_rlimit_hook_dir(tmp_path / "hooks")
+    payload = json.loads((directory / "01-rlimit-as.json").read_text(encoding="utf-8"))
+    assert payload["version"] == "1.0.0"
+    assert payload["stages"] == ["precreate"]
+    assert payload["when"]["always"] is True
+    assert payload["hook"]["path"] == str(hook_script_path())
+    assert Path(payload["hook"]["path"]).is_file()
 
 
 def test_worker_process_refuses_to_start_without_cpu(monkeypatch, tmp_path):
