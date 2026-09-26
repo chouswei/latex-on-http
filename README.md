@@ -7,8 +7,10 @@ they disagree with the upstream service.
 
 ## Colophon render worker
 
-The worker turns Markdown (with Mermaid, D2, and TikZ) or a TeX body into
-PDF, HTML, or DOCX. It runs as a dedicated rootless user beside other
+The worker turns Markdown (with TikZ) or a TeX body into PDF, HTML, or
+DOCX. Fenced Mermaid and D2 are refused before compilation
+(`rejectInvalidInput`, field `mermaid` or `d2`). It runs as a dedicated
+rootless user beside other
 containers on the host, and is reached only from the gateway. It does not
 deploy itself. Isolation comes from the per-job sandbox.
 
@@ -25,27 +27,24 @@ podman build --platform linux/arm64 \
 ```
 
 The image is multi-arch (`linux/arm64` and `linux/amd64`). It bakes a trimmed
-TeX Live, Pandoc 3.6.4, pandoc-ext/diagram, mermaid-cli with Debian Chromium,
-and d2. Package managers are not used at runtime. PIDcircuitTikZ is vendored
-because it is not a CTAN package; CircuiTikZ is the CTAN package `circuitikz`.
+TeX Live, Pandoc 3.6.4, and pandoc-ext/diagram with the TikZ engine only.
+Chromium, Node, mermaid-cli, and d2 are not installed. Package managers are
+not used at runtime. PIDcircuitTikZ is vendored because it is not a CTAN
+package; CircuiTikZ is the CTAN package `circuitikz`.
 `colophon-floorplan.sty` adds the floor-plan TikZ styles. See [NOTICE](NOTICE).
 
-An amd64 rootless Podman build of this image compiled a Traditional Chinese
-page with XeLaTeX, CircuiTikZ, a Mermaid diagram (headless Chromium as the
-non-root job user, `--network=none`, `--cap-drop=ALL`), and a D2 diagram.
 GitHub Actions workflow `arm64 CI, not Pi proof` builds the arm64 image on
-`ubuntu-24.04-arm` and runs the fixture suite, including Mermaid, under the
-same caps. That run is not a Raspberry Pi proof. The image passes
-`--no-sandbox` and `--disable-dev-shm-usage` to Chromium because the job
-user is not root and `/dev/shm` is not the writable tmpfs.
+`ubuntu-24.04-arm` and runs the LaTeX fixture suite under the same caps.
+That run is not a Raspberry Pi proof.
 
 Engine packages are loaded from `colophon-v1-preamble.tex`, which the TeX
 wrapper, the Pandoc template, and TikZ diagram blocks all input. A fence
 option cannot replace that list. `packages-once.tex` only checks that the
 packages are installed.
 
-The required fixture set is the document shell plus Mermaid, D2, P&ID,
-circuits, plots (a small 3D sample), chemistry, Gantt, and floor plans.
+The required fixture set is the document shell plus P&ID, circuits, plots
+(a small 3D sample), chemistry, Gantt, and floor plans. Mermaid and D2
+have no fixtures and do not report job meters.
 `tikz-cd`, `forest`, `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`,
 `tikz-timing`, and `bytefield` stay installed and have a smoke compile.
 They are not a sold kind. The tikz-feynman refusal stays.
@@ -189,25 +188,6 @@ and a 2048 MiB ceiling, the worst-case total is 256 × 2 GiB. In practice
 the total stays far below that. A TeX job spawns few processes, the worker
 runs one job at a time, and a new job is refused when MemAvailable is
 below 4096 MiB.
-
-Headless Chromium does not fit in that ceiling. Google Chrome 148
-`--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage
---dump-dom about:blank` maps about 49 GiB virtual per process while the
-resident set stays near 200 MiB. With no address-space cap it finished in
-under a second. From 2 GiB through 48 GiB it aborted at once. At 80 GiB
-and at 84 GiB the renderer died with V8
-`SegmentedTable::InitializeTable` out of memory. 88 GiB to 94 GiB depended
-on layout. 96 GiB succeeded on four runs, and 112 GiB and 128 GiB succeeded
-once each. Debian bookworm's `chromium` package, which Mermaid uses, was
-version 150.0.7871.100 in the bookworm index on 2026-09-26 and was not
-executed here. Expect the same kind of reservation. A Mermaid job can
-therefore fail at the default ceiling even when `--memory=2048m` would
-have allowed the resident set. For Chromium, set
-`COLOPHON_RLIMIT_AS_BYTES` to at least 103079215104 (96 GiB). On a host
-without the memory controller that value does not cap RAM. The load shed
-still refuses a new job when MemAvailable is below 4096 MiB. On a host
-with the memory controller, `--memory=2048m` remains the resident cap, and
-the ulimit still has to be high enough or Chromium dies first.
 
 Start (one process; threads serve abort and load while a job runs):
 

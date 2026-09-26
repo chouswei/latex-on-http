@@ -11,8 +11,9 @@
   build.
 * Floor-plan TikZ styles and the listed tlmgr packages are in the image.
   Shell-escape, `\write18`, minted, TikZ `external`, Asymptote, gnuplot,
-  epstopdf, the `svg` package, and automatic tikz-feynman layout are
-  refused before compilation. There is no Asymptote binary.
+  epstopdf, the `svg` package, automatic tikz-feynman layout, and fenced
+  Mermaid or D2 are refused before compilation. There is no Asymptote,
+  Mermaid, D2, Chromium, or Node binary.
 * `colophon-v1-preamble.tex` is the shared engine preamble for the TeX
   wrapper, the Pandoc template, and TikZ fences. Room area comes from the
   corner numbers. Dimension labels do not change under `scale=`.
@@ -32,9 +33,14 @@
   Other caps are unchanged (60 s, 20 MiB output, 256 pids, 512 MiB tmpfs,
   no network, shell-escape off, load shed at loadavg 3 or MemAvailable
   4096 MiB). The default ceiling fits the measured XeLaTeX and LuaLaTeX
-  jobs. It does not fit current headless Chromium; see the README.
-* The required fixture set is the document shell plus Mermaid, D2, P&ID,
-  circuits, plots, chemistry, Gantt, and floor plans. `tikz-cd`, `forest`,
+  jobs.
+* Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli
+  (`mmdc`), d2, and their pandoc-ext/diagram engines are not in the worker.
+  A Mermaid or D2 fence is `rejectInvalidInput`. Those kind fixtures are
+  gone, so they no longer emit job meters. The TikZ engine stays for
+  P&ID, circuits, plots, chemistry, Gantt, and floor plans.
+* The required fixture set is the document shell plus P&ID, circuits,
+  plots, chemistry, Gantt, and floor plans. `tikz-cd`, `forest`,
   `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
   `bytefield` stay installed with a smoke compile and are not a sold kind.
 * HTML and DOCX render fenced diagrams as images. Inline `siunitx` and

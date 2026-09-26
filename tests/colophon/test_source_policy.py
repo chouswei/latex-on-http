@@ -43,6 +43,10 @@ def _job(source, input_kind="tex"):
         ("\\usepackage{asymptote}", "asymptote"),
         ("\\begin{asy}\ndraw((0,0)--(1,1));\n\\end{asy}", "asymptote"),
         ("```asymptote\ndraw((0,0)--(1,0));\n```", "asymptote"),
+        ("```mermaid\ngraph TD\n  A-->B\n```", "mermaid"),
+        ("~~~{.mermaid}\ngraph TD\n  A-->B\n~~~", "mermaid"),
+        ("```d2\nA -> B\n```", "d2"),
+        ("``` {.d2}\nA -> B\n```", "d2"),
         ("\\usepackage{gnuplottex}", "gnuplot"),
         ("\\begin{gnuplot}\nplot x\n\\end{gnuplot}", "gnuplot"),
         ("\\usepackage{epstopdf}", "epstopdf"),
@@ -69,6 +73,8 @@ def test_negative_fixtures_are_refused():
         "reject-epstopdf.tex": "epstopdf",
         "reject-svg.tex": "svg",
         "reject-feynman-auto.tex": "feynman-auto",
+        "reject-mermaid.md": "mermaid",
+        "reject-d2.md": "d2",
     }
     for name, reason in expected.items():
         text = (FIXTURES / name).read_text(encoding="utf-8")
@@ -78,10 +84,14 @@ def test_negative_fixtures_are_refused():
 
 
 def test_prose_about_shell_escape_is_allowed():
-    parse_job(
-        _job("do not enable shell-escape in this note.", input_kind="markdown")
-    )
+    parse_job(_job("do not enable shell-escape in this note.", input_kind="markdown"))
     parse_job(_job("Use -no-shell-escape only.", input_kind="markdown"))
+    parse_job(
+        _job(
+            "Mermaid and D2 are not rendered. The words mermaid and d2 stay prose.",
+            input_kind="markdown",
+        )
+    )
 
 
 def test_manual_feynman_layout_is_allowed():
@@ -122,7 +132,7 @@ def test_compile_fixtures_exist_for_the_image_build():
 
 
 def test_required_kind_fixtures_are_the_sold_candidate_set():
-    """Document shell plus the eight sold-candidate kinds. Nothing else."""
+    """Document shell plus P&ID, circuits, plots, chemistry, Gantt, and floor plans."""
     kinds = FIXTURES / "kinds"
     names = sorted(path.name for path in kinds.iterdir())
     assert names == [
@@ -130,7 +140,6 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
         "chemistry.tex",
         "circuits.md",
         "circuits.tex",
-        "d2.md",
         "document-shell.md",
         "floorplan-scale.md",
         "floorplan-scale.tex",
@@ -138,7 +147,6 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
         "floorplan.tex",
         "gantt.md",
         "gantt.tex",
-        "mermaid.md",
         "pgfplots.md",
         "pgfplots.tex",
         "pidcircuit.md",
@@ -172,8 +180,7 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
     assert "scale=0.5" in half
     assert "\\documentclass" not in half
     reject_forbidden_source(half)
-    for extra in ("mermaid.md", "d2.md", "pidcircuit.tex"):
-        reject_forbidden_source((kinds / extra).read_text(encoding="utf-8"))
+    reject_forbidden_source((kinds / "pidcircuit.tex").read_text(encoding="utf-8"))
 
 
 def test_unsold_packages_keep_a_smoke_compile_only():
@@ -225,18 +232,48 @@ def test_shared_preamble_is_the_only_package_list():
     ):
         assert name in preamble
     for lane in ("Weft", "InstruMeasure", "Investor"):
-        wrapper = (
-            root / f"colophon/share/templates/{lane}/wrapper.tex"
-        ).read_text(encoding="utf-8")
-        template = (
-            root / f"colophon/share/templates/{lane}/pandoc.latex"
-        ).read_text(encoding="utf-8")
+        wrapper = (root / f"colophon/share/templates/{lane}/wrapper.tex").read_text(
+            encoding="utf-8"
+        )
+        template = (root / f"colophon/share/templates/{lane}/pandoc.latex").read_text(
+            encoding="utf-8"
+        )
         assert "\\input{colophon-v1-preamble.tex}" in wrapper
         assert "\\input{colophon-v1-preamble.tex}" in template
         assert "\\usepackage{circuitikz}" not in wrapper
         assert "\\usepackage{circuitikz}" not in template
     lock = (root / "colophon/share/lock-diagram.lua").read_text(encoding="utf-8")
     assert "\\input{colophon-v1-preamble.tex}" in lock
+    assert "mermaid" not in lock
+    assert "mmdc" not in lock
+    assert "d2:" not in lock
     diagram = (root / "vendor/diagram/diagram.lua").read_text(encoding="utf-8")
     assert "dgr_opt.opt[optname] = value" in diagram
     assert "dgr_opt.opt[optname] or value" not in diagram
+    assert "local mermaid" not in diagram
+    assert "local d2" not in diagram
+    assert "mmdc" not in diagram
+    assert "tikz      = tikz" in diagram
+
+
+def test_image_recipe_drops_mermaid_and_d2():
+    root = Path(__file__).resolve().parents[2]
+    docker = (root / "container/Dockerfile.colophon").read_text(encoding="utf-8")
+    for banned in (
+        "nodejs",
+        "npm install",
+        "puppeteer",
+        "mmdc-wrapper",
+        "D2_VERSION",
+        "MERMAID_CLI",
+        "chromium \\",
+    ):
+        assert banned not in docker
+    assert "must not be installed" in docker
+    assert "command -v d2" in docker
+    assert "command -v mmdc" in docker
+    assert "command -v chromium" in docker
+    assert not (root / "container/mmdc-wrapper").exists()
+    assert not (root / "container/puppeteer.json").exists()
+    assert not (root / "tests/colophon/fixtures/kinds/mermaid.md").exists()
+    assert not (root / "tests/colophon/fixtures/kinds/d2.md").exists()

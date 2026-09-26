@@ -147,29 +147,6 @@ local graphviz = {
   end,
 }
 
---- Mermaid engine
-local mermaid = {
-  line_comment_start = '%%',
-  mime_types = mime_types_set{'pdf', 'png', 'svg'},
-  compile = function (self, code)
-    local mime_type = self.mime_type or 'image/svg+xml'
-    local file_extension = extension_for_mimetype[mime_type]
-    return with_temporary_directory("diagram", function (tmpdir)
-      return with_working_directory(tmpdir, function ()
-        local infile = 'diagram.mmd'
-        local outfile = 'diagram.' .. file_extension
-        write_file(infile, code)
-        pipe(
-          self.execpath or 'mmdc',
-          {"--pdfFit", "--input", infile, "--output", outfile},
-          ''
-        )
-        return read_file(outfile), mime_type
-      end)
-    end)
-  end,
-}
-
 --- TikZ
 --
 
@@ -313,52 +290,12 @@ local cetz = {
   end,
 }
 
---- D2 engine for the D2 language
-local d2 = {
-  line_comment_start = '#',
-  mime_types = mime_types_set{'png', 'svg'},
-
-  compile = function (self, code, user_opts)
-    return with_temporary_directory('diagram', function (tmpdir)
-      return with_working_directory(tmpdir, function ()
-        -- D2 format identifiers correspond to common file extensions.
-        local mime_type = self.mime_type or 'image/svg+xml'
-        local file_extension = extension_for_mimetype[mime_type]
-        local infile = 'diagram.d2'
-        local outfile = 'diagram.' .. file_extension
-
-        args = {'--bundle', '--pad=0', '--scale=1'}
-
-        d2_user_opts = {
-          'layout',
-        }
-        for _, d2_user_opt in pairs(d2_user_opts) do
-          if user_opts[d2_user_opt] then
-            table.insert(args, '--' .. d2_user_opt .. '=' .. user_opts[d2_user_opt])
-          end
-        end
-
-        table.insert(args, infile)
-        table.insert(args, outfile)
-
-        write_file(infile, code)
-
-        pipe(self.execpath or 'd2', args, '')
-
-        return read_file(outfile), mime_type
-      end)
-    end)
-  end,
-}
-
 local default_engines = {
   asymptote = asymptote,
   dot       = graphviz,
-  mermaid   = mermaid,
   plantuml  = plantuml,
   tikz      = tikz,
   cetz      = cetz,
-  d2        = d2,
 }
 
 --

@@ -2,7 +2,8 @@
 #
 # arm64 and amd64. Everything the job needs is installed here. The container
 # has no network at runtime, and tlmgr is removed so a job cannot fetch
-# packages. Build-time downloads (Pandoc, d2, npm) are not runtime fetches.
+# packages. The only build-time download is Pandoc. Mermaid, D2, Chromium,
+# and Node are not installed.
 #
 # PIDcircuitTikZ has no CTAN package name (checked 2026-09-26). It is vendored
 # from jellespijker/PIDcircuitTikZ (MIT). CircuiTikZ is the separate CTAN
@@ -15,22 +16,16 @@ ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     DEBIAN_FRONTEND=noninteractive \
     PATH="/usr/local/bin:${PATH}" \
-    PYTHONPATH=/opt/colophon \
-    PUPPETEER_SKIP_DOWNLOAD=1 \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 \
-    D2_LAYOUT=dagre
+    PYTHONPATH=/opt/colophon
 
 RUN apt-get update -qq \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
-        chromium \
         curl \
         fontconfig \
         fonts-noto-cjk \
         inkscape \
         librsvg2-bin \
-        nodejs \
-        npm \
         python3 \
         xz-utils \
     && apt-get install -y \
@@ -47,7 +42,6 @@ RUN apt-get update -qq \
 # is 2.x. Binaries are pinned; TARGETARCH selects arm64 or amd64.
 ARG TARGETARCH
 ARG PANDOC_VERSION=3.6.4
-ARG D2_VERSION=0.7.1
 RUN set -eu; \
     arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
     case "$arch" in amd64|arm64) ;; *) echo "unsupported arch $arch"; exit 1 ;; esac; \
@@ -55,27 +49,13 @@ RUN set -eu; \
         "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-${arch}.tar.gz"; \
     tar -C /tmp -xzf /tmp/pandoc.tar.gz; \
     install -m 0755 "/tmp/pandoc-${PANDOC_VERSION}/bin/pandoc" /usr/local/bin/pandoc; \
-    rm -rf /tmp/pandoc.tar.gz "/tmp/pandoc-${PANDOC_VERSION}"; \
-    curl -fsSL -o /tmp/d2.tar.gz \
-        "https://github.com/d2lang/d2/releases/download/v${D2_VERSION}/d2-v${D2_VERSION}-linux-${arch}.tar.gz"; \
-    mkdir -p /tmp/d2; \
-    tar -C /tmp/d2 -xzf /tmp/d2.tar.gz; \
-    d2bin="$(find /tmp/d2 -type f -name d2 | head -n 1)"; \
-    test -n "$d2bin"; \
-    install -m 0755 "$d2bin" /usr/local/bin/d2; \
-    rm -rf /tmp/d2 /tmp/d2.tar.gz
+    rm -rf /tmp/pandoc.tar.gz "/tmp/pandoc-${PANDOC_VERSION}"
 
-ARG MERMAID_CLI_VERSION=11.4.2
-RUN npm install -g --prefix /opt/mermaid "@mermaid-js/mermaid-cli@${MERMAID_CLI_VERSION}" \
-    && test -x /usr/bin/chromium
-
-COPY container/puppeteer.json /etc/colophon/puppeteer.json
 COPY container/xelatex-nonescape /usr/local/bin/xelatex-nonescape
 COPY container/pdflatex-nonescape /usr/local/bin/pdflatex
-COPY container/mmdc-wrapper /usr/local/bin/mmdc
 COPY container/colophon-sandbox-render /usr/local/bin/colophon-sandbox-render
 RUN chmod 0755 /usr/local/bin/xelatex-nonescape /usr/local/bin/pdflatex \
-        /usr/local/bin/mmdc /usr/local/bin/colophon-sandbox-render \
+        /usr/local/bin/colophon-sandbox-render \
     && ln -sf /usr/local/bin/xelatex-nonescape /usr/local/bin/xelatex
 
 COPY vendor/pidcircuittikz/ /usr/local/share/texmf/tex/latex/pidcircuittikz/
@@ -130,8 +110,11 @@ RUN set -eu; \
     kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
     python3 /tmp/colophon-bake-package-set.py; \
     rm -f /tmp/colophon-bake-package-set.py; \
-    if command -v asy >/dev/null || command -v asymptote >/dev/null; then \
-      echo "asymptote binary must not be installed"; \
+    if command -v asy >/dev/null || command -v asymptote >/dev/null \
+        || command -v d2 >/dev/null || command -v mmdc >/dev/null \
+        || command -v chromium >/dev/null || command -v node >/dev/null \
+        || command -v npm >/dev/null; then \
+      echo "asymptote, d2, mmdc, chromium, and node must not be installed"; \
       exit 1; \
     fi; \
     fc-list : family | grep -F "Noto Sans CJK TC"; \
@@ -160,8 +143,6 @@ RUN set -eu; \
       /tmp/job.* /tmp/body.tex /tmp/input.* /tmp/out.*; \
     command -v pandoc; \
     command -v xelatex; \
-    command -v d2; \
-    command -v mmdc; \
     command -v inkscape; \
     python3 -c 'import colophon.sandbox_render'; \
     for lane in InstruMeasure Weft Investor; do \
@@ -174,7 +155,7 @@ RUN set -eu; \
     apt-get purge -y curl poppler-utils; \
     apt-get purge -y wget || true; \
     apt-get autoremove -y; \
-    rm -rf /var/lib/apt/lists/* /root/.npm
+    rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 10001 colophon \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin colophon \

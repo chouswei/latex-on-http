@@ -94,9 +94,9 @@ def test_render_error_json_includes_the_diagnostic(config, switch_path, monitor,
     from colophon.runner import Supervisor
 
     diagnostic = {
-        "engine": "mermaid",
+        "engine": "tikz",
         "message": "boom at line 2",
-        "file": "diagram.mmd",
+        "file": "tikz-image.tex",
         "line": 2,
         "fence": 0,
     }

@@ -1,3 +1,0 @@
-#!/bin/sh
-# mermaid-cli, with the baked Chromium config. No browser download.
-exec /opt/mermaid/bin/mmdc --puppeteerConfigFile /etc/colophon/puppeteer.json "$@"

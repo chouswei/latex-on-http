@@ -19,6 +19,8 @@ EXPECT = {
     "reject-epstopdf.tex": "epstopdf",
     "reject-svg.tex": "svg",
     "reject-feynman-auto.tex": "feynman-auto",
+    "reject-mermaid.md": "mermaid",
+    "reject-d2.md": "d2",
 }
 
 

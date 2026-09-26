@@ -1,11 +1,13 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Refuse TeX directives that need shell escape or an outside program.
+"""Refuse TeX directives and diagram fences the worker does not render.
 
-Checked before any compiler is started. Patterns match directives, not
-prose: a sentence such as "do not enable shell-escape" is allowed.
-The image also has no Asymptote binary, no network, and ``shell_escape = f``.
+Checked before any compiler is started. Patterns match directives and
+fences, not prose: a sentence such as "do not enable shell-escape" or
+"Mermaid and D2 are not rendered" is allowed. The image has no
+Asymptote, Mermaid, D2, Chromium, or Node binary, no network, and
+``shell_escape = f``.
 """
 
 import re
@@ -24,10 +26,19 @@ _TIKZ_EXTERNAL = re.compile(
     r"\\(?:usetikzlibrary\s*\{[^}]*\bexternal\b|tikzexternalize|tikzsetexternalprefix)",
     re.IGNORECASE,
 )
+_FENCE = r"(?:`{3,}|~{3,})"
 _ASYMPTOTE = re.compile(
     r"\\usepackage\s*(?:\[[^\]]*\]\s*)?\{[^}]*\basymptote\b"
     r"|\\begin\s*\{(?:asy|asymptote)\}"
-    r"|```+\s*\{?\.?\s*(?:asymptote|asy)\b",
+    r"|" + _FENCE + r"[ \t]*(?:\.?(?:asymptote|asy)\b|\{\s*\.?(?:asymptote|asy)\b)",
+    re.IGNORECASE,
+)
+_MERMAID = re.compile(
+    _FENCE + r"[ \t]*(?:\.?mermaid\b|\{\s*\.?mermaid\b)",
+    re.IGNORECASE,
+)
+_D2 = re.compile(
+    _FENCE + r"[ \t]*(?:\.?d2\b|\{\s*\.?d2\b)",
     re.IGNORECASE,
 )
 _GNUPLOT = re.compile(
@@ -70,6 +81,10 @@ def reject_forbidden_source(source):
         raise JobRejected("tikz-external")
     if _ASYMPTOTE.search(source):
         raise JobRejected("asymptote")
+    if _MERMAID.search(source):
+        raise JobRejected("mermaid")
+    if _D2.search(source):
+        raise JobRejected("d2")
     if _GNUPLOT.search(source):
         raise JobRejected("gnuplot")
     if _EPSTOPDF.search(source):

@@ -27,8 +27,7 @@ compile service.
   time, few TeX processes, and the MemAvailable shed bound it). An
   allocation failure is `failCapHit`, the same outcome as an early
   SIGKILL. The 2048 MiB default is enough for the measured XeLaTeX and
-  LuaLaTeX jobs and is not enough for current headless Chromium; see the
-  README. The container is removed afterwards. The result is returned in
+  LuaLaTeX jobs. The container is removed afterwards. The result is returned in
   the HTTP response and is not kept.
 - LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
   the image texmf). The host compiler path raises rather than running TeX
@@ -55,14 +54,15 @@ compile service.
   but URL, git, tar, and cache resources are rejected, and the only compiler
   is XeLaTeX.
 - The image bakes a trimmed TeX Live (XeLaTeX, xeCJK, Noto CJK TC, TikZ,
-  CircuiTikZ) plus Pandoc, the pandoc-ext/diagram Lua filter, mermaid-cli
-  with headless Chromium, d2, and a vendored PIDcircuitTikZ. There is no
-  runtime package fetch and no Tectonic. `tlmgr` is removed from the image.
-  No Asymptote binary is installed. Jobs that ask for shell-escape,
-  `\write18`, minted, the TikZ `external` library, Asymptote, gnuplot,
-  epstopdf, the `svg` package, `\feynmandiagram`, or an un-starred
-  `\diagram` are refused before compilation. The patterns match TeX
-  directives, not prose. `\vertex` and `\diagram*` stay allowed.
+  CircuiTikZ) plus Pandoc, the pandoc-ext/diagram Lua filter (TikZ engine
+  only), and a vendored PIDcircuitTikZ. Chromium, Node, mermaid-cli, and
+  d2 are not installed. There is no runtime package fetch and no Tectonic.
+  `tlmgr` is removed from the image. No Asymptote binary is installed.
+  Jobs that ask for shell-escape, `\write18`, minted, the TikZ `external`
+  library, Asymptote, gnuplot, epstopdf, the `svg` package,
+  `\feynmandiagram`, an un-starred `\diagram`, or a fenced Mermaid or D2
+  block are refused before compilation. The patterns match TeX directives
+  and fences, not prose. `\vertex` and `\diagram*` stay allowed.
   `packages-once.tex` is an install check only.
 - TeX Live packages, by tlmgr name and not via `scheme-full`: `circuitikz`,
   `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`, `tikz-feynman`,
@@ -91,15 +91,16 @@ compile service.
   file is pure TeX.
 - A failed render returns a result class (`ok`, `failTimeout`,
   `failCapHit`, `renderError`, or `refused`), wall time, `memory.peak` and
-  `pids.peak` from the job cgroup, and on a render error the first TeX,
-  Mermaid, or D2 diagnostic (message, file, line, fence index). When the
+  `pids.peak` from the job cgroup, and on a render error the first TeX
+  or TikZ diagram diagnostic (message, file, line, fence index). When the
   sandbox reports it, `memory.mode` is `cgroup` or `rlimit`. The success
   body stays the artifact. Meters for a success are the `X-Colophon-Job`
   header. `X-Colophon-Result` stays `ok`. Without the memory controller,
   `memory.peak` is null.
-- Sold-candidate kinds are Mermaid, D2, P&ID, circuits, plots (pgfplots,
-  including a small 3D sample), chemistry, Gantt, and floor plans, plus
-  the document shell. A kind is not claimed sold here. `tikz-cd`, `forest`,
+- Sold-candidate kinds are P&ID, circuits, plots (pgfplots, including a
+  small 3D sample), chemistry, Gantt, and floor plans, plus the document
+  shell. Mermaid and D2 are not kinds. A kind is not claimed sold here.
+  `tikz-cd`, `forest`,
   `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
   `bytefield` stay in the preamble and are smoke-compiled only. The
   tikz-feynman refusal of `\feynmandiagram` and un-starred `\diagram` stays.
@@ -120,7 +121,7 @@ Third-party pieces added with this fork
 - pandoc-ext/diagram, commit 5aaf35e6f775ddf501045fe28b03642ee73db2f4,
   MIT, with local edits (see vendor/diagram/README.md). SHA-256 of the
   vendored diagram.lua:
-  291962e1f1b496d2067afea63e82fb23ef70029484f2242c4587d4049e3b35b7.
+  f37001cabcda9061264552523eb36ba22ecc328f7026dae4b5bc14599b98da1b.
   Debian `librsvg2-bin` supplies `rsvg-convert`, which Pandoc uses to place
   SVG diagrams in a PDF.
 - PIDcircuitTikZ by Jelle Spijker, MIT. There is no CTAN package of this

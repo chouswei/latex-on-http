@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Compile the sold-candidate kinds, plus a short smoke set.
 
-The required set is the document shell and eight diagram kinds: Mermaid,
-D2, P&ID, circuits, plots, chemistry, Gantt, and floor plans. Each job
-reports job meters. Floor-plan PDFs must show the same labels at
-scale=1 and scale=0.5.
+The required set is the document shell and six LaTeX diagram kinds: P&ID,
+circuits, plots, chemistry, Gantt, and floor plans. Mermaid and D2 are
+not rendered. Each remaining job reports job meters. Floor-plan PDFs
+must show the same labels at scale=1 and scale=0.5.
 
 tikz-cd, forest, automata, mindmap, tikz-3dplot, tikz-feynman,
 tikz-timing, and bytefield stay installed. Their smoke compiles are not
@@ -28,7 +28,6 @@ REQUIRED = (
     "chemistry.tex",
     "circuits.md",
     "circuits.tex",
-    "d2.md",
     "document-shell.md",
     "floorplan-scale.md",
     "floorplan-scale.tex",
@@ -36,7 +35,6 @@ REQUIRED = (
     "floorplan.tex",
     "gantt.md",
     "gantt.tex",
-    "mermaid.md",
     "pgfplots.md",
     "pgfplots.tex",
     "pidcircuit.md",

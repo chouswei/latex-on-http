@@ -3,7 +3,8 @@
 --
 -- Runs before pandoc-ext/diagram and replaces any document diagram metadata.
 -- Callers cannot point TikZ at a shell-escape binary or turn on engines that
--- fetch tools. The YAML is parsed by Pandoc so the types match the filter.
+-- fetch tools. Mermaid and D2 are not engines in this filter. The YAML is
+-- parsed by Pandoc so the types match the filter.
 
 function Meta(meta)
   local locked = pandoc.read([[
@@ -11,9 +12,6 @@ function Meta(meta)
 diagram:
   cache: false
   engine:
-    d2: true
-    mermaid:
-      execpath: /usr/local/bin/mmdc
     tikz:
       execpath: /usr/local/bin/xelatex-nonescape
       additional-packages: |

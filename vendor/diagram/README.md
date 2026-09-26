@@ -20,3 +20,5 @@ Local changes:
   compile does not pass `header-includes`.
 - A failed diagram writes one `COLOPHON_DIAG` line (engine, message, fence
   index) and stops the render. The fence index is 0-based.
+- The Mermaid and D2 engines are removed. Colophon v1 renders LaTeX kinds
+  only. Those fences are refused before Pandoc runs.
