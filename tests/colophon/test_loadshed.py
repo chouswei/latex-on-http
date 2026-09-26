@@ -81,6 +81,28 @@ def _assert_reported_at(value):
     assert observed.utcoffset() == timedelta(0)
 
 
+def test_host_load_busy_is_the_job_lock_not_the_load(
+    config, switch_path, supervisor, auth
+):
+    """loadAvg1m 5.06 with no job: busy stays false, and the job is shed."""
+    monitor = LoadMonitor(reader=lambda: (5.06, 8192))
+    monitor.sample()
+    app = create_app(config, KillSwitch(switch_path), monitor, supervisor)
+    client = app.test_client()
+    response = client.get("/v1/host-load", headers=auth)
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["loadAvg1m"] == 5.06
+    assert body["busy"] is False
+    refused = client.post("/v1/jobs", json=valid_body(), headers=auth)
+    assert refused.status_code == 429
+    refused_body = refused.get_json()
+    assert refused_body["error"] == "rejectLoadShed"
+    assert refused_body["reason"] == "loadavg"
+    assert refused_body["load"]["busy"] is False
+    assert refused_body["load"]["loadAvg1m"] == 5.06
+
+
 def test_host_load_report_shape(client, auth):
     response = client.get("/v1/host-load", headers=auth)
     assert response.status_code == 200

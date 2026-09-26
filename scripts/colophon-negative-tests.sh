@@ -34,13 +34,16 @@ TOKEN = os.environ["COLOPHON_WORKER_TOKEN"]
 IMAGE = os.environ["COLOPHON_IMAGE"]
 PODMAN = os.environ["COLOPHON_PODMAN"]
 CAP = 20 * 1024 * 1024
-# Measured on TeX Live 2023: uncompressed pdf:literal of 400 bytes grows the
-# PDF by 455 bytes per iteration, plus about 3170 bytes of fixed overhead.
-# 45508 iterations lands about 256 KiB under 20 MiB. 46229 lands about 64 KiB
-# over. The wrapper's unused packages added well under 256 KiB in the same
-# measurement, so the under-cap job stays under and the over-cap job does not.
+# Measured on TeX Live 2023 with a page break every 2000 iterations:
+# an uncompressed pdf:literal of 400 bytes grows the PDF by 455 bytes per
+# iteration, plus about 3170 bytes of fixed overhead. 45508 iterations lands
+# about 256 KiB under 20 MiB. 46229 lands about 64 KiB over. One page of
+# 45508 specials exceeds TeX main_memory (5000000) and returns 422 before
+# a PDF exists. Shipping out every 2000 iterations stays inside that memory
+# and still crosses the 20 MiB output cap.
 UNDER_ITERS = 45508
 OVER_ITERS = 46229
+PAGE_ITEMS = 2000
 SMOKE = (
     "circuits.tex",
     "pgfplots.tex",
@@ -100,10 +103,13 @@ def expansion(iterations):
     return (
         "\\special{dvipdfmx:config z 0}\n"
         "\\newcount\\i\n"
+        "\\newcount\\n\n"
         "\\loop\n"
         f"\\ifnum\\i<{iterations}\n"
         "  \\advance\\i by 1\n"
+        "  \\advance\\n by 1\n"
         "  \\special{pdf:literal (" + chunk + ")}\n"
+        f"  \\ifnum\\n={PAGE_ITEMS} \\newpage \\n=0 \\fi\n"
         "\\repeat\n"
         "Done.\n"
     )
@@ -197,6 +203,52 @@ for source in (
         fail(f"write18 status {status} body {payload}")
     if payload.get("field") != "write18" or payload.get("result") != "refused":
         fail(f"write18 body {payload}")
+
+print("D5 lualatex cannot be selected")
+for path, payload_in in (
+    (
+        "/v1/jobs",
+        {**job("Hello."), "compiler": "lualatex"},
+    ),
+    (
+        "/builds/sync",
+        {
+            "compiler": "lualatex",
+            "lane": "InstruMeasure",
+            "outputFormat": "pdf",
+            "inputKind": "tex",
+            "resources": [{"main": True, "content": "Hello."}],
+        },
+    ),
+):
+    status, _headers, body, _elapsed = request("POST", path, payload_in)
+    payload = expect_json(status, _headers, body, _elapsed)
+    if status != 400 or payload.get("error") != "rejectInvalidInput":
+        fail(f"lualatex {path} {status} {payload}")
+    if payload.get("field") != "compiler":
+        fail(f"lualatex field {payload}")
+
+print("D5 directlua is refused")
+status, _headers, body, _elapsed = request(
+    "POST", "/v1/jobs", job("\\directlua{os.execute([[echo PWNED]])}")
+)
+payload = expect_json(status, _headers, body, _elapsed)
+if status != 400 or payload.get("error") != "rejectInvalidInput":
+    fail(f"directlua {status} {payload}")
+if payload.get("field") != "directlua":
+    fail(f"directlua field {payload}")
+
+print("documentclass is refused")
+status, _headers, body, _elapsed = request(
+    "POST",
+    "/v1/jobs",
+    job("\\documentclass{article}\nHello."),
+)
+payload = expect_json(status, _headers, body, _elapsed)
+if status != 400 or payload.get("field") != "documentclass":
+    fail(f"documentclass {status} {payload}")
+if payload.get("error") != "rejectInvalidInput":
+    fail(f"documentclass error {payload}")
 
 print("small PDF")
 status, _headers, body, _elapsed = request("POST", "/v1/jobs", job("Hello."))
@@ -314,10 +366,13 @@ with tempfile.TemporaryDirectory() as tmp:
         f"-output-directory=/tmp /work/write18.tex >/tmp/xe.log 2>&1 || true; "
         f"if [ -e {proof} ]; then echo WRITE18_RAN; exit 1; fi; "
         "echo WRITE18_REFUSED; "
-        "/usr/bin/lualatex -no-shell-escape -interaction=nonstopmode "
-        "-output-directory=/tmp /work/lua.tex >/tmp/lua.log 2>&1 || true; "
+        "if ! command -v lualatex >/dev/null 2>&1; then echo LUALATEX_NOT_REACHABLE; exit 0; fi; "
+        "/usr/bin/lualatex -no-shell-escape -interaction=nonstopmode -halt-on-error "
+        "-output-directory=/tmp /work/lua.tex >/tmp/lua.out 2>&1 || true; "
         "if [ -e /tmp/colophon-osexec.txt ]; then echo LUA_RAN; exit 1; fi; "
-        "grep -H COLOPHON_LUA /tmp/lua.log /tmp/lua.aux || true"
+        "if grep -H COLOPHON_LUA /tmp/lua.log /tmp/lua.out /tmp/lua.aux 2>/dev/null; then exit 0; fi; "
+        "echo LUALATEX_NOT_REACHABLE; "
+        "grep -m 3 -E '^!|format file' /tmp/lua.log /tmp/lua.out || true"
     )
     ran = podman(
         "run",
@@ -340,9 +395,16 @@ with tempfile.TemporaryDirectory() as tmp:
     text = ran.stdout.decode("utf-8", "replace") + ran.stderr.decode("utf-8", "replace")
     if ran.returncode != 0 or "WRITE18_REFUSED" not in text:
         fail(f"in-image write18\n{text}")
-    if "COLOPHON_LUA exec=ran" in text or "COLOPHON_LUA popen=ran" in text:
+    if "COLOPHON_LUA exec=ran" in text or "COLOPHON_LUA popen=ran" in text or "LUA_RAN" in text:
         fail(f"in-image lua ran\n{text}")
-    if "COLOPHON_LUA exec=" not in text:
+    proved = "COLOPHON_LUA exec=" in text
+    unreachable = "LUALATEX_NOT_REACHABLE" in text
+    if proved:
+        if "exec=nil" not in text and "exec=refused" not in text:
+            fail(f"in-image lua exec was not refused\n{text}")
+        if "popen=nil" not in text and "popen=refused" not in text:
+            fail(f"in-image lua popen was not refused\n{text}")
+    elif not unreachable:
         fail(f"in-image lua report missing\n{text}")
     print(text.strip())
 

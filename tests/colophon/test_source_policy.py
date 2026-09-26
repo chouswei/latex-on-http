@@ -36,6 +36,7 @@ def _job(source, input_kind="tex"):
         ("\\immediate\\write18{echo no}", "write18"),
         ("\\write 18 {echo no}", "write18"),
         ("\\ShellEscape", "shell-escape"),
+        ("\\directlua{os.execute([[echo]])}", "directlua"),
         ("\\usepackage{minted}", "minted"),
         ("\\begin{minted}{python}\n", "minted"),
         ("\\usetikzlibrary{calc,external}", "tikz-external"),
@@ -86,6 +87,7 @@ def test_negative_fixtures_are_refused():
 def test_prose_about_shell_escape_is_allowed():
     parse_job(_job("do not enable shell-escape in this note.", input_kind="markdown"))
     parse_job(_job("Use -no-shell-escape only.", input_kind="markdown"))
+    parse_job(_job("The word directlua is not a command.", input_kind="markdown"))
     parse_job(
         _job(
             "Mermaid and D2 are not rendered. The words mermaid and d2 stay prose.",

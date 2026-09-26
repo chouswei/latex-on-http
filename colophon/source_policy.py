@@ -14,6 +14,9 @@ import re
 
 _WRITE18 = re.compile(r"\\write\s*18\b", re.IGNORECASE)
 _SHELL = re.compile(r"\\shellescape\b", re.IGNORECASE)
+# Jobs run XeLaTeX. LuaTeX is not a selectable engine, and the image does
+# not build the lualatex format. \directlua is refused before compile.
+_DIRECTLUA = re.compile(r"\\directlua\b", re.IGNORECASE)
 _MINTED_PACKAGE = re.compile(
     r"\\usepackage\s*(?:\[[^\]]*\]\s*)?\{[^}]*\bminted\b",
     re.IGNORECASE,
@@ -75,6 +78,8 @@ def reject_forbidden_source(source):
         raise JobRejected("write18")
     if _SHELL.search(source):
         raise JobRejected("shell-escape")
+    if _DIRECTLUA.search(source):
+        raise JobRejected("directlua")
     if _MINTED_PACKAGE.search(source) or _MINTED_USE.search(source):
         raise JobRejected("minted")
     if _TIKZ_EXTERNAL.search(source):

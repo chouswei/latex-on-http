@@ -44,6 +44,42 @@ def test_tex_documentclass_rejected():
     assert caught.value.reason == "documentclass"
 
 
+def test_http_rejects_documentclass(client, auth, runner):
+    response = client.post(
+        "/v1/jobs",
+        json=valid_body(
+            inputKind="tex",
+            input="\\documentclass{article}\nHello.",
+        ),
+        headers=auth,
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"] == "rejectInvalidInput"
+    assert body["field"] == "documentclass"
+    assert body["result"] == "refused"
+    assert runner.calls == []
+
+
+def test_lualatex_compiler_is_rejected(client, auth, runner):
+    response = client.post(
+        "/v1/jobs",
+        json=valid_body(compiler="lualatex"),
+        headers=auth,
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"] == "rejectInvalidInput"
+    assert body["field"] == "compiler"
+    assert runner.calls == []
+
+
+def test_omitted_compiler_stays_xelatex(client, auth, runner):
+    response = client.post("/v1/jobs", json=valid_body(), headers=auth)
+    assert response.status_code == 200
+    assert runner.calls[0].source == "Hello"
+
+
 def test_http_rejects_unknown_lane(client, auth, runner):
     response = client.post("/v1/jobs", json=valid_body(lane="Public"), headers=auth)
     assert response.status_code == 400

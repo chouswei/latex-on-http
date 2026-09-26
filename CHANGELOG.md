@@ -43,8 +43,13 @@
 * `GET /v1/host-load` is the token-gated load report. JSON keys are
   `loadAvg1m`, `memAvailableMiB`, `busy`, `stale`, `intervalSec`,
   `readable`, and `reportedAt` (UTC, ISO-8601 with a `+00:00` offset).
+  `busy` means a job holds the worker, not that the load average is high.
   `stale: true` is a shed. `readable: false` is HTTP 503. There is no
   `/load` path. `POST /v1/jobs/abort` kills the running container.
+* A tex job is a body fragment inside a fixed `\documentclass{article}`
+  wrapper with no class options. `\documentclass` in that body is
+  `rejectInvalidInput` field `documentclass`. The engine is XeLaTeX.
+  `compiler` other than `xelatex`, and `\directlua`, are refused.
 * Rootless storage on the Pi must be `driver=overlay` with
   `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
 * Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli

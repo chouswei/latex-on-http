@@ -2,8 +2,10 @@
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from colophon.limits import OUTPUT_CAP_BYTES
 from colophon.runner import (
@@ -174,3 +176,44 @@ def test_timeout_is_not_a_render_error():
         )
         == "rejectRenderError"
     )
+
+
+def test_output_cap_script_breaks_the_page_every_2000_specials():
+    script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "colophon-negative-tests.sh"
+    ).read_text(encoding="utf-8")
+    assert "PAGE_ITEMS = 2000" in script
+    assert "\\newpage" in script
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_paged_specials_do_not_exhaust_tex_main_memory(tmp_path):
+    chunk = "A" * 400
+    iterations = 6000
+    tex = (
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\special{dvipdfmx:config z 0}\n"
+        "\\newcount\\i\n\\newcount\\n\n\\loop\n"
+        f"\\ifnum\\i<{iterations}\n  \\advance\\i by 1\n  \\advance\\n by 1\n"
+        "  \\special{pdf:literal (" + chunk + ")}\n"
+        "  \\ifnum\\n=2000 \\newpage \\n=0 \\fi\n"
+        "\\repeat\nDone.\n\\end{document}\n"
+    )
+    (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
+    completed = subprocess.run(
+        [
+            "xelatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "job.tex",
+        ],
+        cwd=tmp_path,
+        check=False,
+        timeout=60,
+        capture_output=True,
+    )
+    log = (tmp_path / "job.log").read_text(encoding="utf-8", errors="replace")
+    assert completed.returncode == 0, log[-500:]
+    assert "main memory" not in log
+    assert (tmp_path / "job.pdf").stat().st_size > 2 * 1024 * 1024

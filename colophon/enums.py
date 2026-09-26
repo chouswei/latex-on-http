@@ -52,6 +52,12 @@ def parse_job(payload):
         raise JobRejected("inputKind")
     if not isinstance(source, str) or source == "":
         raise JobRejected("input")
+    # Absent means XeLaTeX. Any other value is a request for another engine.
+    if "compiler" in payload and payload.get("compiler") != "xelatex":
+        raise JobRejected("compiler")
+    # The tex body is inserted into a fixed \documentclass{article} wrapper.
+    # The substring match is exact and case-sensitive; the caller supplies
+    # no class and no class options.
     if input_kind == "tex" and "\\documentclass" in source:
         raise JobRejected("documentclass")
     reject_forbidden_source(source)

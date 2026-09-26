@@ -258,7 +258,7 @@ the bearer token is missing or wrong. `Cache-Control` is `no-store`.
 | --- | --- | --- |
 | `loadAvg1m` | number or `null` | 1-minute load average (`/proc/loadavg` field 1). |
 | `memAvailableMiB` | integer or `null` | `MemAvailable` in MiB. |
-| `busy` | boolean | True while a job holds the worker. |
+| `busy` | boolean | True only while a job holds the single worker slot. It is not the load average. Load 5.06 with no job is `busy: false` and `loadAvg1m: 5.06`; that job is still refused as `rejectLoadShed` with reason `loadavg`. |
 | `stale` | boolean | True when the sample is older than 30 s, or could not be read. A caller sheds on `stale: true`. |
 | `intervalSec` | integer | Sample interval, 10. |
 | `readable` | boolean | False when the sample could not be read. That is also HTTP 503. |
@@ -289,7 +289,7 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 | `rejectBusy` | 429, `Retry-After` | `refused` | none when the worker is already busy |
 | `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the `GET /v1/host-load` object; `busy` is `false`) |
 | `rejectKillSwitch` | 403 | `refused` | `readable`, `engaged` |
-| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `inputKind`, `input`, `documentclass`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
+| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `inputKind`, `input`, `compiler`, `documentclass`, `directlua`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
 | `rejectSpawnFail` | 500 | `refused` | none |
 | `rejectRenderError` | 422 | `renderError` | `diagnostic` when the sandbox reported one: `engine`, `message`, `file`, `line`, `fence` |
 | `failTimeout` | 408 | `failTimeout` | none |
@@ -297,6 +297,34 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 
 A request body over 16 MiB is `rejectInvalidInput` with `field` `input`
 (HTTP 400).
+
+### Job input
+
+`POST /v1/jobs` accepts a JSON object with these fields:
+
+| Field | Accepted value |
+| --- | --- |
+| `lane` | `InstruMeasure`, `Weft`, or `Investor` |
+| `outputFormat` | `pdf`, `html`, or `docx` |
+| `inputKind` | `tex` or `markdown` |
+| `input` | A non-empty string. For `tex`, this is the document body only. |
+| `compiler` | Optional. Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
+
+There is no document-class field and no class-option field. The caller does
+not pick the class. Every lane uses `\documentclass{article}` with no
+options. For `inputKind` `tex` and `outputFormat` `pdf`, that line is the
+lane wrapper, and `input` replaces `__BODY__` between `\begin{document}` and
+`\end{document}`. The wrapper then loads fontspec, xeCJK, Noto Sans CJK TC,
+graphicx, booktabs, longtable, hyperref, and `colophon-v1-preamble.tex`, and
+sets `\ColophonLane` to the lane name. Markdown, and tex that is not PDF,
+go through the lane Pandoc template, which is also `\documentclass{article}`
+with no options.
+
+A `tex` input that contains the substring `\documentclass` is HTTP 400
+`error` `rejectInvalidInput` `field` `documentclass`. The match is
+case-sensitive. `\directlua` is the same status with `field` `directlua`:
+the job engine is XeLaTeX, and LuaTeX is not selectable. The image does not
+install the `lualatex` format (`texlive-luatex` is not in the image).
 
 `403` `rejectKillSwitch` when the switch file is missing or unreadable:
 
