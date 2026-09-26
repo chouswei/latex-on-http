@@ -1,0 +1,8 @@
+% Negative fixture. The worker must reject this before XeLaTeX starts.
+\usepackage{asymptote}
+\begin{asy}
+draw((0,0)--(1,1));
+\end{asy}
+```asymptote
+draw((0,0)--(1,0));
+```

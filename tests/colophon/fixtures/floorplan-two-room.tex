@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{siunitx}
+\usepackage{tikz}
+\usepackage{colophon-floorplan}
+\begin{document}
+\begin{tikzpicture}[/floorplan/plan-scale=500]
+  \draw[floorplan wall] (0,0) -- (0.4,0);
+  \draw[floorplan wall] (1.3,0) -- (2.2,0);
+  \draw[floorplan wall] (3.2,0) -- (4,0) -- (4,3) -- (0,3) -- (0,0);
+  \draw[floorplan wall] (4,0) -- (7,0) -- (7,3) -- (4,3);
+  \tikzset{floorplan door={(0.4,0)}{(1.3,0)}}
+  \tikzset{floorplan window={(2.2,0)}{(3.2,0)}}
+  \node at (2,1.6) [floorplan room label={Room A}{3}];
+  \node at (5.5,1.6) [floorplan room label={Room B}{2.25}];
+  \tikzset{floorplan dimension={(0,-0.7)}{(4,-0.7)}}
+  \tikzset{floorplan dimension={(4,-0.7)}{(7,-0.7)}}
+  \begin{scope}[shift={(0,-1.8)}]
+    \tikzset{floorplan scale bar}
+  \end{scope}
+  \begin{scope}[shift={(7.8,2.2)}]
+    \tikzset{floorplan north arrow}
+  \end{scope}
+\end{tikzpicture}
+\end{document}

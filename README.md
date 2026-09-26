@@ -28,7 +28,7 @@ The image is multi-arch (`linux/arm64` and `linux/amd64`). It bakes a trimmed
 TeX Live, Pandoc 3.6.4, pandoc-ext/diagram, mermaid-cli with Debian Chromium,
 and d2. Package managers are not used at runtime. PIDcircuitTikZ is vendored
 because it is not a CTAN package; CircuiTikZ is the CTAN package `circuitikz`.
-See [NOTICE](NOTICE).
+`colophon-floorplan.sty` adds the floor-plan TikZ styles. See [NOTICE](NOTICE).
 
 An amd64 rootless Podman build of this image compiled a Traditional Chinese
 page with XeLaTeX, CircuiTikZ, a Mermaid diagram (headless Chromium as the

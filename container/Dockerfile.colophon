@@ -79,6 +79,17 @@ RUN chmod 0755 /usr/local/bin/xelatex-nonescape /usr/local/bin/pdflatex \
     && ln -sf /usr/local/bin/xelatex-nonescape /usr/local/bin/xelatex
 
 COPY vendor/pidcircuittikz/ /usr/local/share/texmf/tex/latex/pidcircuittikz/
+# tlmgr package names, not scheme-full. Debian texlive-pictures and
+# texlive-science already ship these packages; the verify step checks each
+# one and fails the build if a file is missing.
+#   circuitikz siunitx pgfplots chemfig mhchem tikz-3dplot tikz-feynman
+#   tikz-cd forest tikz-timing bytefield pgfgantt tikz-dimline tikzscale pgf
+COPY colophon/share/tex/latex/colophon-floorplan/ /usr/local/share/texmf/tex/latex/colophon-floorplan/
+COPY tests/colophon/fixtures/packages-once.tex /tmp/colophon-fixtures/packages-once.tex
+COPY tests/colophon/fixtures/floorplan-two-room.tex /tmp/colophon-fixtures/floorplan-two-room.tex
+COPY tests/colophon/fixtures/reject-shell-escape.tex /tmp/colophon-fixtures/reject-shell-escape.tex
+COPY tests/colophon/fixtures/reject-asymptote.tex /tmp/colophon-fixtures/reject-asymptote.tex
+COPY container/check_fixture_refusals.py /tmp/colophon-check-refusals.py
 COPY vendor/diagram/diagram.lua /usr/local/share/colophon/diagram.lua
 COPY colophon/share/ /usr/local/share/colophon/
 COPY colophon/ /opt/colophon/colophon/
@@ -90,17 +101,50 @@ RUN set -eu; \
     mktexlsr; \
     fc-cache -f; \
     kpsewhich circuitikz.sty; \
+    kpsewhich siunitx.sty; \
+    kpsewhich pgfplots.sty; \
+    kpsewhich chemfig.sty; \
+    kpsewhich mhchem.sty; \
+    kpsewhich tikz-3dplot.sty; \
+    kpsewhich tikz-feynman.sty; \
+    kpsewhich tikzlibrarycd.code.tex; \
+    kpsewhich forest.sty; \
+    kpsewhich tikz-timing.sty; \
+    kpsewhich bytefield.sty; \
+    kpsewhich pgfgantt.sty; \
+    kpsewhich tikz-dimline.sty; \
+    kpsewhich tikzscale.sty; \
     kpsewhich tikz.sty; \
+    kpsewhich tikzlibraryshapes.code.tex; \
+    kpsewhich pgflibraryarrows.meta.code.tex; \
+    kpsewhich tikzlibrarypositioning.code.tex; \
+    kpsewhich tikzlibrarycalc.code.tex; \
+    kpsewhich tikzlibraryautomata.code.tex; \
+    kpsewhich tikzlibrarymindmap.code.tex; \
+    kpsewhich colophon-floorplan.sty; \
     kpsewhich xeCJK.sty; \
     kpsewhich fontspec.sty; \
-    kpsewhich siunitx.sty; \
     kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
+    if command -v asy >/dev/null || command -v asymptote >/dev/null; then \
+      echo "asymptote binary must not be installed"; \
+      exit 1; \
+    fi; \
     fc-list : family | grep -F "Noto Sans CJK TC"; \
     sed 's/__BODY__/繁體中文/' \
         /usr/local/share/colophon/templates/Weft/wrapper.tex > /tmp/cjk.tex; \
     xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp /tmp/cjk.tex; \
     test -s /tmp/cjk.pdf; \
     rm -f /tmp/cjk.tex /tmp/cjk.pdf /tmp/cjk.aux /tmp/cjk.log /tmp/cjk.out; \
+    cd /tmp; \
+    xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp \
+      /tmp/colophon-fixtures/packages-once.tex; \
+    test -s /tmp/packages-once.pdf; \
+    xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp \
+      /tmp/colophon-fixtures/floorplan-two-room.tex; \
+    test -s /tmp/floorplan-two-room.pdf; \
+    python3 /tmp/colophon-check-refusals.py; \
+    rm -rf /tmp/colophon-fixtures /tmp/packages-once.* /tmp/floorplan-two-room.* \
+      /tmp/colophon-tikzscale-once.tikz /tmp/colophon-check-refusals.py; \
     command -v pandoc; \
     command -v xelatex; \
     command -v d2; \

@@ -1,0 +1,101 @@
+% Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+% Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% Floor-plan TikZ styles. Pure TeX: no shell escape and no outside program.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{colophon-floorplan}[2026/09/26 Colophon floor-plan styles]
+
+\RequirePackage{tikz}
+\RequirePackage{siunitx}
+\RequirePackage{tikz-dimline}
+\usetikzlibrary{calc,arrows.meta}
+
+\pgfkeys{
+  /floorplan/.is family,
+  /floorplan,
+  % Real millimetres represented by one TikZ centimetre.
+  plan-scale/.initial=500,
+  wall thickness/.initial=0.16cm,
+  door swing/.initial=90,
+}
+
+% One TikZ centimetre is 28.45274pt. pgf lengths from \pgfpointdiff are in pt.
+\newcommand{\colophonfloorplan@cmtopt}{28.45274}
+
+\newcommand{\colophonfloorplan@setends}[2]{%
+  \path #1 coordinate (colophon floorplan a);
+  \path #2 coordinate (colophon floorplan b);
+  \pgfpointdiff{\pgfpointanchor{colophon floorplan a}{center}}{\pgfpointanchor{colophon floorplan b}{center}}%
+  \pgfmathsetmacro{\colophonfloorplan@cm}{veclen(\pgf@x,\pgf@y)/\colophonfloorplan@cmtopt}%
+  \pgfmathanglebetweenpoints{\pgfpointanchor{colophon floorplan a}{center}}{\pgfpointanchor{colophon floorplan b}{center}}%
+  \let\colophonfloorplan@angle\pgfmathresult
+}
+
+\newcommand{\colophonfloorplan@dimlabel}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
+  \pgfmathsetmacro{\colophonfloorplan@realmm}{\colophonfloorplan@cm*\colophonfloorplan@scale}%
+  \pgfmathparse{\colophonfloorplan@realmm < 1000 ? 1 : 0}%
+  \ifnum\pgfmathresult=1
+    \pgfmathprintnumberto[fixed,precision=0,assume math mode=true]{\colophonfloorplan@realmm}{\colophonfloorplan@num}%
+    \qty{\colophonfloorplan@num}{\milli\metre}%
+  \else
+    \pgfmathsetmacro{\colophonfloorplan@realm}{\colophonfloorplan@realmm/1000}%
+    \pgfmathprintnumberto[fixed,precision=2,assume math mode=true]{\colophonfloorplan@realm}{\colophonfloorplan@num}%
+    \qty{\colophonfloorplan@num}{\metre}%
+  \fi
+}
+
+\tikzset{
+  floorplan wall/.code={%
+    \pgfkeysalso{%
+      line cap=rect,
+      line width=0.4pt,
+      double,
+      double distance=\pgfkeysvalueof{/floorplan/wall thickness},
+    }%
+  },
+  floorplan door/.code 2 args={%
+    \colophonfloorplan@setends{#1}{#2}%
+    \pgfkeysgetvalue{/floorplan/door swing}{\colophonfloorplan@swing}%
+    \draw[thin] (colophon floorplan a) -- (colophon floorplan b);
+    \draw[thin] (colophon floorplan b) arc[%
+      start angle=\colophonfloorplan@angle,
+      delta angle=\colophonfloorplan@swing,
+      radius=\colophonfloorplan@cm cm%
+    ];
+  },
+  floorplan window/.code 2 args={%
+    \colophonfloorplan@setends{#1}{#2}%
+    \draw[line width=0.7pt] (colophon floorplan a) -- (colophon floorplan b);
+    \draw[line width=0.35pt, double distance=0.12cm, double]
+      (colophon floorplan a) -- (colophon floorplan b);
+  },
+  floorplan room label/.style 2 args={%
+    align=center,
+    font=\sffamily,
+    inner sep=1pt,
+    node contents={#1\\[0.15em]\qty{#2}{\square\metre}},
+  },
+  floorplan scale bar/.code={%
+    \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
+    \pgfmathsetmacro{\colophonfloorplan@bar}{1000/\colophonfloorplan@scale}%
+    \draw[line cap=rect] (0,0) -- (\colophonfloorplan@bar,0);
+    \draw (0,-0.08) -- (0,0.08);
+    \draw (\colophonfloorplan@bar,-0.08) -- (\colophonfloorplan@bar,0.08);
+    \node[above=2pt, font=\small\sffamily, inner sep=1pt] at
+      ({\colophonfloorplan@bar/2},0) {\qty{1}{\metre}};
+  },
+  floorplan north arrow/.code={%
+    \draw[-{Stealth}, line width=0.8pt] (0,0) -- (0,0.9);
+    \node[above=1pt, font=\small\sffamily, inner sep=0pt] at (0,0.9) {N};
+  },
+  floorplan dimension/.code 2 args={%
+    \colophonfloorplan@setends{#1}{#2}%
+    \dimline[%
+      extension start length=0.22cm,
+      extension end length=0.22cm,
+      label style={font=\small, inner sep=1pt, fill=white},
+    ]{#1}{#2}{\colophonfloorplan@dimlabel}%
+  },
+}

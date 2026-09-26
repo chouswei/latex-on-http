@@ -7,6 +7,9 @@
   `COLOPHON_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.
   Host-side LaTeX is disabled. See NOTICE.
 * `GET /version` returns the git commit or tag baked at build time.
+* Floor-plan TikZ styles and the listed tlmgr packages are in the image.
+  Shell-escape, `\write18`, minted, TikZ `external`, and Asymptote are
+  refused before compilation. There is no Asymptote binary.
 * Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the
   `xelatex` engine name (the no-shell-escape wrapper is first on `PATH`).
   HTML responses embed diagram resources. SVG diagrams in PDF go through

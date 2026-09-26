@@ -5,6 +5,8 @@
 
 from dataclasses import dataclass
 
+from colophon.source_policy import reject_forbidden_source
+
 LANES = ("InstruMeasure", "Weft", "Investor")
 OUTPUT_FORMATS = ("pdf", "html", "docx")
 INPUT_KINDS = ("markdown", "tex")
@@ -52,6 +54,7 @@ def parse_job(payload):
         raise JobRejected("input")
     if input_kind == "tex" and "\\documentclass" in source:
         raise JobRejected("documentclass")
+    reject_forbidden_source(source)
     return JobSpec(
         source=source,
         input_kind=input_kind,
