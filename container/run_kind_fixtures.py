@@ -5,7 +5,7 @@
 
 The required set is the document shell and eight diagram kinds: Mermaid,
 D2, P&ID, circuits, plots, chemistry, Gantt, and floor plans. Each job
-reports cgroup meters. Floor-plan PDFs must show the same labels at
+reports job meters. Floor-plan PDFs must show the same labels at
 scale=1 and scale=0.5.
 
 tikz-cd, forest, automata, mindmap, tikz-3dplot, tikz-feynman,
@@ -62,13 +62,17 @@ def _repo_root():
 def _render(payload, *, image, podman):
     raw = json.dumps(payload).encode("utf-8")
     if image:
+        from colophon.cgroup_caps import CpuControllerMissing
         from colophon.podman_args import build_podman_run_args
 
-        args = build_podman_run_args(
-            podman=podman,
-            image=image,
-            name=f"colophon-kind-{uuid.uuid4().hex[:12]}",
-        )
+        try:
+            args = build_podman_run_args(
+                podman=podman,
+                image=image,
+                name=f"colophon-kind-{uuid.uuid4().hex[:12]}",
+            )
+        except CpuControllerMissing as exc:
+            sys.exit(f"refusing to start: {exc}")
     else:
         args = [sys.executable, "-m", "colophon.sandbox_render"]
     completed = subprocess.run(

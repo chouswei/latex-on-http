@@ -17,7 +17,15 @@
   wrapper, the Pandoc template, and TikZ fences. Room area comes from the
   corner numbers. Dimension labels do not change under `scale=`.
 * A job result carries a result class, wall time, cgroup `memory.peak` and
-  `pids.peak`, and on a render error the first diagnostic.
+  `pids.peak`, and on a render error the first diagnostic. `memory.mode`
+  is `cgroup` or `rlimit` when the sandbox reports it.
+* Each job sets `--ulimit as=` (`COLOPHON_RLIMIT_AS_BYTES`, default
+  2147483648). `--memory` is passed only when the memory controller is
+  present. A missing `cpu` controller refuses startup. Other caps are
+  unchanged (60 s, 20 MiB output, 256 pids, 512 MiB tmpfs, no network,
+  shell-escape off, load shed at loadavg 3 or MemAvailable 4096 MiB).
+  The default ceiling fits the measured XeLaTeX and LuaLaTeX jobs. It does
+  not fit current headless Chromium; see the README.
 * The required fixture set is the document shell plus Mermaid, D2, P&ID,
   circuits, plots, chemistry, Gantt, and floor plans. `tikz-cd`, `forest`,
   `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and

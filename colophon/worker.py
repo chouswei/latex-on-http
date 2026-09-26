@@ -53,6 +53,7 @@ def _error(kind, *, retry_after=None, extra=None, outcome=None):
             outcome.memory_peak,
             outcome.pids_peak,
             diagnostic,
+            memory_mode=outcome.memory_mode,
         )
     body["error"] = kind
     if extra:
@@ -139,6 +140,7 @@ def create_app(config, switch, monitor, supervisor):
                 warnings=notation_warnings(
                     job.source, job.input_kind, job.output_format
                 ),
+                memory_mode=outcome.memory_mode,
             ),
             separators=(",", ":"),
         )

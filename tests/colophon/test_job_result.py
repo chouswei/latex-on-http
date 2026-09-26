@@ -36,6 +36,22 @@ def test_first_tex_error_skips_warnings():
     assert "Undefined" in found["message"]
 
 
+def test_parse_stderr_exposes_a_reported_memory_mode():
+    stderr = b'COLOPHON_METERS {"memoryPeak":100,"pidsPeak":7,"memoryMode":"rlimit"}\n'
+    meters, diagnostic = parse_stderr(stderr)
+    assert diagnostic is None
+    assert meters["memoryMode"] == "rlimit"
+    record = job_record("ok", 0.4, 100, 7, memory_mode=meters["memoryMode"])
+    assert record["memory"] == {"peak": 100, "mode": "rlimit"}
+
+
+def test_unknown_memory_mode_is_left_out():
+    stderr = b'COLOPHON_METERS {"memoryPeak":1,"pidsPeak":2,"memoryMode":"swap"}\n'
+    meters, _diagnostic = parse_stderr(stderr)
+    assert "memoryMode" not in meters
+    assert "mode" not in job_record("ok", 0.1, 1, 2, memory_mode="swap")["memory"]
+
+
 def test_parse_stderr_reads_meters_and_the_first_diagnostic():
     stderr = (
         b'COLOPHON_DIAG {"engine":"tikz","message":"fail at line 4","file":null,"line":null,"fence":0}\n'
@@ -49,10 +65,12 @@ def test_parse_stderr_reads_meters_and_the_first_diagnostic():
     assert diagnostic["line"] == 4
 
 
-def test_invalid_render_emits_meters(capsys):
+def test_invalid_render_emits_meters(capsys, monkeypatch):
+    monkeypatch.setenv("COLOPHON_MEMORY_MODE", "rlimit")
     assert render_to_stdout(b"not-json") == 12
     err = capsys.readouterr().err
     assert "COLOPHON_METERS " in err
+    assert '"memoryMode":"rlimit"' in err
     assert "COLOPHON_STATUS invalid" in err
 
 
@@ -94,7 +112,9 @@ def test_render_error_json_includes_the_diagnostic(config, switch_path, monitor,
         def __call__(self, job, name, abort_event):
             return outcome
 
-    app = create_app(config, KillSwitch(switch_path), monitor, Supervisor(_Runner(), 10))
+    app = create_app(
+        config, KillSwitch(switch_path), monitor, Supervisor(_Runner(), 10)
+    )
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
     assert response.status_code == 422
     body = response.get_json()
@@ -125,10 +145,38 @@ def test_success_keeps_the_artifact_and_puts_meters_in_a_header(
         def __call__(self, job, name, abort_event):
             return outcome
 
-    app = create_app(config, KillSwitch(switch_path), monitor, Supervisor(_Runner(), 10))
+    app = create_app(
+        config, KillSwitch(switch_path), monitor, Supervisor(_Runner(), 10)
+    )
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
     assert response.status_code == 200
     assert response.data == b"%PDF-1.4"
     assert response.headers["X-Colophon-Result"] == "ok"
     record = json.loads(response.headers["X-Colophon-Job"])
     assert record == job_record("ok", 0.5, 100, 3)
+
+
+def test_success_header_exposes_the_memory_mode(config, switch_path, monitor, auth):
+    from colophon.killswitch import KillSwitch
+    from colophon.runner import Supervisor
+
+    outcome = Outcome(
+        kind="ok",
+        body=b"%PDF-1.4",
+        content_type="application/pdf",
+        wall_sec=0.5,
+        memory_peak=100,
+        pids_peak=3,
+        memory_mode="cgroup",
+    )
+
+    class _Runner:
+        def __call__(self, job, name, abort_event):
+            return outcome
+
+    app = create_app(
+        config, KillSwitch(switch_path), monitor, Supervisor(_Runner(), 10)
+    )
+    response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
+    record = json.loads(response.headers["X-Colophon-Job"])
+    assert record["memory"] == {"peak": 100, "mode": "cgroup"}

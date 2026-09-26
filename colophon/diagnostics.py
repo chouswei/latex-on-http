@@ -60,6 +60,9 @@ def parse_stderr(stderr):
             if isinstance(parsed, dict):
                 meters["memoryPeak"] = parsed.get("memoryPeak")
                 meters["pidsPeak"] = parsed.get("pidsPeak")
+                mode = parsed.get("memoryMode")
+                if mode in ("cgroup", "rlimit"):
+                    meters["memoryMode"] = mode
         elif line.startswith("COLOPHON_DIAG ") and diagnostic is None:
             try:
                 parsed = json.loads(line.split(" ", 1)[1])

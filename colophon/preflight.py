@@ -8,12 +8,14 @@ import os
 import socket
 from dataclasses import dataclass
 
+from colophon.cgroup_caps import read_host_controllers
+
 FOREIGN_SOCKETS = (
     "/var/run/docker.sock",
     "/run/docker.sock",
     "/run/podman/podman.sock",
 )
-_REQUIRED_CONTROLLERS = frozenset({"cpu", "memory", "pids"})
+_REQUIRED_CONTROLLERS = frozenset({"cpu", "pids"})
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,7 @@ class Check:
     name: str
     passed: bool
     detail: str
+    warn: bool = False
 
 
 def cgroup_v2_in_use(mounts):
@@ -64,9 +67,26 @@ def evaluate(probe: PreflightProbe):
     delegated = controllers_delegated(probe.controllers)
     checks.append(
         Check(
-            "delegated controllers (cpu memory pids)",
+            "delegated controllers (cpu pids)",
             delegated,
             "present" if delegated else "missing or unreadable",
+        )
+    )
+    if probe.controllers is None:
+        memory_detail = "unreadable; per-job RLIMIT_AS ceiling"
+        memory_warn = True
+    elif "memory" in probe.controllers.split():
+        memory_detail = "present"
+        memory_warn = False
+    else:
+        memory_detail = "absent; per-job RLIMIT_AS ceiling"
+        memory_warn = True
+    checks.append(
+        Check(
+            "memory controller",
+            True,
+            memory_detail,
+            warn=memory_warn,
         )
     )
     in_docker = "docker" in probe.group_names
@@ -100,34 +120,18 @@ def evaluate(probe: PreflightProbe):
 def format_report(checks):
     lines = []
     for check in checks:
-        state = "pass" if check.passed else "fail"
+        if check.warn:
+            state = "warn"
+        elif check.passed:
+            state = "pass"
+        else:
+            state = "fail"
         lines.append(f"{check.name}: {state} ({check.detail})")
     return "\n".join(lines) + "\n"
 
 
 def report_ok(checks):
     return all(check.passed for check in checks)
-
-
-def _own_cgroup_controllers():
-    try:
-        lines = open("/proc/self/cgroup", encoding="utf-8").read().splitlines()
-    except OSError:
-        return None
-    relative = None
-    for line in lines:
-        parts = line.split(":", 2)
-        if len(parts) == 3 and parts[0] == "0" and parts[1] == "":
-            relative = parts[2]
-            break
-    if relative is None:
-        return None
-    path = "/sys/fs/cgroup" + (relative if relative.startswith("/") else "/" + relative)
-    try:
-        with open(path + "/cgroup.controllers", encoding="utf-8") as handle:
-            return handle.read()
-    except OSError:
-        return None
 
 
 def _group_names():
@@ -174,9 +178,10 @@ def probe_host():
         mounts = ""
     accessible = tuple(path for path in FOREIGN_SOCKETS if _socket_accessible(path))
     listable = tuple(path for path in FOREIGN_SOCKETS if _list_answered(path))
+    available = read_host_controllers()
     return PreflightProbe(
         mounts=mounts,
-        controllers=_own_cgroup_controllers(),
+        controllers=" ".join(sorted(available)),
         group_names=_group_names(),
         accessible_sockets=accessible,
         listable_sockets=listable,

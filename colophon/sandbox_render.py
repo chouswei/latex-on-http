@@ -4,6 +4,7 @@
 """In-container render. Stdout is the artifact; nothing is kept afterwards."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +32,24 @@ def _read_int(paths):
     return None
 
 
+def _memory_mode():
+    """``cgroup`` when the launcher applied ``--memory``, else ``rlimit``.
+
+    The launcher sets ``COLOPHON_MEMORY_MODE``. A direct sandbox run falls
+    back to the container's own controller list.
+    """
+    raw = os.environ.get("COLOPHON_MEMORY_MODE", "").strip()
+    if raw in ("cgroup", "rlimit"):
+        return raw
+    try:
+        text = Path("/sys/fs/cgroup/cgroup.controllers").read_text(encoding="utf-8")
+    except OSError:
+        return "rlimit"
+    if "memory" in text.split():
+        return "cgroup"
+    return "rlimit"
+
+
 def _emit_meters():
     payload = {
         "memoryPeak": _read_int(
@@ -40,6 +59,7 @@ def _emit_meters():
             )
         ),
         "pidsPeak": _read_int(("/sys/fs/cgroup/pids.peak",)),
+        "memoryMode": _memory_mode(),
     }
     sys.stderr.write(
         "COLOPHON_METERS " + json.dumps(payload, separators=(",", ":")) + "\n"

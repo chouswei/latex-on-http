@@ -7,7 +7,13 @@ import os
 from dataclasses import dataclass
 
 from colophon.bindaddr import BindError, validate_bind_address
-from colophon.limits import RETRY_AFTER_SEC, SANDBOX_USER
+from colophon.limits import (
+    DEFAULT_RLIMIT_AS_BYTES,
+    RETRY_AFTER_SEC,
+    SANDBOX_USER,
+    LimitError,
+    rlimit_as_bytes,
+)
 
 
 class ConfigError(RuntimeError):
@@ -25,6 +31,7 @@ class WorkerConfig:
     podman: str
     retry_after_sec: int
     sandbox_user: str = SANDBOX_USER
+    rlimit_as_bytes: int = DEFAULT_RLIMIT_AS_BYTES
 
 
 def _required(environ, name):
@@ -67,6 +74,10 @@ def load_config(environ=None):
         raise ConfigError("COLOPHON_PORT is unreadable")
     if retry_after <= 0:
         raise ConfigError("COLOPHON_RETRY_AFTER_SEC is unreadable")
+    try:
+        as_bytes = rlimit_as_bytes(env)
+    except LimitError as exc:
+        raise ConfigError(str(exc)) from exc
     return WorkerConfig(
         bind_address=bind_address,
         allowed_cidr=cidr_raw,
@@ -76,4 +87,5 @@ def load_config(environ=None):
         image=image,
         podman=podman,
         retry_after_sec=retry_after,
+        rlimit_as_bytes=as_bytes,
     )

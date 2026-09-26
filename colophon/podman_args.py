@@ -3,24 +3,58 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Exact ``podman run`` argument list for one throwaway job."""
 
+import logging
+
+from colophon.cgroup_caps import require_cpu_controller
 from colophon.limits import (
     MEMORY_MIB,
     PIDS_LIMIT,
     SANDBOX_USER,
     TMPFS_MIB,
     WALL_SEC,
+    rlimit_as_bytes,
 )
 
+logger = logging.getLogger(__name__)
 
-def build_podman_run_args(*, podman, image, name, user=SANDBOX_USER):
+
+def build_podman_run_args(
+    *,
+    podman,
+    image,
+    name,
+    user=SANDBOX_USER,
+    controllers=None,
+    as_bytes=None,
+):
     """Return the argv for one sandboxed job.
 
     The container has no network, a read-only root, one 512 MiB tmpfs, a
-    non-root user, one CPU, 2048 MiB of memory, a 256-pid cap, and a 60 s
-    wall clock. ``--rm`` removes it when the process exits. The caller still
+    non-root user, one CPU, a 256-pid cap, a 60 s wall clock, and an
+    ``RLIMIT_AS`` ceiling (``--ulimit as=``, default 2048 MiB). ``--memory``
+    and ``--memory-swap`` are passed only when the memory controller is
+    available. Without it, Podman would fail the start or ignore the cap, so
+    those flags are omitted and a warning is logged. The address-space
+    ceiling stays. A missing ``cpu`` controller raises
+    ``CpuControllerMissing`` and the caller must not start the container.
+    ``--rm`` removes the container when the process exits. The caller still
     issues ``podman rm -f`` afterwards so a failed ``--rm`` cannot leave it.
     """
-    return [
+    found = require_cpu_controller(controllers)
+    if as_bytes is None:
+        ceiling = rlimit_as_bytes()
+    else:
+        ceiling = int(as_bytes)
+        if ceiling <= 0:
+            raise ValueError("RLIMIT_AS ceiling must be a positive number of bytes")
+    memory_mode = "cgroup" if "memory" in found else "rlimit"
+    if memory_mode == "rlimit":
+        logger.warning(
+            "cgroup memory controller is not available; omitting --memory "
+            "and applying RLIMIT_AS %s bytes",
+            ceiling,
+        )
+    args = [
         podman,
         "run",
         "--rm",
@@ -33,32 +67,46 @@ def build_podman_run_args(*, podman, image, name, user=SANDBOX_USER):
         "--user",
         user,
         "--cpus=1",
-        f"--memory={MEMORY_MIB}m",
-        f"--memory-swap={MEMORY_MIB}m",
-        f"--pids-limit={PIDS_LIMIT}",
-        f"--timeout={WALL_SEC}",
-        "--cap-drop=ALL",
-        "--security-opt=no-new-privileges",
-        "--workdir=/tmp",
-        "--env",
-        "HOME=/tmp",
-        "--env",
-        "TMPDIR=/tmp",
-        "--env",
-        "XDG_CACHE_HOME=/tmp/cache",
-        "--env",
-        "XDG_CONFIG_HOME=/tmp/config",
-        "--env",
-        "TEXMFVAR=/tmp/texmf-var",
-        "--env",
-        "TEXMFHOME=/tmp/texmf-home",
-        "--env",
-        "LANG=C.UTF-8",
-        "--log-driver=none",
-        "-i",
-        image,
-        "colophon-sandbox-render",
+        "--ulimit",
+        f"as={ceiling}",
     ]
+    if memory_mode == "cgroup":
+        args.extend(
+            [
+                f"--memory={MEMORY_MIB}m",
+                f"--memory-swap={MEMORY_MIB}m",
+            ]
+        )
+    args.extend(
+        [
+            f"--pids-limit={PIDS_LIMIT}",
+            f"--timeout={WALL_SEC}",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "--workdir=/tmp",
+            "--env",
+            "HOME=/tmp",
+            "--env",
+            "TMPDIR=/tmp",
+            "--env",
+            "XDG_CACHE_HOME=/tmp/cache",
+            "--env",
+            "XDG_CONFIG_HOME=/tmp/config",
+            "--env",
+            "TEXMFVAR=/tmp/texmf-var",
+            "--env",
+            "TEXMFHOME=/tmp/texmf-home",
+            "--env",
+            "LANG=C.UTF-8",
+            "--env",
+            f"COLOPHON_MEMORY_MODE={memory_mode}",
+            "--log-driver=none",
+            "-i",
+            image,
+            "colophon-sandbox-render",
+        ]
+    )
+    return args
 
 
 def build_podman_kill_args(*, podman, name):

@@ -13,8 +13,16 @@ The fork is the Colophon render worker. It is not the upstream hosted
 compile service.
 
 - Each job runs in a new rootless Podman container (`--network=none`,
-  read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 2048 MiB memory,
-  256 pids, 60 s wall clock, 20 MiB output cap). The container is removed
+  read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 256 pids, 60 s wall
+  clock, 20 MiB output cap). The address-space ceiling is `--ulimit as=`
+  (`RLIMIT_AS`, default 2048 MiB, `COLOPHON_RLIMIT_AS_BYTES`).
+  `--memory=2048m` and `--memory-swap=2048m` are set only when the cgroup
+  memory controller is available. Without it (for example
+  `cgroup_disable=memory`) those flags are omitted and the process logs a
+  warning. A missing `cpu` controller refuses startup. `RLIMIT_AS` limits
+  virtual address space, not resident set size. The 2048 MiB default is
+  enough for the measured XeLaTeX and LuaLaTeX jobs and is not enough for
+  current headless Chromium; see the README. The container is removed
   afterwards. The result is returned in the HTTP response and is not kept.
 - LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
   the image texmf). The host compiler path raises rather than running TeX
@@ -78,9 +86,11 @@ compile service.
 - A failed render returns a result class (`ok`, `failTimeout`,
   `failCapHit`, `renderError`, or `refused`), wall time, `memory.peak` and
   `pids.peak` from the job cgroup, and on a render error the first TeX,
-  Mermaid, or D2 diagnostic (message, file, line, fence index). The success
+  Mermaid, or D2 diagnostic (message, file, line, fence index). When the
+  sandbox reports it, `memory.mode` is `cgroup` or `rlimit`. The success
   body stays the artifact. Meters for a success are the `X-Colophon-Job`
-  header. `X-Colophon-Result` stays `ok`.
+  header. `X-Colophon-Result` stays `ok`. Without the memory controller,
+  `memory.peak` is null.
 - Sold-candidate kinds are Mermaid, D2, P&ID, circuits, plots (pgfplots,
   including a small 3D sample), chemistry, Gantt, and floor plans, plus
   the document shell. A kind is not claimed sold here. `tikz-cd`, `forest`,

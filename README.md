@@ -59,9 +59,12 @@ notation as source text and adds a `notationPdfOnly` warning to
 
 Create a user that is not in the `docker` group and has no access to
 `/var/run/docker.sock` or the rootful Podman socket. Enable lingering so the
-user manager stays up, and delegate the cgroup v2 `cpu`, `memory`, and `pids`
+user manager stays up, and delegate the cgroup v2 `cpu` and `pids`
 controllers to that user (systemd user delegation, or the equivalent
-`cgroup.subtree_control` on the user slice).
+`cgroup.subtree_control` on the user slice). Delegate `memory` as well when
+the kernel has that controller. A boot with `cgroup_disable=memory` has no
+memory controller; the worker still installs, and each job uses the
+address-space ceiling below instead of `--memory`.
 
 ```sh
 sudo useradd --create-home --shell /bin/bash colophon
@@ -77,8 +80,10 @@ above. Do not mount the Docker socket into the user session.
 sudo -u colophon -H bash -lc 'cd /opt/colophon && uv sync'
 ```
 
-Preflight (non-zero if any check fails; it does not stop or inspect other
-containers on the host beyond a list attempt on foreign sockets):
+Preflight (non-zero if any required check fails; it does not stop or inspect
+other containers on the host beyond a list attempt on foreign sockets). A
+missing memory controller is a warning, not a failure. A missing `cpu` or
+`pids` controller fails closed:
 
 ```sh
 sudo -u colophon -H bash -lc 'cd /opt/colophon && uv run python -m colophon.preflight'
@@ -108,6 +113,8 @@ COLOPHON_KILL_SWITCH_FILE=/home/colophon/.config/colophon/kill-switch
 COLOPHON_IMAGE=colophon-render:local
 COLOPHON_PORT=8080
 COLOPHON_GIT_COMMIT=unknown
+# Optional. Per-job RLIMIT_AS ceiling in bytes. Default 2147483648 (2048 MiB).
+# COLOPHON_RLIMIT_AS_BYTES=2147483648
 ```
 
 Set `COLOPHON_GIT_COMMIT` to the same commit or tag passed to the image
@@ -122,6 +129,69 @@ token is the shared worker token from the gateway, sent as
 `Retry-After` defaults to 10 seconds. Request bodies above 16 MiB are
 refused.
 
+### Per-job caps
+
+Every job is one rootless container: no network, read-only root, 512 MiB
+tmpfs, uid 10001, `--pids-limit=256`, `--timeout=60`, shell-escape off, and
+`--cpus=1`. Output over 20 MiB is `failCapHit`. A second job is refused.
+Load above 3.0, or MemAvailable below 4096 MiB, sheds the job.
+
+The memory ceiling is always `--ulimit as=<bytes>` (`RLIMIT_AS`). The
+default is 2147483648 bytes (2048 MiB), from `COLOPHON_RLIMIT_AS_BYTES`.
+That limit is virtual address space, not resident set size.
+
+`--memory=2048m` and `--memory-swap=2048m` are added only when the memory
+controller is available. The worker reads `/sys/fs/cgroup/cgroup.controllers`
+and, when the process is in the user slice, that slice's
+`cgroup.subtree_control`. If `memory` is missing (including
+`cgroup_disable=memory`), those two flags are omitted and the process logs
+a warning. Podman then cannot fail the start, or silently drop the cap,
+because of `--memory`. The address-space ceiling remains. If `cpu` is
+missing, the worker refuses to start and a job launch does not run Podman.
+
+`X-Colophon-Job` carries `memory.mode` when the sandbox reports it:
+`cgroup` when `--memory` was applied, `rlimit` when the ceiling is only
+`RLIMIT_AS`. Without the memory controller, `memory.peak` stays null; there
+is no cgroup peak counter. `RLIMIT_AS` does not report a peak.
+
+`RLIMIT_AS` counts virtual address space, including reservations the
+process never touches. It is not resident set size.
+
+Checked on this host with TeX Live 2023 (the image is Debian bookworm TeX
+Live, so the binaries are not identical). Under a ceiling of 2147483648
+bytes, all of these exited 0:
+
+| Job | VmPeak |
+| --- | --- |
+| XeLaTeX, shared preamble, siunitx, mhchem, chemfig, 3D pgfplots `samples=2` | 333 MiB |
+| XeLaTeX, `fontspec`, Noto Sans CJK TC | 471 MiB |
+| LuaLaTeX, `fontspec`, Noto Sans CJK TC, a small pgfplots plot, first run | 1046 MiB |
+| That LuaLaTeX job again, font cache already built | 578 MiB |
+
+The default therefore does not break those TeX jobs. A LuaTeX run that
+reserves more than 2048 MiB of address space, for example a large
+`luaotfload` cache, is killed even when the resident set would have fitted.
+This worker compiles with XeLaTeX. LuaTeX is not the job engine.
+
+Headless Chromium does not fit in that ceiling. Google Chrome 148
+`--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage
+--dump-dom about:blank` maps about 49 GiB virtual per process while the
+resident set stays near 200 MiB. With no address-space cap it finished in
+under a second. From 2 GiB through 48 GiB it aborted at once. At 80 GiB
+and at 84 GiB the renderer died with V8
+`SegmentedTable::InitializeTable` out of memory. 88 GiB to 94 GiB depended
+on layout. 96 GiB succeeded on four runs, and 112 GiB and 128 GiB succeeded
+once each. Debian bookworm's `chromium` package, which Mermaid uses, was
+version 150.0.7871.100 in the bookworm index on 2026-09-26 and was not
+executed here. Expect the same kind of reservation. A Mermaid job can
+therefore fail at the default ceiling even when `--memory=2048m` would
+have allowed the resident set. For Chromium, set
+`COLOPHON_RLIMIT_AS_BYTES` to at least 103079215104 (96 GiB). On a host
+without the memory controller that value does not cap RAM. The load shed
+still refuses a new job when MemAvailable is below 4096 MiB. On a host
+with the memory controller, `--memory=2048m` remains the resident cap, and
+the ulimit still has to be high enough or Chromium dies first.
+
 Start (one process; threads serve abort and load while a job runs):
 
 ```sh
@@ -132,7 +202,7 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, and `pids.peak`. When HTML or DOCX input contains inline `siunitx` or `mhchem`, that header also carries `warnings` (`notationPdfOnly`) and the artifact keeps the source text. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
+| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, `memory.mode` (`cgroup` or `rlimit`, when the sandbox reports it), and `pids.peak`. When HTML or DOCX input contains inline `siunitx` or `mhchem`, that header also carries `warnings` (`notationPdfOnly`) and the artifact keeps the source text. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. |
 | `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
 | `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |

@@ -125,6 +125,19 @@ def test_config_accepts_cgnat_example():
     config = load_config(_env())
     assert config.bind_address == "100.64.0.1"
     assert config.allowed_cidr == _CGNAT
+    assert config.rlimit_as_bytes == 2147483648
+
+
+def test_config_reads_rlimit_as_bytes():
+    config = load_config(_env(COLOPHON_RLIMIT_AS_BYTES="3221225472"))
+    assert config.rlimit_as_bytes == 3221225472
+
+
+def test_config_refuses_bad_rlimit_as_bytes():
+    with pytest.raises(ConfigError, match="COLOPHON_RLIMIT_AS_BYTES"):
+        load_config(_env(COLOPHON_RLIMIT_AS_BYTES="2GiB"))
+    with pytest.raises(ConfigError, match="COLOPHON_RLIMIT_AS_BYTES"):
+        load_config(_env(COLOPHON_RLIMIT_AS_BYTES="0"))
 
 
 def test_config_refuses_unspecified_and_lan():

@@ -6,6 +6,7 @@
 import logging
 import sys
 
+from colophon.cgroup_caps import CpuControllerMissing, require_cpu_controller
 from colophon.config import ConfigError, load_config
 from colophon.killswitch import KillSwitch
 from colophon.load import LoadMonitor
@@ -20,7 +21,11 @@ def main_worker():
     )
     try:
         config = load_config()
+        require_cpu_controller()
     except ConfigError as exc:
+        print(f"colophon: refusing to start: {exc}", file=sys.stderr)
+        return 2
+    except CpuControllerMissing as exc:
         print(f"colophon: refusing to start: {exc}", file=sys.stderr)
         return 2
     switch = KillSwitch(config.kill_switch_file)

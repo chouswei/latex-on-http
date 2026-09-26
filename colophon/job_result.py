@@ -18,12 +18,21 @@ def result_class(kind):
 
 
 def job_record(
-    kind, wall_sec, memory_peak, pids_peak, diagnostic=None, warnings=None
+    kind,
+    wall_sec,
+    memory_peak,
+    pids_peak,
+    diagnostic=None,
+    warnings=None,
+    memory_mode=None,
 ):
+    memory = {"peak": memory_peak}
+    if memory_mode in ("cgroup", "rlimit"):
+        memory["mode"] = memory_mode
     record = {
         "result": result_class(kind),
         "wallSec": wall_sec,
-        "memory": {"peak": memory_peak},
+        "memory": memory,
         "pids": {"peak": pids_peak},
     }
     if diagnostic is not None:

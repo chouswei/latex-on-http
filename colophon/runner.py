@@ -11,6 +11,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
+from colophon.cgroup_caps import CpuControllerMissing
 from colophon.diagnostics import parse_stderr
 from colophon.limits import (
     OUTPUT_CAP_BYTES,
@@ -36,6 +37,7 @@ class Outcome:
     wall_sec: float | None = None
     memory_peak: int | None = None
     pids_peak: int | None = None
+    memory_mode: str | None = None
     diagnostic: dict | None = None
 
     @property
@@ -245,9 +247,19 @@ def make_podman_runner(config, switch):
                 "lane": job.lane,
             }
         ).encode("utf-8")
-        args = build_podman_run_args(
-            podman=config.podman, image=config.image, name=name
-        )
+        try:
+            args = build_podman_run_args(
+                podman=config.podman,
+                image=config.image,
+                name=name,
+                as_bytes=config.rlimit_as_bytes,
+            )
+        except CpuControllerMissing:
+            logger.error(
+                "refusing to start job %s: cpu controller is not available",
+                name,
+            )
+            return Outcome(kind="rejectSpawnFail", detail="cpu-controller")
         started = time.monotonic()
         done = threading.Event()
         watcher = threading.Thread(
@@ -307,6 +319,7 @@ def make_podman_runner(config, switch):
                     wall_sec=round(elapsed, 3),
                     memory_peak=meters.get("memoryPeak"),
                     pids_peak=meters.get("pidsPeak"),
+                    memory_mode=meters.get("memoryMode"),
                     diagnostic=diagnostic if kind == "rejectRenderError" else None,
                 )
             logger.info(
@@ -323,6 +336,7 @@ def make_podman_runner(config, switch):
                 wall_sec=round(elapsed, 3),
                 memory_peak=meters.get("memoryPeak"),
                 pids_peak=meters.get("pidsPeak"),
+                memory_mode=meters.get("memoryMode"),
             )
         finally:
             done.set()
