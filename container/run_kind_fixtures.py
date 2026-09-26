@@ -10,8 +10,8 @@ must show the same labels at scale=1 and scale=0.5.
 
 tikz-cd, forest, automata, mindmap, tikz-3dplot, tikz-feynman,
 tikz-timing, and bytefield stay installed. Their smoke compiles are not
-a sold kind. The TeX path is the lane wrapper. The Markdown path is
-Pandoc plus the diagram filter.
+a sold kind. The TeX path is the server-owned template preamble plus the body.
+The Markdown path is Pandoc plus the diagram filter.
 """
 
 import argparse
@@ -115,12 +115,25 @@ def _assert_floorplan(name, pdf):
         sys.exit(f"{name} PDF text missing {missing}: {text!r}")
 
 
+def _template_id(path):
+    if path.suffix == ".md" or path.stem == "document-shell":
+        return "document-shell"
+    if path.stem in ("pgfplots",):
+        return "plots"
+    if path.stem in ("floorplan", "floorplan-scale"):
+        return "floorplan"
+    if path.stem in ("chemistry", "circuits", "gantt", "pidcircuit"):
+        return path.stem
+    # Unsold smoke files use a TeX template whose preamble inputs the
+    # full allowlist, so tikz-cd and the other installed packages resolve.
+    return "gantt"
+
+
 def _compile(path, *, image, podman):
-    kind = "markdown" if path.suffix == ".md" else "tex"
     code, stdout, stderr = _render(
         {
-            "input": path.read_text(encoding="utf-8"),
-            "inputKind": kind,
+            "body": path.read_text(encoding="utf-8"),
+            "templateId": _template_id(path),
             "outputFormat": "pdf",
             "lane": "Weft",
         },

@@ -11,7 +11,8 @@ from pathlib import Path
 
 from colophon.diagnostics import first_tex_error
 from colophon.enums import JobRejected, parse_job
-from colophon.limits import OUTPUT_CAP_BYTES, SHARE_ROOT
+from colophon.limits import OUTPUT_CAP_BYTES
+from colophon.templates import compose
 from colophon.render_plan import RenderPlanError, build_render_plan
 
 
@@ -86,12 +87,11 @@ def _collect_logs():
     return "\n".join(chunks)
 
 
-def _wrap_tex(lane, body):
-    wrapper = Path(SHARE_ROOT) / "templates" / lane / "wrapper.tex"
-    text = wrapper.read_text(encoding="utf-8")
-    if "__BODY__" not in text:
-        raise RenderPlanError("wrapper")
-    return text.replace("__BODY__", body, 1)
+def _wrap_tex(template_id, lane, body):
+    try:
+        return compose(template_id, lane, body)
+    except (OSError, ValueError) as exc:
+        raise RenderPlanError("wrapper") from exc
 
 
 def _run(command):
@@ -125,7 +125,8 @@ def render_to_stdout(payload_bytes):
                 Path(path).write_text(content, encoding="utf-8")
             if job.input_kind == "tex" and job.output_format == "pdf":
                 Path("/tmp/job.tex").write_text(
-                    _wrap_tex(job.lane, job.source), encoding="utf-8"
+                    _wrap_tex(job.template_id, job.lane, job.source),
+                    encoding="utf-8",
                 )
             for command in plan.commands:
                 _run(list(command))

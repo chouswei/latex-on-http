@@ -73,7 +73,7 @@ def reject_forbidden_source(source):
     from colophon.enums import JobRejected
 
     if not isinstance(source, str):
-        raise JobRejected("input")
+        raise JobRejected("body")
     if _WRITE18.search(source):
         raise JobRejected("write18")
     if _SHELL.search(source):

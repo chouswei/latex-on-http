@@ -121,6 +121,69 @@
   \endgroup
 }
 
+% Two calling conventions share each name.
+% \tikzset{floorplan door={(0,0)}{(1,0)}} draws the symbol from the
+% coordinates. \draw[floorplan door] only sets the path style, which is
+% what a caller body does when it draws the arc itself.
+% pgfkeys puts every brace group up to the next comma into #1.
+% An empty #1 is the path style. A valued #1 is the coordinate form.
+\newcommand{\colophonfloorplan@ifvalued}[3]{%
+  \if\relax\detokenize{#1}\relax
+    #2%
+  \else
+    #3#1%
+  \fi
+}
+\newcommand{\colophonfloorplan@doorcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\colophonfloorplan@doortwo}%
+}
+\newcommand{\colophonfloorplan@doortwo}[2]{%
+  \colophonfloorplan@setends{#1}{#2}%
+  \pgfkeysgetvalue{/floorplan/door swing}{\colophonfloorplan@swing}%
+  \draw[thin] (colophon floorplan a) -- (colophon floorplan b);
+  \draw[thin] (colophon floorplan b) arc[%
+    start angle=\colophonfloorplan@angle,
+    delta angle=\colophonfloorplan@swing,
+    radius=\colophonfloorplan@cm cm%
+  ];
+}
+\newcommand{\colophonfloorplan@windowcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{%
+    \pgfkeysalso{line width=0.7pt, double, double distance=0.12cm}%
+  }{\colophonfloorplan@windowtwo}%
+}
+\newcommand{\colophonfloorplan@windowtwo}[2]{%
+  \colophonfloorplan@setends{#1}{#2}%
+  \draw[line width=0.7pt] (colophon floorplan a) -- (colophon floorplan b);
+  \draw[line width=0.35pt, double distance=0.12cm, double]
+    (colophon floorplan a) -- (colophon floorplan b);
+}
+\newcommand{\colophonfloorplan@labelcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{%
+    \pgfkeysalso{align=center, font=\sffamily, inner sep=1pt}%
+  }{\colophonfloorplan@labelthree}%
+}
+\newcommand{\colophonfloorplan@labelthree}[3]{%
+  \colophonfloorplan@rectarea{#2}{#3}%
+  \pgfkeysalso{%
+    align=center,
+    font=\sffamily,
+    inner sep=1pt,
+    node contents={#1\\[0.15em]\colophonfloorplan@arealabel},
+  }%
+}
+\newcommand{\colophonfloorplan@dimcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\colophonfloorplan@dimtwo}%
+}
+\newcommand{\colophonfloorplan@dimtwo}[2]{%
+  \colophonfloorplan@setends{#1}{#2}%
+  \dimline[%
+    extension start length=0.22cm,
+    extension end length=0.22cm,
+    label style={font=\small, inner sep=1pt, fill=white},
+  ]{#1}{#2}{\colophonfloorplan@dimlabel}%
+}
+
 \tikzset{
   floorplan wall/.code={%
     \pgfkeysalso{%
@@ -130,31 +193,12 @@
       double distance=\pgfkeysvalueof{/floorplan/wall thickness},
     }%
   },
-  floorplan door/.code 2 args={%
-    \colophonfloorplan@setends{#1}{#2}%
-    \pgfkeysgetvalue{/floorplan/door swing}{\colophonfloorplan@swing}%
-    \draw[thin] (colophon floorplan a) -- (colophon floorplan b);
-    \draw[thin] (colophon floorplan b) arc[%
-      start angle=\colophonfloorplan@angle,
-      delta angle=\colophonfloorplan@swing,
-      radius=\colophonfloorplan@cm cm%
-    ];
-  },
-  floorplan window/.code 2 args={%
-    \colophonfloorplan@setends{#1}{#2}%
-    \draw[line width=0.7pt] (colophon floorplan a) -- (colophon floorplan b);
-    \draw[line width=0.35pt, double distance=0.12cm, double]
-      (colophon floorplan a) -- (colophon floorplan b);
-  },
-  floorplan room label/.code n args={3}{%
-    \colophonfloorplan@rectarea{#2}{#3}%
-    \pgfkeysalso{%
-      align=center,
-      font=\sffamily,
-      inner sep=1pt,
-      node contents={#1\\[0.15em]\colophonfloorplan@arealabel},
-    }%
-  },
+  floorplan door/.code={\colophonfloorplan@doorcode{#1}},
+  floorplan door/.default={},
+  floorplan window/.code={\colophonfloorplan@windowcode{#1}},
+  floorplan window/.default={},
+  floorplan room label/.code={\colophonfloorplan@labelcode{#1}},
+  floorplan room label/.default={},
   floorplan scale bar/.code={%
     \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
     \pgfmathsetmacro{\colophonfloorplan@bar}{1000/\colophonfloorplan@scale}%
@@ -168,12 +212,6 @@
     \draw[-{Stealth}, line width=0.8pt] (0,0) -- (0,0.9);
     \node[above=1pt, font=\small\sffamily, inner sep=0pt] at (0,0.9) {N};
   },
-  floorplan dimension/.code 2 args={%
-    \colophonfloorplan@setends{#1}{#2}%
-    \dimline[%
-      extension start length=0.22cm,
-      extension end length=0.22cm,
-      label style={font=\small, inner sep=1pt, fill=white},
-    ]{#1}{#2}{\colophonfloorplan@dimlabel}%
-  },
+  floorplan dimension/.code={\colophonfloorplan@dimcode{#1}},
+  floorplan dimension/.default={},
 }

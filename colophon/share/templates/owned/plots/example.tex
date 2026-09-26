@@ -1,0 +1,11 @@
+% Reference caller body for templateId plots. The worker owns the preamble.
+\begin{tikzpicture}
+\begin{axis}
+  \addplot {x^2};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[view={40}{30}]
+  \addplot3[surf, domain=-1:1, samples=6] {x+y};
+\end{axis}
+\end{tikzpicture}

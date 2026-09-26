@@ -236,7 +236,7 @@ def create_app(config, switch, monitor, supervisor):
     def too_large(_exc):
         if not authorized():
             return _error_status_401()
-        return _error("rejectInvalidInput", extra={"field": "input"})
+        return _error("rejectInvalidInput", extra={"field": "body"})
 
     @app.errorhandler(Exception)
     def fail_closed(exc):

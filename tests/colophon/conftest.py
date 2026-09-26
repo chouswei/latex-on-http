@@ -15,8 +15,8 @@ TOKEN = "test-token-value"
 
 def valid_body(**overrides):
     body = {
-        "input": "Hello",
-        "inputKind": "markdown",
+        "body": "Hello",
+        "templateId": "document-shell",
         "outputFormat": "pdf",
         "lane": "InstruMeasure",
     }

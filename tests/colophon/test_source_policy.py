@@ -22,9 +22,10 @@ STYLES = (
 
 
 def _job(source, input_kind="tex"):
+    template = "document-shell" if input_kind == "markdown" else "circuits"
     return {
-        "input": source,
-        "inputKind": input_kind,
+        "body": source,
+        "templateId": template,
         "outputFormat": "pdf",
         "lane": "Weft",
     }

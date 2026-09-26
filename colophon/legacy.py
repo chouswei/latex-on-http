@@ -11,8 +11,9 @@ is XeLaTeX, and shell-escape cannot be requested.
 import base64
 import binascii
 import json
+from dataclasses import replace
 
-from colophon.enums import JobRejected, parse_job
+from colophon.enums import INPUT_KINDS, JobRejected, parse_job
 
 
 def parse_legacy_build(payload):
@@ -43,11 +44,19 @@ def parse_legacy_build(payload):
             raise JobRejected("input") from exc
     else:
         raise JobRejected("input")
-    return parse_job(
+    kind = payload.get("inputKind", "tex")
+    if kind not in INPUT_KINDS:
+        raise JobRejected("inputKind")
+    # COLOPHON-R27. Legacy content is a body. The shell template owns the
+    # preamble. inputKind tex still runs XeLaTeX rather than Pandoc.
+    job = parse_job(
         {
-            "input": source,
-            "inputKind": payload.get("inputKind", "tex"),
+            "body": source,
+            "templateId": "document-shell",
             "outputFormat": payload.get("outputFormat", "pdf"),
             "lane": payload.get("lane"),
         }
     )
+    if kind == "tex":
+        return replace(job, input_kind="tex")
+    return job

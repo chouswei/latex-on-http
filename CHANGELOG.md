@@ -46,10 +46,10 @@
   `busy` means a job holds the worker, not that the load average is high.
   `stale: true` is a shed. `readable: false` is HTTP 503. There is no
   `/load` path. `POST /v1/jobs/abort` kills the running container.
-* A tex job is a body fragment inside a fixed `\documentclass{article}`
-  wrapper with no class options. `\documentclass` in that body is
-  `rejectInvalidInput` field `documentclass`. Template composition
-  (`templateId` plus body) is not implemented. The engine is XeLaTeX.
+* COLOPHON-R27. A job sends `templateId` and `body`. The worker owns
+  the preamble and still refuses a caller `\documentclass` or raw
+  preamble. An unknown `templateId` is `rejectInvalidInput` field
+  `templateId`. The engine is XeLaTeX.
   `compiler` other than `xelatex`, and `\directlua`, are refused.
   An output over 20 MiB is `failCapHit`. The cap probe is 3000
   uncompressed pages (`dvipdfmx:config z 0`).

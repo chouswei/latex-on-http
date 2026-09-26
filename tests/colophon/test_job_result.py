@@ -77,7 +77,7 @@ def test_invalid_render_emits_meters(capsys, monkeypatch):
 def test_refused_job_json_has_null_peaks(client, auth):
     response = client.post(
         "/v1/jobs",
-        json=valid_body(inputKind="nope"),
+        json=valid_body(templateId="nope"),
         headers=auth,
     )
     body = response.get_json()

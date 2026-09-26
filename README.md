@@ -245,7 +245,7 @@ the bearer token is missing or wrong. `Cache-Control` is `no-store`.
 
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. A non-200 body is JSON and the reason is `error`. |
+| `POST /v1/jobs` | Render one job. Body: `lane`, `outputFormat`, `templateId`, `body`, and optional `compiler`. Unknown values are rejected. A non-200 body is JSON and the reason is `error`. |
 | `GET /v1/host-load` | Host sample, refreshed every 10 s. `200` when the sample was read, including a sample older than 30 s (`stale` is then `true`). `503` when the sample could not be read (`readable` is `false`). |
 | `POST /v1/jobs/abort` | Kills the running container only. `200` `{"aborted":true}`. Idle is `404` `{"aborted":false,"error":"idle"}`. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. Success JSON is `readable` and `engaged`. |
@@ -289,43 +289,49 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 | `rejectBusy` | 429, `Retry-After` | `refused` | none when the worker is already busy |
 | `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the `GET /v1/host-load` object; `busy` is `false`) |
 | `rejectKillSwitch` | 403 | `refused` | `readable`, `engaged` |
-| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `inputKind`, `input`, `compiler`, `documentclass`, `directlua`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
+| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `templateId`, `body`, `compiler`, `documentclass`, `preamble`, `directlua`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
 | `rejectSpawnFail` | 500 | `refused` | none |
 | `rejectRenderError` | 422 | `renderError` | `diagnostic` when the sandbox reported one: `engine`, `message`, `file`, `line`, `fence` |
 | `failTimeout` | 408 | `failTimeout` | none |
 | `failCapHit` | 413 | `failCapHit` | none. Output over 20 MiB uses this kind. The gate also accepts `failOutputCap`; this worker emits `failCapHit`. |
 
-A request body over 16 MiB is `rejectInvalidInput` with `field` `input`
+A request body over 16 MiB is `rejectInvalidInput` with `field` `body`
 (HTTP 400).
 
 ### Job input
 
-`POST /v1/jobs` accepts a JSON object with these fields:
+COLOPHON-R27. `POST /v1/jobs` accepts a JSON object with these fields:
 
-| Field | Accepted value |
-| --- | --- |
-| `lane` | `InstruMeasure`, `Weft`, or `Investor` |
-| `outputFormat` | `pdf`, `html`, or `docx` |
-| `inputKind` | `tex` or `markdown` |
-| `input` | A non-empty string. For `tex`, this is the document body only. |
-| `compiler` | Optional. Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
+| Field | Required | Accepted value |
+| --- | --- | --- |
+| `lane` | yes | `InstruMeasure`, `Weft`, or `Investor` |
+| `outputFormat` | yes | `pdf`, `html`, or `docx` |
+| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, or `floorplan` |
+| `body` | yes | A non-empty string. The document body only. |
+| `compiler` | no | Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
+
+`input` and `inputKind` are not fields. Keys the gate also sends (`jobId`,
+`limits`, `shellEscape`, `networkEnabled`, `readOnlyRoot`, `runsAsRoot`,
+`retentionMode`) are ignored. The worker owns those limits.
 
 There is no document-class field and no class-option field. The caller does
-not pick the class. Every lane uses `\documentclass{article}` with no
-options. For `inputKind` `tex` and `outputFormat` `pdf`, that line is the
-lane wrapper, and `input` replaces `__BODY__` between `\begin{document}` and
-`\end{document}`. The wrapper then loads fontspec, xeCJK, Noto Sans CJK TC,
-graphicx, booktabs, longtable, hyperref, and `colophon-v1-preamble.tex`, and
-sets `\ColophonLane` to the lane name. Markdown, and tex that is not PDF,
-go through the lane Pandoc template, which is also `\documentclass{article}`
-with no options.
+not pick the class or send a preamble. An unknown `templateId` is HTTP 400
+`error` `rejectInvalidInput` `field` `templateId`.
 
-A `tex` input that contains the substring `\documentclass` is HTTP 400
-`error` `rejectInvalidInput` `field` `documentclass`. The match is
-case-sensitive. That refusal stays. Template composition is not
-implemented: the caller does not send a `templateId`, and the worker does
-not splice a chosen preamble. The fixed wrapper above is the contract
-until that binding is specified.
+Each `templateId` is a server-owned asset under
+`colophon/share/templates/owned/<templateId>/`. The preamble is
+`\documentclass{article}` with no options, fontspec, xeCJK, Noto Sans CJK TC,
+and `\input{colophon-v1-preamble.tex}`. Those packages are the allowlist.
+For a TeX `templateId` and `outputFormat` `pdf`, the worker builds the
+document as that preamble plus `body`, and sets `\ColophonLane` to the lane
+name. `document-shell` is Markdown and uses the lane Pandoc template, which
+is the same class and the same allowlist. `POST /builds/sync` still accepts
+legacy `inputKind`; its content is a `body` on `templateId` `document-shell`.
+
+A `body` that contains the substring `\documentclass` is HTTP 400 `field`
+`documentclass`. The match is case-sensitive. `\usepackage`,
+`\RequirePackage`, and `\begin{document}` are the same status with `field`
+`preamble`.
 
 `\directlua` is the same status with `field` `directlua`. The only engine
 a job can select is XeLaTeX. `pdflatex` in the image is a wrapper that

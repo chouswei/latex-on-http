@@ -1,0 +1,14 @@
+% Reference caller body for templateId floorplan. The worker owns the preamble.
+% Plan scale: 1 cm on the drawing is 1 m. Ratio 1:100.
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \draw[floorplan wall] (0,0) rectangle (7,3);
+  \draw[floorplan wall] (4,0) -- (4,3);
+  \draw[floorplan door] (4,1.2) arc[start angle=0, end angle=90, radius=0.8];
+  \draw[floorplan window] (1.4,3) -- (2.6,3);
+  \node[floorplan room label] at (2,1.5) {Room A\\ \SI{12}{\metre\squared}};
+  \node[floorplan room label] at (5.5,1.5) {Room B\\ \SI{9}{\metre\squared}};
+  \dimline[line style={floorplan dimension}, extension start length=5mm, extension end length=5mm, label style={font=\small}] {(0,-0.9)} {(4,-0.9)} {\SI{4}{\metre}};
+  \draw[floorplan scale bar] (0,-1.8) -- (1,-1.8) node[midway, below, font=\small] {1 m};
+  \node[font=\small, anchor=west] at (1.2,-1.8) {1:100};
+  \draw[floorplan north arrow] (6.4,0.3) -- (6.4,1.1) node[above, font=\small] {N};
+\end{tikzpicture}

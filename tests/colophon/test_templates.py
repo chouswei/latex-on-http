@@ -1,0 +1,155 @@
+# Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""COLOPHON-R27. templateId plus body, server-owned preambles."""
+
+import os
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from colophon.enums import JobRejected, parse_job
+from colophon.templates import (
+    ALLOWED_CLASSES,
+    ALLOWED_INPUTS,
+    ALLOWED_LIBRARIES,
+    ALLOWED_PACKAGES,
+    TEMPLATE_IDS,
+    compose,
+    example_body,
+)
+from tests.colophon.conftest import valid_body
+
+_ROOT = (
+    Path(__file__).resolve().parents[2] / "colophon" / "share" / "templates" / "owned"
+)
+_TEXINPUTS = os.pathsep.join(
+    (
+        str(
+            Path(__file__).resolve().parents[2] / "colophon/share/tex/latex/colophon-v1"
+        ),
+        str(
+            Path(__file__).resolve().parents[2]
+            / "colophon/share/tex/latex/colophon-floorplan"
+        ),
+        str(Path(__file__).resolve().parents[2] / "vendor/pidcircuittikz"),
+        "",
+    )
+)
+
+
+def test_unknown_template_id_is_refused(client, auth, runner):
+    response = client.post(
+        "/v1/jobs",
+        json=valid_body(templateId="not-a-template"),
+        headers=auth,
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"] == "rejectInvalidInput"
+    assert body["field"] == "templateId"
+    assert body["result"] == "refused"
+    assert runner.calls == []
+
+
+def test_documentclass_in_every_template_body_is_refused():
+    for template_id in TEMPLATE_IDS:
+        with pytest.raises(JobRejected) as caught:
+            parse_job(
+                valid_body(
+                    templateId=template_id,
+                    body="\\documentclass{article}\nHello.",
+                )
+            )
+        assert caught.value.reason == "documentclass"
+
+
+def _assert_allowlist(text):
+    for name in re.findall(r"\\documentclass(?:\[[^\]]*\])?\{([^}]+)\}", text):
+        assert name in ALLOWED_CLASSES
+    for name in re.findall(r"\\usepackage(?:\[[^\]]*\])?\{([^}]+)\}", text):
+        assert name in ALLOWED_PACKAGES
+    for name in re.findall(r"\\input\{([^}]+)\}", text):
+        assert name in ALLOWED_INPUTS
+    for group in re.findall(r"\\usetikzlibrary\{([^}]+)\}", text):
+        for name in group.split(","):
+            assert name.strip() in ALLOWED_LIBRARIES
+
+
+def test_preambles_use_only_the_allowlist():
+    for template_id in TEMPLATE_IDS:
+        text = (_ROOT / template_id / "preamble.tex").read_text(encoding="utf-8")
+        assert "\\documentclass{article}" in text
+        assert "\\usepackage{fontspec}" in text
+        assert "\\input{colophon-v1-preamble.tex}" in text
+        _assert_allowlist(text)
+    shared = (
+        Path(__file__).resolve().parents[2]
+        / "colophon/share/tex/latex/colophon-v1/colophon-v1-preamble.tex"
+    ).read_text(encoding="utf-8")
+    _assert_allowlist(shared)
+
+
+def test_example_bodies_are_not_preambles():
+    for template_id in TEMPLATE_IDS:
+        body = example_body(template_id, _ROOT)
+        assert body.strip()
+        for marker in (
+            "\\documentclass",
+            "\\usepackage",
+            "\\RequirePackage",
+            "\\begin{document}",
+        ):
+            assert marker not in body
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+@pytest.mark.parametrize("template_id", TEMPLATE_IDS)
+def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
+    """XeLaTeX builds preamble plus body. Markdown samples use a plain sentence.
+
+    The image has xeCJK. A host without that package still compiles the
+    kind packages; the preamble file itself keeps the font lines.
+    """
+    sample = example_body(template_id, _ROOT)
+    if template_id == "document-shell":
+        sample = "Hello from the document shell."
+    tex = compose(template_id, "InstruMeasure", sample, _ROOT)
+    assert "\\documentclass{article}" in tex
+    assert "\\newcommand{\\ColophonLane}{InstruMeasure}" in tex
+    assert sample in tex
+    if shutil.which("kpsewhich"):
+        found = subprocess.run(
+            ["kpsewhich", "xeCJK.sty"],
+            check=False,
+            capture_output=True,
+        )
+        if found.returncode != 0:
+            tex = (
+                tex.replace("\\usepackage{fontspec}\n", "")
+                .replace("\\usepackage{xeCJK}\n", "")
+                .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+            )
+    (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
+    env = os.environ.copy()
+    env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
+    completed = subprocess.run(
+        [
+            "xelatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "job.tex",
+        ],
+        cwd=tmp_path,
+        check=False,
+        timeout=60,
+        capture_output=True,
+        env=env,
+    )
+    log = (tmp_path / "job.log").read_text(encoding="utf-8", errors="replace")
+    assert completed.returncode == 0, log[-800:]
+    assert (tmp_path / "job.pdf").is_file()

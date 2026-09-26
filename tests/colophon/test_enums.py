@@ -12,7 +12,9 @@ def test_known_enums_accepted():
     job = parse_job(valid_body())
     assert job.lane == "InstruMeasure"
     assert job.output_format == "pdf"
+    assert job.template_id == "document-shell"
     assert job.input_kind == "markdown"
+    assert job.source == "Hello"
 
 
 @pytest.mark.parametrize(
@@ -23,8 +25,9 @@ def test_known_enums_accepted():
         ("lane", "", "lane"),
         ("outputFormat", "PDF", "outputFormat"),
         ("outputFormat", "odt", "outputFormat"),
-        ("inputKind", "latex", "inputKind"),
-        ("inputKind", "html", "inputKind"),
+        ("templateId", "latex", "templateId"),
+        ("templateId", "", "templateId"),
+        ("templateId", None, "templateId"),
     ],
 )
 def test_unknown_enum_rejected(field, value, reason):
@@ -37,19 +40,30 @@ def test_tex_documentclass_rejected():
     with pytest.raises(JobRejected) as caught:
         parse_job(
             valid_body(
-                inputKind="tex",
-                input="\\documentclass{article}\n\\begin{document}x\\end{document}",
+                templateId="circuits",
+                body="\\documentclass{article}\n\\begin{document}x\\end{document}",
             )
         )
     assert caught.value.reason == "documentclass"
+
+
+def test_raw_preamble_is_rejected():
+    for source in (
+        "\\usepackage{geometry}\nHello.",
+        "\\RequirePackage{tikz}\nHello.",
+        "\\begin{document}\nHello.",
+    ):
+        with pytest.raises(JobRejected) as caught:
+            parse_job(valid_body(templateId="circuits", body=source))
+        assert caught.value.reason == "preamble"
 
 
 def test_http_rejects_documentclass(client, auth, runner):
     response = client.post(
         "/v1/jobs",
         json=valid_body(
-            inputKind="tex",
-            input="\\documentclass{article}\nHello.",
+            templateId="circuits",
+            body="\\documentclass{article}\nHello.",
         ),
         headers=auth,
     )

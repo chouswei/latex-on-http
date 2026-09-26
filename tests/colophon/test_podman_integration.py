@@ -63,8 +63,8 @@ def test_image_runs_with_network_none(podman_bin):
     )
     payload = json.dumps(
         {
-            "input": "Hello",
-            "inputKind": "markdown",
+            "body": "Hello",
+            "templateId": "document-shell",
             "outputFormat": "html",
             "lane": "Weft",
         }

@@ -44,9 +44,7 @@ def test_html_keeps_inline_notation_as_source_text():
 
 def test_docx_keeps_inline_notation_as_source_text():
     degraded = degrade_inline_notation(_PROSE, "tex", "docx")
-    assert degraded == (
-        "Water is \\verb|\\qty{2}{\\metre}| and \\verb|\\ce{H2O}|."
-    )
+    assert degraded == ("Water is \\verb|\\qty{2}{\\metre}| and \\verb|\\ce{H2O}|.")
     warning = _warning(_PROSE, "docx", input_kind="tex")
     assert warning["code"] == "notationPdfOnly"
     assert warning["packages"] == ["mhchem", "siunitx"]
@@ -89,7 +87,7 @@ def test_fenced_diagram_is_not_rewritten():
 def _posted(client, auth, runner, output_format):
     response = client.post(
         "/v1/jobs",
-        json=valid_body(input=_PROSE, outputFormat=output_format),
+        json=valid_body(body=_PROSE, outputFormat=output_format),
         headers=auth,
     )
     assert response.status_code == 200

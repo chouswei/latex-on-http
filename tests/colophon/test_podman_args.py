@@ -166,8 +166,8 @@ def test_runner_refuses_to_start_when_cpu_is_absent(monkeypatch, config, switch_
     monkeypatch.setattr(runner_mod.subprocess, "Popen", _spawn)
     job = parse_job(
         {
-            "input": "Hello",
-            "inputKind": "markdown",
+            "body": "Hello",
+            "templateId": "document-shell",
             "outputFormat": "pdf",
             "lane": "Weft",
         }

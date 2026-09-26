@@ -1,0 +1,10 @@
+% Reference caller body for templateId circuits. The worker owns the preamble.
+\begin{circuitikz}
+  \draw (0,0) to[R, l=\SI{1}{\kilo\ohm}] (2,0);
+\end{circuitikz}
+\begin{tikzpicture}[node distance=8mm]
+  \node[draw, ellipse] (src) {Src};
+  \node[draw, rectangle, right=of src] (amp) {Amp};
+  \draw[-{Stealth}] (src) -- (amp);
+  \coordinate (mid) at ($(src)!0.5!(amp)$);
+\end{tikzpicture}

@@ -263,8 +263,8 @@ def make_podman_runner(config, switch):
             return Outcome(kind="rejectKillSwitch")
         payload = json.dumps(
             {
-                "input": job.source,
-                "inputKind": job.input_kind,
+                "body": job.source,
+                "templateId": job.template_id,
                 "outputFormat": job.output_format,
                 "lane": job.lane,
             }

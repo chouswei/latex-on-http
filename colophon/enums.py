@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 
 from colophon.source_policy import reject_forbidden_source
+from colophon.templates import TEMPLATES
 
 LANES = ("InstruMeasure", "Weft", "Investor")
 OUTPUT_FORMATS = ("pdf", "html", "docx")
@@ -30,40 +31,51 @@ class JobSpec:
     input_kind: str
     output_format: str
     lane: str
+    template_id: str = "document-shell"
 
     @property
     def content_type(self):
         return _CONTENT_TYPES[self.output_format]
 
 
+# A raw preamble in the body. \documentclass keeps its own field.
+_RAW_PREAMBLE = ("\\usepackage", "\\RequirePackage", "\\begin{document}")
+
+
 def parse_job(payload):
-    """Parse a render job. Unknown enum values raise ``JobRejected``."""
+    """Parse a render job. Unknown enum values raise ``JobRejected``.
+
+    COLOPHON-R27: the caller sends ``templateId`` and ``body``. The worker
+    owns the preamble. ``input`` and ``inputKind`` are not fields.
+    """
     if not isinstance(payload, dict):
         raise JobRejected("body")
     lane = payload.get("lane")
     output_format = payload.get("outputFormat")
-    input_kind = payload.get("inputKind")
-    source = payload.get("input")
+    template_id = payload.get("templateId")
+    source = payload.get("body")
     if lane not in LANES:
         raise JobRejected("lane")
     if output_format not in OUTPUT_FORMATS:
         raise JobRejected("outputFormat")
-    if input_kind not in INPUT_KINDS:
-        raise JobRejected("inputKind")
+    if not isinstance(template_id, str) or template_id not in TEMPLATES:
+        raise JobRejected("templateId")
     if not isinstance(source, str) or source == "":
-        raise JobRejected("input")
+        raise JobRejected("body")
     # Absent means XeLaTeX. Any other value is a request for another engine.
     if "compiler" in payload and payload.get("compiler") != "xelatex":
         raise JobRejected("compiler")
-    # The tex body is inserted into a fixed \documentclass{article} wrapper.
-    # The substring match is exact and case-sensitive; the caller supplies
-    # no class and no class options.
-    if input_kind == "tex" and "\\documentclass" in source:
+    # Case-sensitive substring. The caller does not supply a class or a preamble.
+    if "\\documentclass" in source:
         raise JobRejected("documentclass")
     reject_forbidden_source(source)
+    if any(marker in source for marker in _RAW_PREAMBLE):
+        raise JobRejected("preamble")
+    asset = TEMPLATES[template_id]
     return JobSpec(
         source=source,
-        input_kind=input_kind,
+        input_kind=asset.kind,
         output_format=output_format,
         lane=lane,
+        template_id=template_id,
     )

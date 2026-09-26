@@ -82,10 +82,20 @@ def request(method, path, payload=None, timeout=120):
         return exc.code, dict(exc.headers), body, elapsed
 
 
-def job(source, kind="tex"):
+SMOKE_TEMPLATE = {
+    "circuits.tex": "circuits",
+    "pgfplots.tex": "plots",
+    "chemistry.tex": "chemistry",
+    "gantt.tex": "gantt",
+    "floorplan.tex": "floorplan",
+    "pidcircuit.tex": "pidcircuit",
+}
+
+
+def job(source, template="gantt"):
     return {
-        "input": source,
-        "inputKind": kind,
+        "body": source,
+        "templateId": template,
         "outputFormat": "pdf",
         "lane": "InstruMeasure",
     }
@@ -259,7 +269,9 @@ print("smoke renders")
 kind_dir = ROOT / "tests" / "colophon" / "fixtures" / "kinds"
 for name in SMOKE:
     source = (kind_dir / name).read_text(encoding="utf-8")
-    status, _headers, body, elapsed = request("POST", "/v1/jobs", job(source), timeout=90)
+    status, _headers, body, elapsed = request(
+        "POST", "/v1/jobs", job(source, SMOKE_TEMPLATE[name]), timeout=90
+    )
     if status != 200 or not body.startswith(b"%PDF"):
         fail(f"{name} {status} in {elapsed:.1f}s {body[:160]!r}")
     print(" ", name, len(body), "bytes", f"{elapsed:.1f}s")
