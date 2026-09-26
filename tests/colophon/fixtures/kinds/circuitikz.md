@@ -1,0 +1,5 @@
+```tikz
+\begin{circuitikz}
+  \draw (0,0) to[R] (2,0);
+\end{circuitikz}
+```

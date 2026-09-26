@@ -19,9 +19,7 @@
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{hyperref}
-\usepackage{tikz}
-\usepackage{circuitikz}
-\usetikzlibrary{circuits.pid.ISO14617}
+\input{colophon-v1-preamble.tex}
 \newcommand{\ColophonLane}{Investor}
 $if(title)$
 \title{$title$}

@@ -11,6 +11,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
+from colophon.diagnostics import parse_stderr
 from colophon.limits import (
     OUTPUT_CAP_BYTES,
     STDERR_KEEP_BYTES,
@@ -32,6 +33,10 @@ class Outcome:
     body: bytes = b""
     content_type: str = "application/json"
     detail: str = ""
+    wall_sec: float | None = None
+    memory_peak: int | None = None
+    pids_peak: int | None = None
+    diagnostic: dict | None = None
 
     @property
     def ok(self):
@@ -272,6 +277,7 @@ def make_podman_runner(config, switch):
                 kill=lambda: kill_name(name),
             )
             elapsed = time.monotonic() - started
+            meters, diagnostic = parse_stderr(stderr)
             kind = classify_result(
                 returncode=code,
                 timed_out=timed_out,
@@ -295,7 +301,14 @@ def make_podman_runner(config, switch):
                     job.output_format,
                     kind,
                 )
-                return Outcome(kind=kind, detail=kind)
+                return Outcome(
+                    kind=kind,
+                    detail=kind,
+                    wall_sec=round(elapsed, 3),
+                    memory_peak=meters.get("memoryPeak"),
+                    pids_peak=meters.get("pidsPeak"),
+                    diagnostic=diagnostic if kind == "rejectRenderError" else None,
+                )
             logger.info(
                 "job %s lane=%s format=%s result=ok bytes=%d",
                 name,
@@ -303,7 +316,14 @@ def make_podman_runner(config, switch):
                 job.output_format,
                 len(stdout),
             )
-            return Outcome(kind="ok", body=stdout, content_type=job.content_type)
+            return Outcome(
+                kind="ok",
+                body=stdout,
+                content_type=job.content_type,
+                wall_sec=round(elapsed, 3),
+                memory_peak=meters.get("memoryPeak"),
+                pids_peak=meters.get("pidsPeak"),
+            )
         finally:
             done.set()
             watcher.join(timeout=2)

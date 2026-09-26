@@ -33,10 +33,16 @@ because it is not a CTAN package; CircuiTikZ is the CTAN package `circuitikz`.
 An amd64 rootless Podman build of this image compiled a Traditional Chinese
 page with XeLaTeX, CircuiTikZ, a Mermaid diagram (headless Chromium as the
 non-root job user, `--network=none`, `--cap-drop=ALL`), and a D2 diagram.
-The same job has not been run on arm64, so Chromium under rootless Podman
-on arm64 is still unverified. The image passes
+GitHub Actions workflow `arm64 CI, not Pi proof` builds the arm64 image on
+`ubuntu-24.04-arm` and runs the fixture suite, including Mermaid, under the
+same caps. That run is not a Raspberry Pi proof. The image passes
 `--no-sandbox` and `--disable-dev-shm-usage` to Chromium because the job
 user is not root and `/dev/shm` is not the writable tmpfs.
+
+Engine packages are loaded from `colophon-v1-preamble.tex`, which the TeX
+wrapper, the Pandoc template, and TikZ diagram blocks all input. A fence
+option cannot replace that list. `packages-once.tex` only checks that the
+packages are installed.
 
 ### Dedicated rootless user
 
@@ -115,7 +121,7 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. |
+| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, and `pids.peak`. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. |
 | `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
 | `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |

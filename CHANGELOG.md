@@ -10,8 +10,14 @@
   `packageSet` and `packageSetHash` from the package list written at image
   build.
 * Floor-plan TikZ styles and the listed tlmgr packages are in the image.
-  Shell-escape, `\write18`, minted, TikZ `external`, and Asymptote are
+  Shell-escape, `\write18`, minted, TikZ `external`, Asymptote, gnuplot,
+  epstopdf, the `svg` package, and automatic tikz-feynman layout are
   refused before compilation. There is no Asymptote binary.
+* `colophon-v1-preamble.tex` is the shared engine preamble for the TeX
+  wrapper, the Pandoc template, and TikZ fences. Room area comes from the
+  corner numbers. Dimension labels do not change under `scale=`.
+* A job result carries a result class, wall time, cgroup `memory.peak` and
+  `pids.peak`, and on a render error the first diagnostic.
 * Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the
   `xelatex` engine name (the no-shell-escape wrapper is first on `PATH`).
   HTML responses embed diagram resources. SVG diagrams in PDF go through

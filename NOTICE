@@ -45,8 +45,11 @@ compile service.
   with headless Chromium, d2, and a vendored PIDcircuitTikZ. There is no
   runtime package fetch and no Tectonic. `tlmgr` is removed from the image.
   No Asymptote binary is installed. Jobs that ask for shell-escape,
-  `\write18`, minted, the TikZ `external` library, or Asymptote are refused
-  before compilation.
+  `\write18`, minted, the TikZ `external` library, Asymptote, gnuplot,
+  epstopdf, the `svg` package, `\feynmandiagram`, or an un-starred
+  `\diagram` are refused before compilation. The patterns match TeX
+  directives, not prose. `\vertex` and `\diagram*` stay allowed.
+  `packages-once.tex` is an install check only.
 - TeX Live packages, by tlmgr name and not via `scheme-full`: `circuitikz`,
   `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`, `tikz-feynman`,
   `tikz-cd`, `forest`, `tikz-timing`, `bytefield`, `pgfgantt`,
@@ -54,12 +57,30 @@ compile service.
   `arrows.meta`, `positioning`, `calc`, `automata`, and `mindmap`). These
   are the files shipped by the Debian `texlive-pictures` and
   `texlive-science` collections already in the image.
+- `colophon-v1-preamble.tex` is the one engine preamble. The TeX wrapper,
+  the Pandoc template, and TikZ diagram blocks input it. It loads
+  `circuitikz`, `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`,
+  `tikz-feynman`, `tikz-cd`, `forest`, `tikz-timing`, `bytefield`,
+  `pgfgantt`, `tikz-dimline`, `tikzscale`, `colophon-floorplan`, the TikZ
+  libraries `shapes`, `arrows.meta`, `positioning`, `calc`, `automata`,
+  and `mindmap`, and `\usetikzlibrary{circuits.pid.ISO14617}`. A fence
+  option cannot replace that list. The PID library replaces TikZ's `at`
+  and `pos` keys; the preamble puts those two keys back so chemfig and
+  ordinary nodes keep working. PID symbols still load.
 - `colophon-floorplan.sty` is installed in the local texmf tree. It defines
   the TikZ styles `floorplan wall`, `floorplan door`, `floorplan window`,
   `floorplan room label`, `floorplan scale bar`, `floorplan north arrow`,
-  and `floorplan dimension`. The dimension label uses `tikz-dimline` and
-  `siunitx`, in millimetres or metres, from the `/floorplan/plan-scale` key.
-  The style file is pure TeX.
+  and `floorplan dimension`. Room area is computed from the corner numbers
+  (`w*h*plan-scale^2/10^6`, or the shoelace helper
+  `\floorplanPolygonArea`). The dimension label uses coordinate anchors, so
+  `scale=` and tikzscale do not change it. Labels use `siunitx`. The style
+  file is pure TeX.
+- A failed render returns a result class (`ok`, `failTimeout`,
+  `failCapHit`, `renderError`, or `refused`), wall time, `memory.peak` and
+  `pids.peak` from the job cgroup, and on a render error the first TeX,
+  Mermaid, or D2 diagnostic (message, file, line, fence index). The success
+  body stays the artifact. Meters for a success are the `X-Colophon-Job`
+  header. `X-Colophon-Result` stays `ok`.
 - `GET /version` includes `packageSet` and `packageSetHash`. The set is the
   sorted TeX package names in `colophon/package_set.txt`, including
   `colophon-floorplan`. The image build writes that list to `PACKAGE_SET`
@@ -71,9 +92,9 @@ Third-party pieces added with this fork
 ----------------------------------------
 
 - pandoc-ext/diagram, commit 5aaf35e6f775ddf501045fe28b03642ee73db2f4,
-  MIT, with two local edits (see vendor/diagram/README.md). SHA-256 of the
+  MIT, with local edits (see vendor/diagram/README.md). SHA-256 of the
   vendored diagram.lua:
-  b8e65d171bcf62475e0ec93cb77bbbcc66dd501f8e91a49fcfecf912e5842fae.
+  291962e1f1b496d2067afea63e82fb23ef70029484f2242c4587d4049e3b35b7.
   Debian `librsvg2-bin` supplies `rsvg-convert`, which Pandoc uses to place
   SVG diagrams in a PDF.
 - PIDcircuitTikZ by Jelle Spijker, MIT. There is no CTAN package of this

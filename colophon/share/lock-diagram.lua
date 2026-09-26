@@ -17,11 +17,7 @@ diagram:
     tikz:
       execpath: /usr/local/bin/xelatex-nonescape
       additional-packages: |
-        \usepackage{fontspec}
-        \usepackage{xeCJK}
-        \setCJKmainfont{Noto Sans CJK TC}
-        \usepackage{circuitikz}
-        \usetikzlibrary{circuits.pid.ISO14617}
+        \input{colophon-v1-preamble.tex}
 ---
 ]], "markdown")
   meta.diagram = locked.meta.diagram

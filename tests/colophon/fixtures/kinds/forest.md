@@ -1,0 +1,5 @@
+```tikz
+\begin{forest}
+  [A [B] [C]]
+\end{forest}
+```

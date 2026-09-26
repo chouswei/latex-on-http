@@ -4,6 +4,7 @@
 """HTTP worker. Binds only to the configured address."""
 
 import hmac
+import json
 import logging
 import threading
 
@@ -11,6 +12,7 @@ from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 from colophon.enums import JobRejected, parse_job
+from colophon.job_result import job_record
 from colophon.legacy import parse_legacy_build
 from colophon.limits import HOST_LOAD_REPORT_INTERVAL_SEC, INPUT_CAP_BYTES
 from colophon.revision import version_payload
@@ -39,8 +41,19 @@ def _token_ok(header, token):
     return hmac.compare_digest(presented, token)
 
 
-def _error(kind, *, retry_after=None, extra=None):
-    body = {"error": kind}
+def _error(kind, *, retry_after=None, extra=None, outcome=None):
+    if outcome is None:
+        body = job_record(kind, None, None, None)
+    else:
+        diagnostic = outcome.diagnostic if kind == "rejectRenderError" else None
+        body = job_record(
+            kind,
+            outcome.wall_sec,
+            outcome.memory_peak,
+            outcome.pids_peak,
+            diagnostic,
+        )
+    body["error"] = kind
     if extra:
         body.update(extra)
     response = jsonify(body)
@@ -100,18 +113,31 @@ def create_app(config, switch, monitor, supervisor):
         if not isinstance(outcome, Outcome):
             return _error("rejectSpawnFail")
         if outcome.kind == "rejectBusy":
-            return _error("rejectBusy", retry_after=config.retry_after_sec)
+            return _error(
+                "rejectBusy",
+                retry_after=config.retry_after_sec,
+                outcome=outcome,
+            )
         if outcome.kind != "ok":
-            return _error(outcome.kind)
+            return _error(outcome.kind, outcome=outcome)
         try:
             enforce_output_cap(outcome.body)
         except ValueError:
-            return _error("failCapHit")
+            return _error("failCapHit", outcome=outcome)
         if not outcome.body:
-            return _error("rejectRenderError")
+            return _error("rejectRenderError", outcome=outcome)
         response = app.response_class(outcome.body, mimetype=outcome.content_type)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Colophon-Result"] = "ok"
+        response.headers["X-Colophon-Job"] = json.dumps(
+            job_record(
+                "ok",
+                outcome.wall_sec,
+                outcome.memory_peak,
+                outcome.pids_peak,
+            ),
+            separators=(",", ":"),
+        )
         return response
 
     @app.get("/version")

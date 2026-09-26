@@ -79,6 +79,9 @@ end
 --- Reads the contents of a file.
 local function read_file (filepath)
   local fh = io.open(filepath, 'rb')
+  if not fh then
+    error('cannot read ' .. tostring(filepath))
+  end
   local contents = fh:read('a')
   fh:close()
   return contents
@@ -225,8 +228,8 @@ local tikz = {
           end
           return stringify(value)
         end
+        -- header-includes from a fence would bypass the locked preamble.
         local meta = {
-          ['header-includes'] = user_opts['header-includes'],
           ['additional-packages'] = {pandoc.RawInline(
             'latex',
             raw_latex(user_opts['additional-packages'])
@@ -247,12 +250,7 @@ local tikz = {
           ''
         )
         if not success then
-          warn(string.format(
-                 "The call\n%s\nfailed with error code %s. Output:\n%s",
-                 result.command,
-                 result.error_code,
-                 result.output
-          ))
+          error(result)
         end
         return read_file(pdf_file), 'application/pdf'
       end)
@@ -582,6 +580,47 @@ local function cache_image (codeblock, imgdata, mimetype)
   write_file(imgpath, imgdata)
 end
 
+local fence_index = 0
+
+local function json_escape (value)
+  local text = tostring(value or '')
+  text = text:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('[%c]', ' ')
+  if #text > 400 then
+    text = text:sub(1, 400)
+  end
+  return text
+end
+
+local function fail_diagram (engine_name, fence, message)
+  io.stderr:write(string.format(
+    'COLOPHON_DIAG {"engine":"%s","message":"%s","file":null,"line":null,"fence":%d}\n',
+    json_escape(engine_name),
+    json_escape(message),
+    fence
+  ))
+  io.stderr:flush()
+  error('diagram failed')
+end
+
+local function error_text (err)
+  local text
+  if type(err) == 'table' then
+    text = tostring(err.output or err.message or err)
+  else
+    text = tostring(err)
+  end
+  -- A TeX log starts with the engine banner. Keep the first error line.
+  local bang = text:match('\n(! [^\n]*)') or text:match('^(! [^\n]*)')
+  local line = text:match('\nl%.(%d+)')
+  if bang then
+    if line then
+      return bang .. ' line ' .. line
+    end
+    return bang
+  end
+  return text
+end
+
 -- Executes each document's code block to find matching code blocks:
 local function code_to_figure (conf)
   return function (block)
@@ -597,10 +636,16 @@ local function code_to_figure (conf)
       return nil
     end
 
+    -- 0-based among diagram fences that match a known engine.
+    local this_fence = fence_index
+    fence_index = fence_index + 1
+
     -- Unified properties.
     local dgr_opt = diagram_options(block, engine.line_comment_start)
+    -- Locked engine options replace block options. opt-additional-packages
+    -- on a fence cannot beat the preamble set in lock-diagram.lua.
     for optname, value in pairs(engine.opt or {}) do
-      dgr_opt.opt[optname] = dgr_opt.opt[optname] or value
+      dgr_opt.opt[optname] = value
     end
 
     local run_pdf2svg = engine.mime_type == 'application/pdf'
@@ -623,15 +668,8 @@ local function code_to_figure (conf)
 
       -- Bail if an error occurred; imgdata contains the error message
       -- when that happens.
-      if not success then
-        warn(PANDOC_SCRIPT_FILE, ': ', tostring(imgdata))
-        return nil
-      elseif not imgdata then
-        warn(PANDOC_SCRIPT_FILE, ': Diagram engine returned no image data.')
-        return nil
-      elseif not imgtype then
-        warn(PANDOC_SCRIPT_FILE, ': Diagram engine did not return a MIME type.')
-        return nil
+      if not success or not imgdata or not imgtype then
+        fail_diagram(diagram_type, this_fence, error_text(imgdata))
       end
 
       -- Convert SVG if necessary.
