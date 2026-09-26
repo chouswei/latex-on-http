@@ -1,0 +1,56 @@
+Colophon render worker
+======================
+
+This tree is a public AGPL-3.0 fork of YtoTech/latex-on-http. The original
+work is Copyright (C) 2017-2019 Yoan Tournade and other contributors, licensed
+under the GNU Affero General Public License, version 3. That licence is
+unchanged: see LICENSE.
+
+What changed
+------------
+
+The fork is the render worker for Inkmirage Colophon. It is not the public
+latex.ytotech.com service.
+
+- Each job runs in a new rootless Podman container (`--network=none`,
+  read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 2048 MiB memory,
+  256 pids, 60 s wall clock, 20 MiB output cap). The container is removed
+  afterwards. The result is returned in the HTTP response and is not kept.
+- LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
+  the image texmf). The host compiler path raises rather than running TeX
+  on the worker host.
+- The listener binds only to a configured Tailscale address. It refuses to
+  start if that address is unset, unspecified (0.0.0.0 or ::), a LAN
+  address, loopback, or any other non-Tailscale address.
+- Every request needs the shared worker token (Bearer). Concurrency is one
+  job per process. A second job is refused at once with Retry-After. There
+  is no queue.
+- New jobs are refused when the 1-minute load average is above 3.0, when
+  MemAvailable is below 4096 MiB, or when the load sample is stale or
+  unreadable. An unreadable kill-switch file is treated as engaged.
+- Spawn failures, Pandoc failures, diagram failures, and LaTeX failures
+  fail closed. A wall-clock kill is `failTimeout`, which is not a render
+  error. Output over 20 MiB is `failCapHit`.
+- `POST /builds/sync` still accepts a single inline TeX or Markdown resource,
+  but URL, git, tar, and cache resources are rejected, and the only compiler
+  is XeLaTeX.
+- The image bakes a trimmed TeX Live (XeLaTeX, xeCJK, Noto CJK TC, TikZ,
+  CircuiTikZ) plus Pandoc, the pandoc-ext/diagram Lua filter, mermaid-cli
+  with headless Chromium, d2, and a vendored PIDcircuitTikZ. There is no
+  runtime package fetch and no Tectonic. `tlmgr` is removed from the image.
+
+Third-party pieces added with this fork
+----------------------------------------
+
+- pandoc-ext/diagram, commit 5aaf35e6f775ddf501045fe28b03642ee73db2f4,
+  MIT. See vendor/diagram/LICENSE. SHA-256 of the vendored diagram.lua:
+  856a957f5d188aaaeb6b0f080011092b8c5adbffb00f02023b46de9f29746cef.
+- PIDcircuitTikZ by Jelle Spijker, MIT. There is no CTAN package of this
+  name (CTAN search, 2026-09-26). It is not CircuiTikZ. CircuiTikZ is the
+  CTAN package `circuitikz`. TikZ is delivered by CTAN package `pgf`.
+  xeCJK is CTAN package `xecjk`. Noto CJK TC is installed from Debian
+  `fonts-noto-cjk`, not from CTAN.
+
+`McpResponse.retryAfterSec` is unbound in the Colophon SysML model. This
+worker uses 10 seconds. `McpGate.maxInputKiB` is also unbound; the worker
+refuses request bodies above 16 MiB as a local transport cap.

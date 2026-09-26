@@ -8,9 +8,19 @@ Fixtures for tests.
 :license: AGPL, see LICENSE for more details.
 """
 
-import pytest
 import subprocess
 import time
+
+import pytest
+
+
+def pytest_collection_modifyitems(config, items):
+    """Legacy API tests need a running server. They are not the unit suite."""
+    for item in items:
+        path = str(item.path).replace("\\", "/")
+        if "/tests/colophon/" in path:
+            continue
+        item.add_marker(pytest.mark.integration)
 
 
 @pytest.fixture(scope="function")

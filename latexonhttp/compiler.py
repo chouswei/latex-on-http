@@ -7,6 +7,7 @@ Get a compilation order (dict task spec) and compiles the order.
 
 :copyright: (c) 2017-2018 Yoan Tournade.
 :license: AGPL, see LICENSE for more details.
+Modified 2026 by Inkmirage: host compilation is disabled; see NOTICE.
 """
 
 import subprocess
@@ -96,6 +97,13 @@ def run_command(directory, command, timeout=DEFAULT_COMPILE_TIMEOUT):
 
 
 def latexToPdf(compilerName, directory, main_resource, workspace_id, options={}):
+    # Colophon: never compile on the host. The sandbox flags in
+    # colophon.podman_args are the only supported path (shell-escape off,
+    # no network, throwaway container).
+    raise RuntimeError(
+        "Host-side LaTeX is disabled in this fork. "
+        "Each job runs in a rootless Podman sandbox."
+    )
     if compilerName not in AVAILABLE_LATEX_COMPILERS:
         raise ValueError("Invalid compiler")
     # TODO Choose appropriate options following the compiler.

@@ -1,0 +1,3 @@
+#!/bin/sh
+export PYTHONPATH="/opt/colophon${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m colophon.sandbox_render

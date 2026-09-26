@@ -1,11 +1,6 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Colophon worker entry.
-
-The process binds only to COLOPHON_BIND_ADDRESS. It refuses 0.0.0.0, a LAN
-address, and any address that is not the Pi's Tailscale address.
-"""
 
 from colophon.cli import main_worker
 

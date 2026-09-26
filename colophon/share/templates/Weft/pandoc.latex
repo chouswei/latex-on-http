@@ -1,0 +1,21 @@
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{circuitikz}
+\usetikzlibrary{circuits.pid.ISO14617}
+\newcommand{\ColophonLane}{Weft}
+$if(title)$
+\title{$title$}
+$endif$
+\begin{document}
+$if(title)$
+\maketitle
+$endif$
+$body$
+\end{document}

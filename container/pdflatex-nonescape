@@ -1,0 +1,4 @@
+#!/bin/sh
+# The diagram filter's TikZ engine calls pdflatex. Route it through XeLaTeX
+# with shell-escape forced off.
+exec /usr/local/bin/xelatex-nonescape "$@"

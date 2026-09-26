@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-09-26-colophon
+
+* Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
+  Podman sandboxes. The listener binds only to a Tailscale address. Host-side
+  LaTeX is disabled. See NOTICE.
+
 ## 2026-04-10-3
 
 * Add CHANGELOG link

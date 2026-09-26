@@ -1,0 +1,118 @@
+# Colophon render sandbox.
+#
+# arm64 and amd64. Everything the job needs is installed here. The container
+# has no network at runtime, and tlmgr is removed so a job cannot fetch
+# packages. Build-time downloads (Pandoc, d2, npm) are not runtime fetches.
+#
+# PIDcircuitTikZ has no CTAN package name (checked 2026-09-26). It is vendored
+# from jellespijker/PIDcircuitTikZ (MIT). CircuiTikZ is the separate CTAN
+# package `circuitikz`. TikZ is CTAN `pgf`. xeCJK is CTAN `xecjk`.
+
+FROM debian:12-slim
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive \
+    PATH="/usr/local/bin:${PATH}" \
+    PYTHONPATH=/opt/colophon \
+    PUPPETEER_SKIP_DOWNLOAD=1 \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 \
+    D2_LAYOUT=dagre
+
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        fontconfig \
+        fonts-noto-cjk \
+        inkscape \
+        nodejs \
+        npm \
+        python3 \
+        xz-utils \
+    && apt-get install -y \
+        texlive-xetex \
+        texlive-lang-chinese \
+        texlive-pictures \
+        texlive-science \
+        texlive-latex-recommended \
+        texlive-fonts-recommended \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pandoc 3 is required by pandoc-ext/diagram (Figure AST). Bookworm's Pandoc
+# is 2.x. Binaries are pinned; TARGETARCH selects arm64 or amd64.
+ARG TARGETARCH
+ARG PANDOC_VERSION=3.6.4
+ARG D2_VERSION=0.7.1
+RUN set -eu; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$arch" in amd64|arm64) ;; *) echo "unsupported arch $arch"; exit 1 ;; esac; \
+    curl -fsSL -o /tmp/pandoc.tar.gz \
+        "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-${arch}.tar.gz"; \
+    tar -C /tmp -xzf /tmp/pandoc.tar.gz; \
+    install -m 0755 "/tmp/pandoc-${PANDOC_VERSION}/bin/pandoc" /usr/local/bin/pandoc; \
+    rm -rf /tmp/pandoc.tar.gz "/tmp/pandoc-${PANDOC_VERSION}"; \
+    curl -fsSL -o /tmp/d2.tar.gz \
+        "https://github.com/d2lang/d2/releases/download/v${D2_VERSION}/d2-v${D2_VERSION}-linux-${arch}.tar.gz"; \
+    mkdir -p /tmp/d2; \
+    tar -C /tmp/d2 -xzf /tmp/d2.tar.gz; \
+    d2bin="$(find /tmp/d2 -type f -name d2 | head -n 1)"; \
+    test -n "$d2bin"; \
+    install -m 0755 "$d2bin" /usr/local/bin/d2; \
+    rm -rf /tmp/d2 /tmp/d2.tar.gz
+
+ARG MERMAID_CLI_VERSION=11.4.2
+RUN npm install -g --prefix /opt/mermaid "@mermaid-js/mermaid-cli@${MERMAID_CLI_VERSION}" \
+    && test -x /usr/bin/chromium
+
+COPY container/puppeteer.json /etc/colophon/puppeteer.json
+COPY container/xelatex-nonescape /usr/local/bin/xelatex-nonescape
+COPY container/pdflatex-nonescape /usr/local/bin/pdflatex
+COPY container/mmdc-wrapper /usr/local/bin/mmdc
+COPY container/colophon-sandbox-render /usr/local/bin/colophon-sandbox-render
+RUN chmod 0755 /usr/local/bin/xelatex-nonescape /usr/local/bin/pdflatex \
+        /usr/local/bin/mmdc /usr/local/bin/colophon-sandbox-render \
+    && ln -sf /usr/local/bin/xelatex-nonescape /usr/local/bin/xelatex
+
+COPY vendor/pidcircuittikz/ /usr/local/share/texmf/tex/latex/pidcircuittikz/
+COPY vendor/diagram/diagram.lua /usr/local/share/colophon/diagram.lua
+COPY colophon/share/ /usr/local/share/colophon/
+COPY colophon/ /opt/colophon/colophon/
+COPY container/stamp_reference_docx.py /tmp/stamp_reference_docx.py
+
+RUN set -eu; \
+    printf 'shell_escape = f\n' > /etc/texmf/texmf.d/00colophon.cnf; \
+    update-texmf; \
+    mktexlsr; \
+    fc-cache -f; \
+    kpsewhich circuitikz.sty; \
+    kpsewhich tikz.sty; \
+    kpsewhich xecjk.sty; \
+    kpsewhich fontspec.sty; \
+    kpsewhich siunitx.sty; \
+    kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
+    fc-list : family | grep -F "Noto Sans CJK TC"; \
+    command -v pandoc; \
+    command -v xelatex; \
+    command -v d2; \
+    command -v mmdc; \
+    command -v inkscape; \
+    python3 -c 'import colophon.sandbox_render'; \
+    for lane in InstruMeasure Weft Investor; do \
+        pandoc -o /tmp/reference.docx --print-default-data-file reference.docx; \
+        python3 /tmp/stamp_reference_docx.py /tmp/reference.docx \
+            "/usr/local/share/colophon/templates/${lane}/reference.docx" "$lane"; \
+    done; \
+    rm -f /tmp/reference.docx /tmp/stamp_reference_docx.py; \
+    rm -f /usr/bin/tlmgr; \
+    apt-get purge -y curl wget || true; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/* /root/.npm
+
+RUN groupadd --gid 10001 colophon \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin colophon \
+    && chown -R root:root /usr/local/share/colophon /opt/colophon
+
+USER 10001:10001
+WORKDIR /tmp
+ENTRYPOINT ["colophon-sandbox-render"]

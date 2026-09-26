@@ -1,5 +1,120 @@
 # LaTeX-On-HTTP
 
+This repository is the Inkmirage Colophon render worker, an AGPL-3.0 fork of
+YtoTech/latex-on-http. Modifications are described in [NOTICE](NOTICE). The
+upstream HTTP API notes follow the Colophon section. Sandbox rules win where
+they disagree with the upstream service.
+
+## Colophon render worker
+
+The worker turns Markdown (with Mermaid, D2, and TikZ) or a TeX body into
+PDF, HTML, or DOCX. It runs on the Raspberry Pi beside other lab services and
+is reached only from the gateway, over Tailscale. It does not deploy itself.
+
+### Image
+
+Build on the Pi (or any machine that can produce an arm64 image):
+
+```sh
+podman build --platform linux/arm64 -f container/Dockerfile.colophon -t colophon-render:local .
+```
+
+The image is multi-arch (`linux/arm64` and `linux/amd64`). It bakes a trimmed
+TeX Live, Pandoc 3.6.4, pandoc-ext/diagram, mermaid-cli with Debian Chromium,
+and d2. Package managers are not used at runtime. PIDcircuitTikZ is vendored
+because it is not a CTAN package; CircuiTikZ is the CTAN package `circuitikz`.
+See [NOTICE](NOTICE).
+
+Chromium under rootless Podman on arm64 was not executed in the environment
+that prepared this tree. The image passes `--no-sandbox` and
+`--disable-dev-shm-usage` to Chromium because the job user is not root and
+`/dev/shm` is not the writable tmpfs.
+
+### Dedicated rootless user
+
+Create a user that is not in the `docker` group and has no access to
+`/var/run/docker.sock` or the rootful Podman socket. Enable lingering so the
+user manager stays up, and delegate the cgroup v2 `cpu`, `memory`, and `pids`
+controllers to that user (systemd user delegation, or the equivalent
+`cgroup.subtree_control` on the user slice).
+
+```sh
+sudo useradd --create-home --shell /bin/bash colophon
+sudo loginctl enable-linger colophon
+# Confirm the user is not in the docker group:
+id colophon
+```
+
+As that user, install rootless Podman and this repo, then build the image
+above. Do not mount the Docker socket into the user session.
+
+```sh
+sudo -u colophon -H bash -lc 'cd /opt/colophon && uv sync'
+```
+
+Preflight (non-zero if any check fails; it does not stop or inspect other
+containers beyond a list attempt on foreign sockets):
+
+```sh
+sudo -u colophon -H bash -lc 'cd /opt/colophon && uv run python -m colophon.preflight'
+```
+
+### Configuration
+
+The process refuses to start unless every required variable is set and the
+bind address is a Tailscale address (IPv4 `100.64.0.0/10` or IPv6
+`fd7a:115c:a1e0::/48`). `0.0.0.0`, `::`, RFC1918, link-local, other ULAs,
+loopback, and public addresses are refused.
+
+```sh
+# /home/colophon/.config/colophon/worker.env  (mode 0600)
+COLOPHON_BIND_ADDRESS=100.64.0.1
+COLOPHON_WORKER_TOKEN=replace-with-the-gate-token
+COLOPHON_KILL_SWITCH_FILE=/home/colophon/.config/colophon/kill-switch
+COLOPHON_IMAGE=colophon-render:local
+COLOPHON_PORT=8080
+```
+
+`printf 'clear\n' > /home/colophon/.config/colophon/kill-switch`
+
+An unreadable or unrecognised kill-switch file is treated as engaged. The
+token is the shared worker token from the gate, sent as
+`Authorization: Bearer`. It is not an end-user API key.
+
+`Retry-After` is 10 seconds. That duration is a worker default: the SysML
+model still leaves `retryAfterSec` unbound. Request bodies above 16 MiB are
+refused; the gate's maximum input size is still unbound.
+
+Start (one process; threads serve abort and load while a job runs):
+
+```sh
+sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; cd /opt/colophon && uv run python -m colophon'
+```
+
+### HTTP
+
+| Method and path | Role |
+| --- | --- |
+| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. |
+| `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. |
+| `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
+| `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |
+| `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. |
+
+A second job while one is running is `429` with `Retry-After` and is not
+queued. The same response is used when load average is above 3.0, available
+memory is below 4096 MiB, or the load sample is stale. A wall-clock kill is
+HTTP 408 `failTimeout`. A render failure is HTTP 422 `rejectRenderError`.
+
+### Tests
+
+```sh
+uv run pytest -vv
+uv run pytest -m podman -o addopts=    # needs rootless podman; skips without the image
+```
+
+---
+
 > Compiles LaTeX documents through an HTTP API.
 
 See [TUG2020 introduction](https://www.youtube.com/watch?v=tGD4upJIUgc) to LaTeX-on-HTTP genesis.

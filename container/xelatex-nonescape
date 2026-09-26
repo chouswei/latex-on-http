@@ -1,0 +1,16 @@
+#!/bin/bash
+# Colophon: LaTeX shell-escape is off.
+# TeX honours the last shell-escape flag, so enabling flags are removed and
+# -no-shell-escape is placed last.
+set -eu
+filtered=()
+for arg in "$@"; do
+  case "$arg" in
+    -shell-escape|--shell-escape|-enable-write18|--enable-write18|-shell-restricted|--shell-restricted)
+      ;;
+    *)
+      filtered+=("$arg")
+      ;;
+  esac
+done
+exec /usr/bin/xelatex -no-shell-escape "${filtered[@]}"

@@ -5,10 +5,13 @@ install:
 	uv sync
 
 start:
-	uv run gunicorn --workers=2 --threads=8 --bind=0.0.0.0:8080 app:app
+	uv run python -m colophon
+
+preflight:
+	uv run python -m colophon.preflight
 
 debug:
-	uv run python app.py --verbose --debug
+	uv run python -m colophon
 
 
 ## -------------------------------
