@@ -236,19 +236,79 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 
 ### HTTP
 
+Canonical paths: `POST /v1/jobs`, `GET /v1/host-load`, `POST /v1/switch`,
+`POST /builds/sync`, `GET /version`. `POST /v1/jobs/abort` kills the running
+container. There is no `/load` path.
+
+Every token-gated route answers `401` with `{"error":"unauthorized"}` when
+the bearer token is missing or wrong. `Cache-Control` is `no-store`.
+
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, `memory.mode` (`cgroup` or `rlimit`, when the sandbox reports it), and `pids.peak`. When HTML or DOCX input contains inline `siunitx` or `mhchem`, that header also carries `warnings` (`notationPdfOnly`) and the artifact keeps the source text. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
-| `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. |
-| `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
-| `GET /load` | Token-gated, same as `GET /version`. This is the path the Colophon gate calls. JSON: `loadAvg1m`, `memAvailableMiB` (free memory), `memThresholdMiB` (4096), `jobs` (0 or 1), `queue` (always 0; a second job is refused), `shed` (true when a new job would be load-shed), `shedReason` (`loadavg`, `mem`, `stale`, `unreadable`, or null), `observedAt` (ISO-8601 sample time with a timezone). The gate uses `loadAvg1m`, `memAvailableMiB`, and `observedAt`. Refresh every 10 s. |
-| `GET /v1/host-load` | Same sample as `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. The gate does not call this path. |
-| `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. |
-| `GET /version` | Version, the git commit or tag baked at build time, a source link, `packageSet` (sorted TeX package names, including `colophon-floorplan`), and `packageSetHash` (sha256 of those names joined by newlines). The list is written at image build. The request does not run a shell. |
+| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. |
+| `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. Success and error bodies match `POST /v1/jobs`. |
+| `POST /v1/jobs/abort` | Kills the running container only. `200` `{"aborted":true}`. Idle is `404` `{"aborted":false,"error":"idle"}`. |
+| `GET /v1/host-load` | Host sample, refreshed every 10 s. `200` when the sample was read, including a sample older than 30 s. `503` when the sample could not be read. |
+| `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. Success JSON is `readable` and `engaged`. |
+| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `colophon-floorplan`), and `packageSetHash` (sha256 of those names joined by newlines, no trailing newline). The list is written at image build. The request does not run a shell. |
 
-A second job while one is running is `429` with `Retry-After` and is not
-queued. The same response is used when load average is above 3.0, available
-memory is below 4096 MiB, or the load sample is stale. A wall-clock kill is
+`GET /v1/host-load` JSON keys, and no others:
+
+| Key | JSON type | Meaning |
+| --- | --- | --- |
+| `loadavg` | number or `null` | 1-minute load average (`/proc/loadavg` field 1). |
+| `memAvailableMiB` | integer or `null` | `MemAvailable` in MiB. |
+| `activeJobs` | integer | `0` or `1`. |
+| `queued` | integer | Always `0`. A second job is refused, not queued. |
+| `reportedAt` | string or `null` | Sample time, UTC, ISO-8601 with a numeric offset (`+00:00`). A caller treats a report older than 30 s as stale. |
+
+On `503`, `loadavg` and `memAvailableMiB` are `null`. `reportedAt` is still
+the time of that failed sample.
+
+`POST /v1/jobs` success is HTTP `200`. The body is the artifact bytes, not
+JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
+
+| Key | JSON type | Meaning |
+| --- | --- | --- |
+| `result` | string | `ok`. |
+| `wallSec` | number or `null` | Runner wall clock. |
+| `memory.peak` | integer or `null` | cgroup peak, when the sandbox reported one. |
+| `memory.mode` | string | `cgroup` or `rlimit`, only when the sandbox reported it. |
+| `pids.peak` | integer or `null` | cgroup pid peak. |
+| `warnings` | array of string | Present only for `notationPdfOnly`. |
+
+`POST /v1/jobs` errors are JSON. The object always has `error`, `result`,
+`wallSec`, `memory` (`peak`, and `mode` only when reported), and `pids`
+(`peak`). `result` is `ok`, `failTimeout`, `failCapHit`, `renderError`, or
+`refused`. Peaks and `wallSec` are `null` when the job never started.
+
+| `error` | HTTP | `result` | Extra keys |
+| --- | --- | --- | --- |
+| `rejectBusy` | 429, `Retry-After` | `refused` | none when the worker is already busy |
+| `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the five `GET /v1/host-load` keys; `activeJobs` is `0`) |
+| `rejectKillSwitch` | 403 | `refused` | `readable`, `engaged` |
+| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `inputKind`, `input`, `documentclass`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
+| `rejectSpawnFail` | 500 | `refused` | none |
+| `rejectRenderError` | 422 | `renderError` | `diagnostic` when the sandbox reported one: `engine`, `message`, `file`, `line`, `fence` |
+| `failTimeout` | 408 | `failTimeout` | none |
+| `failCapHit` | 413 | `failCapHit` | none. Output over 20 MiB uses this kind. The body does not contain `failOutputCap`. |
+
+A request body over 16 MiB is `rejectInvalidInput` with `field` `input`
+(HTTP 400).
+
+`403` `rejectKillSwitch` when the switch file is missing or unreadable:
+
+```json
+{"error":"rejectKillSwitch","result":"refused","wallSec":null,"memory":{"peak":null},"pids":{"peak":null},"readable":false,"engaged":true}
+```
+
+When the file is readable and contains `engaged`, `readable` is `true` and
+`engaged` is `true`. Any other contents are treated as unreadable: `readable`
+is `false` and `engaged` is `true`.
+
+A second job while one is running is `429` `rejectBusy` with `Retry-After`
+and is not queued. Load average above 3.0, MemAvailable below 4096 MiB, or
+a sample older than 30 s is `429` `rejectLoadShed`. A wall-clock kill is
 HTTP 408 `failTimeout`. A render failure is HTTP 422 `rejectRenderError`.
 
 ### Tests
@@ -257,6 +317,12 @@ HTTP 408 `failTimeout`. A render failure is HTTP 422 `rejectRenderError`.
 uv run pytest -vv
 uv run pytest -m podman -o addopts=    # needs rootless podman; skips without the image
 ```
+
+Engine checks for `\write18` and Lua `os.execute` / `io.popen` run under
+pytest when `xelatex` or `lualatex` is on `PATH`, and are skipped otherwise.
+`scripts/colophon-negative-tests.sh` is the live check for a running worker
+(timeout, shell-escape, tmpfs, the 20 MiB output cap, and one smoke render
+per package family). It needs `COLOPHON_URL` and `COLOPHON_WORKER_TOKEN`.
 
 ---
 

@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from colophon.limits import (
-    HOST_LOAD_REPORT_INTERVAL_SEC,
     LOAD_AVG_1M_THRESHOLD,
     MEM_AVAILABLE_MIB_THRESHOLD,
     REPORT_MAX_AGE_SEC,
@@ -80,35 +79,18 @@ class LoadMonitor:
         return shed_reason(self.load_avg, self.mem_available_mib, self.age_sec())
 
     def report(self, busy):
-        reason = self.decision()
-        stale = reason in ("stale", "unreadable")
-        return {
-            "loadAvg1m": self.load_avg,
-            "memAvailableMiB": self.mem_available_mib,
-            "busy": bool(busy),
-            "stale": stale,
-            "intervalSec": HOST_LOAD_REPORT_INTERVAL_SEC,
-            "readable": reason != "unreadable",
-        }
+        """JSON body of ``GET /v1/host-load``.
 
-    def load_payload(self, jobs):
-        """Body for ``GET /load``. The gate reads three of these fields.
-
-        ``loadAvg1m``, ``memAvailableMiB``, and ``observedAt`` are what
-        Colophon gate ``fetch_load`` requires. ``jobs`` is 0 or 1. ``queue``
-        is always 0: a second job is refused, not queued. ``shed`` is the
-        load-shed decision (load average, free memory against 4096 MiB, or
-        a stale or unreadable sample). Occupancy is ``jobs``, not ``shed``.
+        ``loadavg`` is the 1-minute load average. ``activeJobs`` is 0 or 1.
+        ``queued`` is always 0: a second job is refused, not queued.
+        ``reportedAt`` is the sample time in UTC, ISO-8601 with a numeric
+        offset, so a caller can reject a report older than 30 s.
         """
-        reason = self.decision()
         observed = self.sampled_at_utc
         return {
-            "loadAvg1m": self.load_avg,
+            "loadavg": self.load_avg,
             "memAvailableMiB": self.mem_available_mib,
-            "memThresholdMiB": MEM_AVAILABLE_MIB_THRESHOLD,
-            "jobs": int(jobs),
-            "queue": 0,
-            "shed": reason is not None,
-            "shedReason": reason,
-            "observedAt": None if observed is None else observed.isoformat(),
+            "activeJobs": 1 if busy else 0,
+            "queued": 0,
+            "reportedAt": None if observed is None else observed.isoformat(),
         }

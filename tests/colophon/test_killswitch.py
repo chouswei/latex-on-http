@@ -31,10 +31,35 @@ def test_http_refuses_when_switch_unreadable(
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
     assert response.status_code == 403
     body = response.get_json()
-    assert body["error"] == "rejectKillSwitch"
-    assert body["readable"] is False
-    assert body["engaged"] is True
+    assert body == {
+        "error": "rejectKillSwitch",
+        "result": "refused",
+        "wallSec": None,
+        "memory": {"peak": None},
+        "pids": {"peak": None},
+        "readable": False,
+        "engaged": True,
+    }
     assert supervisor.busy() is False
+
+
+def test_http_refuses_when_switch_file_says_engaged(
+    config, monitor, supervisor, auth, tmp_path
+):
+    path = tmp_path / "switch"
+    path.write_text("engaged\n", encoding="utf-8")
+    app = create_app(config, KillSwitch(path), monitor, supervisor)
+    response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "rejectKillSwitch",
+        "result": "refused",
+        "wallSec": None,
+        "memory": {"peak": None},
+        "pids": {"peak": None},
+        "readable": True,
+        "engaged": True,
+    }
 
 
 def test_clear_switch_allows_a_job(client, auth):

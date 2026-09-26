@@ -40,10 +40,11 @@
   jobs. A wall clock at or after 60 s is `failTimeout` for every exit
   code, including Podman 4.3's timeout exit 255. An earlier 255 stays a
   render error.
-* `GET /load` is the token-gated load report the Colophon gate calls.
-  It returns free memory against the 4096 MiB shed threshold, the current
-  job count, an empty queue, whether a new job would shed, and
-  `observedAt`.
+* `GET /v1/host-load` is the token-gated load report. JSON keys are
+  `loadavg` (1-minute), `memAvailableMiB`, `activeJobs`, `queued`, and
+  `reportedAt` (UTC, ISO-8601 with a `+00:00` offset). There is no `/load`
+  path. `503` means the sample could not be read. A sample older than 30 s
+  stays `200`; `reportedAt` is how a caller detects that.
 * Rootless storage on the Pi must be `driver=overlay` with
   `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
 * Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli

@@ -9,7 +9,34 @@ import pytest
 
 from colophon.revision import package_set, package_set_hash, source_url, version_payload
 
-PACKAGE_SET_SOURCE = Path(__file__).resolve().parents[2] / "colophon" / "package_set.txt"
+PACKAGE_SET_SOURCE = (
+    Path(__file__).resolve().parents[2] / "colophon" / "package_set.txt"
+)
+
+# Widened set from commits 19de0c2 and 5e07aef: circuitikz through pgfgantt,
+# plus colophon-floorplan. The digest is sha256 of these names joined by
+# newlines, with no trailing newline.
+WIDENED_PACKAGE_SET = [
+    "bytefield",
+    "chemfig",
+    "circuitikz",
+    "colophon-floorplan",
+    "forest",
+    "mhchem",
+    "pgf",
+    "pgfgantt",
+    "pgfplots",
+    "siunitx",
+    "tikz-3dplot",
+    "tikz-cd",
+    "tikz-dimline",
+    "tikz-feynman",
+    "tikz-timing",
+    "tikzscale",
+]
+WIDENED_PACKAGE_SET_HASH = (
+    "c6676798e00bd9655bf3391f0c0f21dec100684d5c6783a6e0b2c3f8ae078c01"
+)
 
 
 def test_version_requires_token(client):
@@ -39,6 +66,11 @@ def test_missing_revision_is_unknown(monkeypatch):
     assert "/commit/" not in body["source"]
 
 
+def test_widened_package_set_hash_is_pinned():
+    assert package_set() == WIDENED_PACKAGE_SET
+    assert package_set_hash(WIDENED_PACKAGE_SET) == WIDENED_PACKAGE_SET_HASH
+
+
 def test_version_package_set_is_sorted_and_hashed(client, auth, monkeypatch):
     monkeypatch.delenv("COLOPHON_GIT_COMMIT", raising=False)
     response = client.get("/version", headers=auth)
@@ -66,9 +98,7 @@ def test_baked_package_set_file_is_what_version_reads(tmp_path, monkeypatch):
     monkeypatch.setattr("colophon.revision._package_set_file", lambda: baked)
     body = version_payload()
     assert body["packageSet"] == ["circuitikz", "siunitx"]
-    assert body["packageSetHash"] == hashlib.sha256(
-        b"circuitikz\nsiunitx"
-    ).hexdigest()
+    assert body["packageSetHash"] == hashlib.sha256(b"circuitikz\nsiunitx").hexdigest()
 
 
 @pytest.mark.parametrize(
