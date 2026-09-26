@@ -19,13 +19,20 @@
 * A job result carries a result class, wall time, cgroup `memory.peak` and
   `pids.peak`, and on a render error the first diagnostic. `memory.mode`
   is `cgroup` or `rlimit` when the sandbox reports it.
-* Each job sets `--ulimit as=` (`COLOPHON_RLIMIT_AS_BYTES`, default
-  2147483648). `--memory` is passed only when the memory controller is
-  present. A missing `cpu` controller refuses startup. Other caps are
-  unchanged (60 s, 20 MiB output, 256 pids, 512 MiB tmpfs, no network,
-  shell-escape off, load shed at loadavg 3 or MemAvailable 4096 MiB).
-  The default ceiling fits the measured XeLaTeX and LuaLaTeX jobs. It does
-  not fit current headless Chromium; see the README.
+* Each job sets `--ulimit as=<soft>:<hard>` (`COLOPHON_RLIMIT_AS_BYTES`,
+  default `2147483648:2147483648`). `--memory` and `--memory-swap` are
+  passed only when the memory controller is present. Preflight requires
+  `cpu` and `pids`; a missing memory controller is a warning and the job
+  uses rlimit mode. A missing `cpu` controller refuses startup. An
+  allocation failure (`not enough memory`, `memory exhausted`,
+  `Cannot allocate memory`, xdvipdfmx `Out of memory`, Pandoc
+  `Heap exhausted`) is `failCapHit`, the same outcome as an early SIGKILL.
+  `RLIMIT_AS` is per process, so the worst case is 256 × 2 GiB; one job
+  at a time, few TeX processes, and the MemAvailable shed bound it.
+  Other caps are unchanged (60 s, 20 MiB output, 256 pids, 512 MiB tmpfs,
+  no network, shell-escape off, load shed at loadavg 3 or MemAvailable
+  4096 MiB). The default ceiling fits the measured XeLaTeX and LuaLaTeX
+  jobs. It does not fit current headless Chromium; see the README.
 * The required fixture set is the document shell plus Mermaid, D2, P&ID,
   circuits, plots, chemistry, Gantt, and floor plans. `tikz-cd`, `forest`,
   `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and

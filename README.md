@@ -136,8 +136,9 @@ tmpfs, uid 10001, `--pids-limit=256`, `--timeout=60`, shell-escape off, and
 `--cpus=1`. Output over 20 MiB is `failCapHit`. A second job is refused.
 Load above 3.0, or MemAvailable below 4096 MiB, sheds the job.
 
-The memory ceiling is always `--ulimit as=<bytes>` (`RLIMIT_AS`). The
-default is 2147483648 bytes (2048 MiB), from `COLOPHON_RLIMIT_AS_BYTES`.
+The memory ceiling is always `--ulimit as=<soft>:<hard>` (`RLIMIT_AS`),
+with soft and hard set to the same value. The default is
+`2147483648:2147483648` (2048 MiB), from `COLOPHON_RLIMIT_AS_BYTES`.
 That limit is virtual address space, not resident set size.
 
 `--memory=2048m` and `--memory-swap=2048m` are added only when the memory
@@ -170,8 +171,24 @@ bytes, all of these exited 0:
 
 The default therefore does not break those TeX jobs. A LuaTeX run that
 reserves more than 2048 MiB of address space, for example a large
-`luaotfload` cache, is killed even when the resident set would have fitted.
-This worker compiles with XeLaTeX. LuaTeX is not the job engine.
+`luaotfload` cache, fails the allocation even when the resident set would
+have fitted. This worker compiles with XeLaTeX. LuaTeX is not the job engine.
+
+Under the cgroup memory controller, a memory hit is an early SIGKILL and
+the result is `failCapHit`. Under `RLIMIT_AS` the process is not signalled.
+The engine exits nonzero and the log carries an allocation failure.
+XeTeX prints `ooops, not enough memory`. kpathsea prints
+`fatal: memory exhausted`. xdvipdfmx prints
+`Out of memory - asked for N bytes`. libc prints `Cannot allocate memory`.
+Pandoc 3 is not installed on the host used for that check; its Haskell
+runtime prints `Heap exhausted`. Those exits are `failCapHit`, the same
+outcome as the early SIGKILL. A normal TeX error is still `renderError`.
+
+`RLIMIT_AS` applies per process, not per container. With `--pids-limit=256`
+and a 2048 MiB ceiling, the worst-case total is 256 × 2 GiB. In practice
+the total stays far below that. A TeX job spawns few processes, the worker
+runs one job at a time, and a new job is refused when MemAvailable is
+below 4096 MiB.
 
 Headless Chromium does not fit in that ceiling. Google Chrome 148
 `--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage

@@ -44,7 +44,7 @@ def test_memory_controller_absent_warns_and_still_passes():
     assert memory[0].warn is True
     assert memory[0].passed is True
     assert (
-        "memory controller: warn (absent; per-job RLIMIT_AS ceiling)"
+        "memory controller: warn (absent; rlimit mode, per-job RLIMIT_AS ceiling)"
         in format_report(checks)
     )
 

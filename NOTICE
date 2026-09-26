@@ -18,12 +18,18 @@ compile service.
   (`RLIMIT_AS`, default 2048 MiB, `COLOPHON_RLIMIT_AS_BYTES`).
   `--memory=2048m` and `--memory-swap=2048m` are set only when the cgroup
   memory controller is available. Without it (for example
-  `cgroup_disable=memory`) those flags are omitted and the process logs a
-  warning. A missing `cpu` controller refuses startup. `RLIMIT_AS` limits
-  virtual address space, not resident set size. The 2048 MiB default is
-  enough for the measured XeLaTeX and LuaLaTeX jobs and is not enough for
-  current headless Chromium; see the README. The container is removed
-  afterwards. The result is returned in the HTTP response and is not kept.
+  `cgroup_disable=memory`) both flags are omitted and the process logs a
+  warning. The address-space ceiling is `--ulimit as=<soft>:<hard>`
+  (default `2147483648:2147483648`). A missing `cpu` controller refuses
+  startup. Preflight requires `cpu` and `pids`; memory is optional.
+  `RLIMIT_AS` limits virtual address space per process, not resident set
+  size and not the whole container (worst case 256 × 2 GiB; one job at a
+  time, few TeX processes, and the MemAvailable shed bound it). An
+  allocation failure is `failCapHit`, the same outcome as an early
+  SIGKILL. The 2048 MiB default is enough for the measured XeLaTeX and
+  LuaLaTeX jobs and is not enough for current headless Chromium; see the
+  README. The container is removed afterwards. The result is returned in
+  the HTTP response and is not kept.
 - LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
   the image texmf). The host compiler path raises rather than running TeX
   on the worker host.

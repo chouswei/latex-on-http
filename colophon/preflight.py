@@ -73,13 +73,13 @@ def evaluate(probe: PreflightProbe):
         )
     )
     if probe.controllers is None:
-        memory_detail = "unreadable; per-job RLIMIT_AS ceiling"
+        memory_detail = "unreadable; rlimit mode, per-job RLIMIT_AS ceiling"
         memory_warn = True
     elif "memory" in probe.controllers.split():
         memory_detail = "present"
         memory_warn = False
     else:
-        memory_detail = "absent; per-job RLIMIT_AS ceiling"
+        memory_detail = "absent; rlimit mode, per-job RLIMIT_AS ceiling"
         memory_warn = True
     checks.append(
         Check(

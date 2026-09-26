@@ -31,7 +31,8 @@ def build_podman_run_args(
 
     The container has no network, a read-only root, one 512 MiB tmpfs, a
     non-root user, one CPU, a 256-pid cap, a 60 s wall clock, and an
-    ``RLIMIT_AS`` ceiling (``--ulimit as=``, default 2048 MiB). ``--memory``
+    ``RLIMIT_AS`` ceiling (``--ulimit as=<soft>:<hard>``, default 2048 MiB).
+    ``--memory``
     and ``--memory-swap`` are passed only when the memory controller is
     available. Without it, Podman would fail the start or ignore the cap, so
     those flags are omitted and a warning is logged. The address-space
@@ -68,7 +69,7 @@ def build_podman_run_args(
         user,
         "--cpus=1",
         "--ulimit",
-        f"as={ceiling}",
+        f"as={ceiling}:{ceiling}",
     ]
     if memory_mode == "cgroup":
         args.extend(

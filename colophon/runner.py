@@ -18,6 +18,7 @@ from colophon.limits import (
     STDERR_KEEP_BYTES,
     SUPERVISOR_TIMEOUT_SEC,
     TIMEOUT_ELAPSED_FLOOR_SEC,
+    allocation_failure,
 )
 from colophon.podman_args import (
     build_podman_kill_args,
@@ -71,8 +72,8 @@ def classify_result(
     """Map a finished sandbox to a fail-closed result kind.
 
     A wall-clock kill is ``failTimeout``, which is not a render error.
-    Output over the cap, and a memory or pid kill inside the wall, are
-    ``failCapHit``.
+    Output over the cap, a memory or pid kill inside the wall, and an
+    allocation failure (``RLIMIT_AS``) are ``failCapHit``.
     """
     marker = _marker(stderr or b"")
     wall = timed_out or (
@@ -85,6 +86,8 @@ def classify_result(
     if capped or marker == "cap" or returncode == 11:
         return "failCapHit"
     if returncode in (137, -9):
+        return "failCapHit"
+    if returncode not in (0, None) and allocation_failure(stderr):
         return "failCapHit"
     if marker == "invalid" or returncode == 12:
         return "rejectInvalidInput"

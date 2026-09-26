@@ -76,6 +76,57 @@ def test_http_over_cap_is_an_error(config, switch_path, monitor, auth):
     assert response.data != b"x" * (OUTPUT_CAP_BYTES + 1)
 
 
+def _classify(returncode, stderr, elapsed=2):
+    return classify_result(
+        returncode=returncode,
+        timed_out=False,
+        elapsed=elapsed,
+        capped=False,
+        abort=False,
+        stderr=stderr,
+    )
+
+
+def test_early_sigkill_is_the_memory_cap():
+    assert _classify(137, b"", elapsed=2) == "failCapHit"
+    assert _classify(-9, b"", elapsed=2) == "failCapHit"
+
+
+def test_allocation_failure_is_the_memory_cap():
+    samples = (
+        b"xelatex: ooops, not enough memory (2147483648)\nCOLOPHON_STATUS render_error\n",
+        b"fatal: memory exhausted (xmalloc of 1048576 bytes).\n",
+        b"xelatex: Cannot allocate memory\n",
+        b"xdvipdfmx:fatal: Out of memory - asked for 1048576 bytes\n",
+        b"pandoc: Heap exhausted;\nCurrent maximum heap size is 2147483648 bytes.\n",
+        b"Sorry, I ran out of memory.\n",
+    )
+    for stderr in samples:
+        assert _classify(1, stderr) == "failCapHit"
+
+
+def test_xdvipdfmx_bitmap_warning_is_not_a_cap():
+    stderr = (
+        b"xdvipdfmx:warning: large interlaced bitmap might cause out of memory\n"
+        b"job.tex:2: Undefined control sequence.\n"
+    )
+    assert _classify(1, stderr) == "rejectRenderError"
+
+
+def test_ordinary_tex_error_stays_a_render_error():
+    assert (
+        _classify(1, b"job.tex:9: Undefined control sequence.\n") == "rejectRenderError"
+    )
+
+
+def test_allocation_phrase_on_success_is_not_a_cap():
+    assert _classify(0, b"COLOPHON_STATUS ok\nwords of memory out of 5000000\n") == "ok"
+
+
+def test_wall_clock_kill_beats_an_allocation_phrase():
+    assert _classify(137, b"fatal: memory exhausted\n", elapsed=60) == "failTimeout"
+
+
 def test_timeout_is_not_a_render_error():
     assert (
         classify_result(

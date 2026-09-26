@@ -50,7 +50,7 @@ def test_podman_run_args_are_exact():
         SANDBOX_USER,
         "--cpus=1",
         "--ulimit",
-        f"as={DEFAULT_RLIMIT_AS_BYTES}",
+        f"as={DEFAULT_RLIMIT_AS_BYTES}:{DEFAULT_RLIMIT_AS_BYTES}",
         f"--memory={MEMORY_MIB}m",
         f"--memory-swap={MEMORY_MIB}m",
         f"--pids-limit={PIDS_LIMIT}",
@@ -87,7 +87,7 @@ def test_memory_controller_present_sets_memory_and_ulimit():
     assert f"--memory={MEMORY_MIB}m" in args
     assert f"--memory-swap={MEMORY_MIB}m" in args
     assert "--ulimit" in args
-    assert f"as={DEFAULT_RLIMIT_AS_BYTES}" in args
+    assert f"as={DEFAULT_RLIMIT_AS_BYTES}:{DEFAULT_RLIMIT_AS_BYTES}" in args
     assert "COLOPHON_MEMORY_MODE=cgroup" in args
     assert DEFAULT_RLIMIT_AS_BYTES == 2147483648
 
@@ -100,7 +100,7 @@ def test_memory_controller_absent_omits_memory_and_keeps_ulimit(caplog):
     assert f"--timeout={WALL_SEC}" in args
     assert "--network=none" in args
     assert not any(arg.startswith("--memory") for arg in args)
-    assert f"as={DEFAULT_RLIMIT_AS_BYTES}" in args
+    assert f"as={DEFAULT_RLIMIT_AS_BYTES}:{DEFAULT_RLIMIT_AS_BYTES}" in args
     assert "COLOPHON_MEMORY_MODE=rlimit" in args
     assert any("omitting --memory" in rec.message for rec in caplog.records)
 
@@ -113,14 +113,14 @@ def test_cpu_controller_absent_refuses_to_start():
 def test_rlimit_as_bytes_env_sets_the_ceiling(monkeypatch):
     monkeypatch.setenv("COLOPHON_RLIMIT_AS_BYTES", "3221225472")
     args = _args()
-    assert "as=3221225472" in args
+    assert "as=3221225472:3221225472" in args
     assert f"--memory={MEMORY_MIB}m" in args
 
 
 def test_explicit_ceiling_overrides_the_env(monkeypatch):
     monkeypatch.setenv("COLOPHON_RLIMIT_AS_BYTES", "3221225472")
     args = _args(as_bytes=1073741824)
-    assert "as=1073741824" in args
+    assert "as=1073741824:1073741824" in args
 
 
 def test_podman_args_do_not_open_the_host():

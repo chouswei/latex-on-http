@@ -27,8 +27,10 @@ RETRY_AFTER_SEC = 10
 # Supervisor backstop, above the Podman --timeout, so a wall-clock kill is
 # observed as Podman's timeout rather than this backstop when both are set.
 SUPERVISOR_TIMEOUT_SEC = WALL_SEC + 5
-# A SIGKILL at or after this elapsed time is the wall-clock cap. Earlier
-# SIGKILL is the memory or pids cap.
+# A SIGKILL at or after this elapsed time is the wall-clock cap. An earlier
+# SIGKILL is the cgroup memory or pids cap. Under RLIMIT_AS the process is
+# not signalled: the allocator fails and the engine exits nonzero. That
+# exit is the same memory-cap outcome. See ``allocation_failure``.
 TIMEOUT_ELAPSED_FLOOR_SEC = WALL_SEC - 1
 SANDBOX_UID = 10001
 SANDBOX_GID = 10001
@@ -44,6 +46,40 @@ _RLIMIT_MAX = 2**63 - 1
 
 class LimitError(ValueError):
     pass
+
+
+# Substrings, matched case-insensitively, from an engine that could not
+# allocate. XeTeX prints "ooops, not enough memory". kpathsea prints
+# "fatal: memory exhausted". xdvipdfmx prints "Out of memory - asked for
+# N bytes". libc prints "Cannot allocate memory". Pandoc 3's Haskell
+# runtime prints "Heap exhausted". The xdvipdfmx line "might cause out of
+# memory" warns about a large bitmap and is not itself a failed allocation.
+_ALLOCATION_MARKERS = (
+    "not enough memory",
+    "memory exhausted",
+    "cannot allocate memory",
+    "out of memory",
+    "heap exhausted",
+)
+_ALLOCATION_WARNINGS = ("might cause out of memory",)
+
+
+def allocation_failure(stderr):
+    """Return true when ``stderr`` reports an allocation failure.
+
+    A zero exit is not a failure. The caller decides that. Matching is
+    case-insensitive so ``Out of memory`` and ``memory exhausted`` both hit.
+    """
+    if not stderr:
+        return False
+    if isinstance(stderr, bytes):
+        text = stderr.decode("utf-8", "replace")
+    else:
+        text = str(stderr)
+    folded = text.lower()
+    for warning in _ALLOCATION_WARNINGS:
+        folded = folded.replace(warning, "")
+    return any(marker in folded for marker in _ALLOCATION_MARKERS)
 
 
 def rlimit_as_bytes(environ=None):
