@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException
 
 from colophon.enums import JobRejected, parse_job
 from colophon.job_result import job_record
+from colophon.notation import notation_warnings
 from colophon.legacy import parse_legacy_build
 from colophon.limits import HOST_LOAD_REPORT_INTERVAL_SEC, INPUT_CAP_BYTES
 from colophon.revision import version_payload
@@ -135,6 +136,9 @@ def create_app(config, switch, monitor, supervisor):
                 outcome.wall_sec,
                 outcome.memory_peak,
                 outcome.pids_peak,
+                warnings=notation_warnings(
+                    job.source, job.input_kind, job.output_format
+                ),
             ),
             separators=(",", ":"),
         )

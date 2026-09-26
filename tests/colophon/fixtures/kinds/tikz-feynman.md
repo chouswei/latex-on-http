@@ -1,9 +1,0 @@
-```tikz
-\begin{tikzpicture}
-  \begin{feynman}
-    \vertex (a);
-    \vertex [right=of a] (b);
-    \diagram* {(a) -- (b)};
-  \end{feynman}
-\end{tikzpicture}
-```

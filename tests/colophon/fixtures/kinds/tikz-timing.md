@@ -1,3 +1,0 @@
-```tikz
-\texttiming{HL}
-```

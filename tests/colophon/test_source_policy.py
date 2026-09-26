@@ -121,38 +121,83 @@ def test_compile_fixtures_exist_for_the_image_build():
     ).read_text(encoding="utf-8")
 
 
-def test_kind_fixtures_cover_each_engine_package():
+def test_required_kind_fixtures_are_the_sold_candidate_set():
+    """Document shell plus the eight sold-candidate kinds. Nothing else."""
     kinds = FIXTURES / "kinds"
-    packages = (
-        "circuitikz",
-        "siunitx",
+    names = sorted(path.name for path in kinds.iterdir())
+    assert names == [
+        "chemistry.md",
+        "chemistry.tex",
+        "circuits.md",
+        "circuits.tex",
+        "d2.md",
+        "document-shell.md",
+        "floorplan-scale.md",
+        "floorplan-scale.tex",
+        "floorplan.md",
+        "floorplan.tex",
+        "gantt.md",
+        "gantt.tex",
+        "mermaid.md",
+        "pgfplots.md",
+        "pgfplots.tex",
+        "pidcircuit.md",
+        "pidcircuit.tex",
+    ]
+    shell = (kinds / "document-shell.md").read_text(encoding="utf-8")
+    assert "```" not in shell
+    assert "\\documentclass" not in shell
+    reject_forbidden_source(shell)
+    for name in (
+        "pidcircuit",
+        "circuits",
         "pgfplots",
-        "chemfig",
-        "mhchem",
-        "tikz-3dplot",
-        "tikz-feynman",
-        "tikz-cd",
-        "forest",
-        "tikz-timing",
-        "bytefield",
-        "pgfgantt",
-        "tikz-dimline",
-        "tikzscale",
-        "colophon-floorplan",
-    )
-    for name in packages:
+        "chemistry",
+        "gantt",
+        "floorplan",
+    ):
         tex = (kinds / f"{name}.tex").read_text(encoding="utf-8")
         markdown = (kinds / f"{name}.md").read_text(encoding="utf-8")
         assert "\\documentclass" not in tex
         assert "```tikz" in markdown
         reject_forbidden_source(tex)
         reject_forbidden_source(markdown)
-    half = (kinds / "colophon-floorplan-scale.tex").read_text(encoding="utf-8")
+    plots = (kinds / "pgfplots.tex").read_text(encoding="utf-8")
+    assert "\\addplot3" in plots
+    assert "samples=2" in plots
+    chemistry = (kinds / "chemistry.tex").read_text(encoding="utf-8")
+    assert "\\chemfig" in chemistry
+    assert "\\ce{" in chemistry
+    half = (kinds / "floorplan-scale.tex").read_text(encoding="utf-8")
     assert "scale=0.5" in half
     assert "\\documentclass" not in half
     reject_forbidden_source(half)
-    for extra in ("mermaid.md", "d2.md", "pid.tex", "tikz-libraries.tex"):
+    for extra in ("mermaid.md", "d2.md", "pidcircuit.tex"):
         reject_forbidden_source((kinds / extra).read_text(encoding="utf-8"))
+
+
+def test_unsold_packages_keep_a_smoke_compile_only():
+    smoke = FIXTURES / "smoke"
+    names = sorted(path.name for path in smoke.iterdir())
+    assert names == [
+        "automata.tex",
+        "bytefield.tex",
+        "forest.tex",
+        "mindmap.tex",
+        "tikz-3dplot.tex",
+        "tikz-cd.tex",
+        "tikz-feynman.tex",
+        "tikz-timing.tex",
+    ]
+    for name in names:
+        text = (smoke / name).read_text(encoding="utf-8")
+        assert "\\documentclass" not in text
+        reject_forbidden_source(text)
+        assert not (FIXTURES / "kinds" / name).exists()
+    feynman = (smoke / "tikz-feynman.tex").read_text(encoding="utf-8")
+    assert "\\diagram*" in feynman
+    assert "\\feynmandiagram" not in feynman
+    assert "\\vertex" in feynman
 
 
 def test_shared_preamble_is_the_only_package_list():

@@ -17,7 +17,9 @@ def result_class(kind):
     return "refused"
 
 
-def job_record(kind, wall_sec, memory_peak, pids_peak, diagnostic=None):
+def job_record(
+    kind, wall_sec, memory_peak, pids_peak, diagnostic=None, warnings=None
+):
     record = {
         "result": result_class(kind),
         "wallSec": wall_sec,
@@ -26,4 +28,6 @@ def job_record(kind, wall_sec, memory_peak, pids_peak, diagnostic=None):
     }
     if diagnostic is not None:
         record["diagnostic"] = diagnostic
+    if warnings:
+        record["warnings"] = warnings
     return record

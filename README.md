@@ -44,6 +44,17 @@ wrapper, the Pandoc template, and TikZ diagram blocks all input. A fence
 option cannot replace that list. `packages-once.tex` only checks that the
 packages are installed.
 
+The required fixture set is the document shell plus Mermaid, D2, P&ID,
+circuits, plots (a small 3D sample), chemistry, Gantt, and floor plans.
+`tikz-cd`, `forest`, `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`,
+`tikz-timing`, and `bytefield` stay installed and have a smoke compile.
+They are not a sold kind. The tikz-feynman refusal stays.
+
+Fenced diagrams in HTML and DOCX are images. Inline `siunitx` and `mhchem`
+notation is typeset in PDF only. For HTML and DOCX the worker keeps that
+notation as source text and adds a `notationPdfOnly` warning to
+`X-Colophon-Job`. The result class stays `ok`.
+
 ### Dedicated rootless user
 
 Create a user that is not in the `docker` group and has no access to
@@ -121,7 +132,7 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, and `pids.peak`. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
+| `POST /v1/jobs` | Render one job. Body: `input`, `inputKind` (`markdown` or `tex`), `outputFormat` (`pdf`, `html`, `docx`), `lane` (`InstruMeasure`, `Weft`, `Investor`). Unknown values are rejected. The success body is the artifact. `X-Colophon-Result` is `ok` and `X-Colophon-Job` carries `wallSec`, `memory.peak`, and `pids.peak`. When HTML or DOCX input contains inline `siunitx` or `mhchem`, that header also carries `warnings` (`notationPdfOnly`) and the artifact keeps the source text. A failure JSON body keeps `error` and adds `result` (`ok`, `failTimeout`, `failCapHit`, `renderError`, or `refused`), the same meters, and on a render error a `diagnostic` (message, file, line, fence). |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. |
 | `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
 | `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |

@@ -54,6 +54,13 @@ def test_html_embeds_diagrams_in_the_single_response():
     assert "--standalone" in flat
 
 
+def test_html_and_docx_render_fenced_diagrams_as_images():
+    for output_format in ("html", "docx"):
+        flat = _flat(build_render_plan(_job(output_format=output_format)))
+        assert "diagram.lua" in flat
+        assert "--pdf-engine" not in flat
+
+
 def test_tex_pdf_uses_xelatex_not_pandoc():
     plan = build_render_plan(_job(input_kind="tex"))
     flat = _flat(plan)

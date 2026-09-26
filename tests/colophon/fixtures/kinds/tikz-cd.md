@@ -1,5 +1,0 @@
-```tikz
-\begin{tikzcd}
-  A \arrow[r] & B
-\end{tikzcd}
-```

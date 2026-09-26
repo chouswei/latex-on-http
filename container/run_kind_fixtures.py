@@ -1,11 +1,17 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Compile one Markdown fence and one TeX body per engine kind.
+"""Compile the sold-candidate kinds, plus a short smoke set.
 
-The TeX path is the lane wrapper. The Markdown path is Pandoc plus the
-diagram filter. Both go through colophon-sandbox-render. Floor-plan PDFs
-must show the same labels at scale=1 and scale=0.5.
+The required set is the document shell and eight diagram kinds: Mermaid,
+D2, P&ID, circuits, plots, chemistry, Gantt, and floor plans. Each job
+reports cgroup meters. Floor-plan PDFs must show the same labels at
+scale=1 and scale=0.5.
+
+tikz-cd, forest, automata, mindmap, tikz-3dplot, tikz-feynman,
+tikz-timing, and bytefield stay installed. Their smoke compiles are not
+a sold kind. The TeX path is the lane wrapper. The Markdown path is
+Pandoc plus the diagram filter.
 """
 
 import argparse
@@ -16,6 +22,37 @@ import uuid
 from pathlib import Path
 
 FLOORPLAN_NEEDLES = ("2.00 m", "1.50 m", "3 m2", "2.25 m2")
+
+REQUIRED = (
+    "chemistry.md",
+    "chemistry.tex",
+    "circuits.md",
+    "circuits.tex",
+    "d2.md",
+    "document-shell.md",
+    "floorplan-scale.md",
+    "floorplan-scale.tex",
+    "floorplan.md",
+    "floorplan.tex",
+    "gantt.md",
+    "gantt.tex",
+    "mermaid.md",
+    "pgfplots.md",
+    "pgfplots.tex",
+    "pidcircuit.md",
+    "pidcircuit.tex",
+)
+
+SMOKE = (
+    "automata.tex",
+    "bytefield.tex",
+    "forest.tex",
+    "mindmap.tex",
+    "tikz-3dplot.tex",
+    "tikz-cd.tex",
+    "tikz-feynman.tex",
+    "tikz-timing.tex",
+)
 
 
 def _repo_root():
@@ -65,6 +102,28 @@ def _assert_floorplan(name, pdf):
         sys.exit(f"{name} PDF text missing {missing}: {text!r}")
 
 
+def _compile(path, *, image, podman):
+    kind = "markdown" if path.suffix == ".md" else "tex"
+    code, stdout, stderr = _render(
+        {
+            "input": path.read_text(encoding="utf-8"),
+            "inputKind": kind,
+            "outputFormat": "pdf",
+            "lane": "Weft",
+        },
+        image=image,
+        podman=podman,
+    )
+    err = stderr.decode("utf-8", "replace")
+    if code != 0 or not stdout.startswith(b"%PDF") or "COLOPHON_STATUS ok" not in err:
+        sys.exit(f"{path.name} failed rc={code}\n{err[-4000:]}")
+    if "COLOPHON_METERS " not in err:
+        sys.exit(f"{path.name} did not report cgroup meters")
+    if path.stem.startswith("floorplan"):
+        _assert_floorplan(path.name, stdout)
+    print(path.name, "ok", len(stdout))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=None)
@@ -73,52 +132,18 @@ def main():
     args = parser.parse_args()
     root = args.root or (_repo_root() / "tests" / "colophon" / "fixtures" / "kinds")
     files = sorted(path for path in root.iterdir() if path.suffix in {".tex", ".md"})
-    if not files:
-        sys.exit(f"no kind fixtures in {root}")
-    seen = {path.stem for path in files}
-    for kind in (
-        "circuitikz",
-        "siunitx",
-        "pgfplots",
-        "chemfig",
-        "mhchem",
-        "tikz-3dplot",
-        "tikz-feynman",
-        "tikz-cd",
-        "forest",
-        "tikz-timing",
-        "bytefield",
-        "pgfgantt",
-        "tikz-dimline",
-        "tikzscale",
-        "colophon-floorplan",
-    ):
-        if f"{kind}.tex" not in {path.name for path in files}:
-            sys.exit(f"missing {kind}.tex")
-        if f"{kind}.md" not in {path.name for path in files}:
-            sys.exit(f"missing {kind}.md")
-    if "mermaid.md" not in seen and "mermaid" not in {p.stem for p in files}:
-        sys.exit("missing mermaid.md")
+    found = tuple(path.name for path in files)
+    if found != REQUIRED:
+        sys.exit(f"required kind set mismatch: {found}")
+    smoke_root = root.parent / "smoke"
+    smoke = sorted(smoke_root.glob("*.tex"))
+    if tuple(path.name for path in smoke) != SMOKE:
+        sys.exit(f"smoke set mismatch: {[path.name for path in smoke]}")
+    image = args.image or None
     for path in files:
-        kind = "markdown" if path.suffix == ".md" else "tex"
-        code, stdout, stderr = _render(
-            {
-                "input": path.read_text(encoding="utf-8"),
-                "inputKind": kind,
-                "outputFormat": "pdf",
-                "lane": "Weft",
-            },
-            image=args.image or None,
-            podman=args.podman,
-        )
-        err = stderr.decode("utf-8", "replace")
-        if code != 0 or not stdout.startswith(b"%PDF") or "COLOPHON_STATUS ok" not in err:
-            sys.exit(f"{path.name} failed rc={code}\n{err[-4000:]}")
-        if "COLOPHON_METERS " not in err:
-            sys.exit(f"{path.name} did not report cgroup meters")
-        if path.stem.startswith("colophon-floorplan"):
-            _assert_floorplan(path.name, stdout)
-        print(path.name, "ok", len(stdout))
+        _compile(path, image=image, podman=args.podman)
+    for path in smoke:
+        _compile(path, image=image, podman=args.podman)
 
 
 if __name__ == "__main__":

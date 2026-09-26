@@ -18,6 +18,13 @@
   corner numbers. Dimension labels do not change under `scale=`.
 * A job result carries a result class, wall time, cgroup `memory.peak` and
   `pids.peak`, and on a render error the first diagnostic.
+* The required fixture set is the document shell plus Mermaid, D2, P&ID,
+  circuits, plots, chemistry, Gantt, and floor plans. `tikz-cd`, `forest`,
+  `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
+  `bytefield` stay installed with a smoke compile and are not a sold kind.
+* HTML and DOCX render fenced diagrams as images. Inline `siunitx` and
+  `mhchem` stay PDF-only: those formats keep the source text and return
+  a `notationPdfOnly` warning. The result class stays `ok`.
 * Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the
   `xelatex` engine name (the no-shell-escape wrapper is first on `PATH`).
   HTML responses embed diagram resources. SVG diagrams in PDF go through

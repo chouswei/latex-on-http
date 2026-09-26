@@ -81,6 +81,16 @@ compile service.
   Mermaid, or D2 diagnostic (message, file, line, fence index). The success
   body stays the artifact. Meters for a success are the `X-Colophon-Job`
   header. `X-Colophon-Result` stays `ok`.
+- Sold-candidate kinds are Mermaid, D2, P&ID, circuits, plots (pgfplots,
+  including a small 3D sample), chemistry, Gantt, and floor plans, plus
+  the document shell. A kind is not claimed sold here. `tikz-cd`, `forest`,
+  `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
+  `bytefield` stay in the preamble and are smoke-compiled only. The
+  tikz-feynman refusal of `\feynmandiagram` and un-starred `\diagram` stays.
+- Fenced diagrams in HTML and DOCX are images from the diagram filter.
+  Inline `siunitx` and `mhchem` notation is typeset in PDF only. HTML and
+  DOCX keep that command text in the artifact and add `warnings` with code
+  `notationPdfOnly` on `X-Colophon-Job`. The result class stays `ok`.
 - `GET /version` includes `packageSet` and `packageSetHash`. The set is the
   sorted TeX package names in `colophon/package_set.txt`, including
   `colophon-floorplan`. The image build writes that list to `PACKAGE_SET`

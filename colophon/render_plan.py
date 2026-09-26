@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from colophon.enums import JobSpec
 from colophon.limits import SHARE_ROOT
+from colophon.notation import degrade_inline_notation
 
 
 class RenderPlanError(RuntimeError):
@@ -69,7 +70,11 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
             output_path="/tmp/job.pdf",
         )
     source_name = "/tmp/input.md" if job.input_kind == "markdown" else "/tmp/input.tex"
-    files[source_name] = job.source
+    # Fenced diagrams stay on the diagram filter (images). Inline
+    # siunitx and mhchem stay as source text for HTML and DOCX.
+    files[source_name] = degrade_inline_notation(
+        job.source, job.input_kind, job.output_format
+    )
     command = _pandoc_base(source_name, job)
     if job.output_format == "pdf":
         output = "/tmp/out.pdf"

@@ -1,6 +1,0 @@
-```tikz
-\begin{bytefield}{8}
-  \bitheader{0-7}\\
-  \bitbox{8}{op}
-\end{bytefield}
-```
