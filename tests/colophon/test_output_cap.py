@@ -74,7 +74,9 @@ def test_http_over_cap_is_an_error(config, switch_path, monitor, auth):
     app = create_app(config, KillSwitch(switch_path), monitor, supervisor)
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
     assert response.status_code == 413
-    assert response.get_json()["error"] == "failCapHit"
+    body = response.get_json()
+    assert body["error"] == "failCapHit"
+    assert body["result"] == "failCapHit"
     assert response.data != b"x" * (OUTPUT_CAP_BYTES + 1)
 
 
@@ -178,26 +180,31 @@ def test_timeout_is_not_a_render_error():
     )
 
 
-def test_output_cap_script_breaks_the_page_every_2000_specials():
+def test_output_cap_script_is_three_thousand_uncompressed_pages():
     script = (
         Path(__file__).resolve().parents[2] / "scripts" / "colophon-negative-tests.sh"
     ).read_text(encoding="utf-8")
-    assert "PAGE_ITEMS = 2000" in script
+    assert "PAGE_COUNT = 3000" in script
+    assert "dvipdfmx:config z 0" in script
     assert "\\newpage" in script
+    assert '" ".join' in script
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
-def test_paged_specials_do_not_exhaust_tex_main_memory(tmp_path):
-    chunk = "A" * 400
-    iterations = 6000
+def test_three_thousand_uncompressed_pages_exceed_the_output_cap(tmp_path):
+    """XeLaTeX equivalent of pdfcompresslevel 0: dvipdfmx z 0, one paragraph per page.
+
+    The paragraph is fifty words, not one unbroken line. XeTeX's line
+    breaker hangs on a single word of about 1600 letters.
+    """
+    paragraph = " ".join(["B" * 40] * 50)
     tex = (
         "\\documentclass{article}\n\\begin{document}\n"
         "\\special{dvipdfmx:config z 0}\n"
-        "\\newcount\\i\n\\newcount\\n\n\\loop\n"
-        f"\\ifnum\\i<{iterations}\n  \\advance\\i by 1\n  \\advance\\n by 1\n"
-        "  \\special{pdf:literal (" + chunk + ")}\n"
-        "  \\ifnum\\n=2000 \\newpage \\n=0 \\fi\n"
-        "\\repeat\nDone.\n\\end{document}\n"
+        "\\newcount\\n\n\\loop\n"
+        "\\ifnum\\n<3000\n  \\advance\\n by 1\n"
+        f"{paragraph}\\par\n"
+        "  \\newpage\n\\repeat\n\\end{document}\n"
     )
     (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
     completed = subprocess.run(
@@ -216,4 +223,4 @@ def test_paged_specials_do_not_exhaust_tex_main_memory(tmp_path):
     log = (tmp_path / "job.log").read_text(encoding="utf-8", errors="replace")
     assert completed.returncode == 0, log[-500:]
     assert "main memory" not in log
-    assert (tmp_path / "job.pdf").stat().st_size > 2 * 1024 * 1024
+    assert (tmp_path / "job.pdf").stat().st_size > OUTPUT_CAP_BYTES

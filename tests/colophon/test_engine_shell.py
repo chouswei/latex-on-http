@@ -57,41 +57,34 @@ def test_xelatex_write18_does_not_run(tmp_path):
     assert not proof2.exists()
 
 
+def test_image_sets_shell_escape_off():
+    dockerfile = (
+        Path(__file__).resolve().parents[2] / "container" / "Dockerfile.colophon"
+    ).read_text(encoding="utf-8")
+    assert "shell_escape = f" in dockerfile
+
+
 @pytest.mark.skipif(_LUALATEX is None, reason="lualatex is not installed")
-def test_lualatex_os_execute_and_io_popen_do_not_run(tmp_path):
-    side = tmp_path / "lua-side.txt"
+def test_lualatex_positive_control_prints_types_then_pcall(tmp_path):
+    """One job: marker, then type(), then pcall. A missing format is a refusal."""
+    proof = tmp_path / "lua-exec-proof"
     tex = tmp_path / "job.tex"
-    side_lua = str(side).replace("\\", "/")
     # No backslash escapes inside \directlua: TeX expands them first.
     tex.write_text(
         "\\documentclass{article}\n"
         "\\begin{document}\n"
         "\\directlua{\n"
-        '  local exec = "nil"\n'
-        "  if os ~= nil and os.execute ~= nil then\n"
-        f'    local ok = os.execute("echo OSEXEC > {side_lua}.exec")\n'
-        "    if ok == nil or ok == false then\n"
-        '      exec = "refused"\n'
-        "    else\n"
-        '      exec = "ran"\n'
-        "    end\n"
-        "  end\n"
-        '  local popen = "nil"\n'
-        "  if io ~= nil and io.popen ~= nil then\n"
-        '    local handle = io.popen("echo IOPOPEN", "r")\n'
-        "    if handle == nil then\n"
-        '      popen = "refused"\n'
-        "    else\n"
-        '      local data = handle:read("*a") or ""\n'
-        "      handle:close()\n"
-        '      if string.find(data, "IOPOPEN", 1, true) then\n'
-        '        popen = "ran"\n'
-        "      else\n"
-        '        popen = "refused"\n'
-        "      end\n"
-        "    end\n"
-        "  end\n"
-        '  texio.write_nl("COLOPHON_LUA exec=" .. exec .. " popen=" .. popen)\n'
+        '  texio.write_nl("COLOPHON_LUA_RAN")\n'
+        "  local exec_fn = nil\n"
+        "  if os ~= nil then exec_fn = os.execute end\n"
+        "  local popen_fn = nil\n"
+        "  if io ~= nil then popen_fn = io.popen end\n"
+        '  texio.write_nl("COLOPHON_LUA type_execute=" .. type(exec_fn))\n'
+        '  texio.write_nl("COLOPHON_LUA type_popen=" .. type(popen_fn))\n'
+        f'  local ok1, r1 = pcall(exec_fn, "touch {proof}")\n'
+        '  texio.write_nl("COLOPHON_LUA pcall_execute=" .. tostring(ok1) .. ":" .. tostring(r1))\n'
+        '  local ok2, r2 = pcall(popen_fn, "echo IOPOPEN")\n'
+        '  texio.write_nl("COLOPHON_LUA pcall_popen=" .. tostring(ok2) .. ":" .. tostring(r2))\n'
         "}\n"
         "\\end{document}\n",
         encoding="utf-8",
@@ -101,16 +94,31 @@ def test_lualatex_os_execute_and_io_popen_do_not_run(tmp_path):
             _LUALATEX,
             "-no-shell-escape",
             "-interaction=nonstopmode",
-            "-halt-on-error",
             "job.tex",
         ],
         tmp_path,
     )
-    log = (tmp_path / "job.log").read_text(encoding="utf-8", errors="replace")
+    log_path = tmp_path / "job.log"
+    log = (
+        log_path.read_text(encoding="utf-8", errors="replace")
+        if log_path.exists()
+        else ""
+    )
     combined = completed.stdout.decode("utf-8", "replace") + log
-    assert "COLOPHON_LUA exec=ran" not in combined
-    assert "COLOPHON_LUA popen=ran" not in combined
-    assert "COLOPHON_LUA exec=" in combined
-    assert "exec=nil" in combined or "exec=refused" in combined
-    assert "popen=nil" in combined or "popen=refused" in combined
-    assert not Path(str(side) + ".exec").exists()
+    if "COLOPHON_LUA_RAN" not in combined:
+        refused = "format" in combined.lower() or "not found" in combined.lower()
+        assert refused, combined[-800:]
+        pytest.skip("lualatex is not available: " + combined.strip().splitlines()[-1])
+    ran_at = combined.find("COLOPHON_LUA_RAN")
+    for needle in (
+        "COLOPHON_LUA type_execute=",
+        "COLOPHON_LUA type_popen=",
+        "COLOPHON_LUA pcall_execute=",
+        "COLOPHON_LUA pcall_popen=",
+    ):
+        assert combined.find(needle) > ran_at
+    assert (
+        "IOPOPEN"
+        not in combined.split("COLOPHON_LUA pcall_popen=", 1)[-1].splitlines()[0]
+    )
+    assert not proof.exists()

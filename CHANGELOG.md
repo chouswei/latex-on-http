@@ -48,8 +48,11 @@
   `/load` path. `POST /v1/jobs/abort` kills the running container.
 * A tex job is a body fragment inside a fixed `\documentclass{article}`
   wrapper with no class options. `\documentclass` in that body is
-  `rejectInvalidInput` field `documentclass`. The engine is XeLaTeX.
+  `rejectInvalidInput` field `documentclass`. Template composition
+  (`templateId` plus body) is not implemented. The engine is XeLaTeX.
   `compiler` other than `xelatex`, and `\directlua`, are refused.
+  An output over 20 MiB is `failCapHit`. The cap probe is 3000
+  uncompressed pages (`dvipdfmx:config z 0`).
 * Rootless storage on the Pi must be `driver=overlay` with
   `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
 * Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli

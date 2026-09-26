@@ -322,9 +322,17 @@ with no options.
 
 A `tex` input that contains the substring `\documentclass` is HTTP 400
 `error` `rejectInvalidInput` `field` `documentclass`. The match is
-case-sensitive. `\directlua` is the same status with `field` `directlua`:
-the job engine is XeLaTeX, and LuaTeX is not selectable. The image does not
-install the `lualatex` format (`texlive-luatex` is not in the image).
+case-sensitive. That refusal stays. Template composition is not
+implemented: the caller does not send a `templateId`, and the worker does
+not splice a chosen preamble. The fixed wrapper above is the contract
+until that binding is specified.
+
+`\directlua` is the same status with `field` `directlua`. The only engine
+a job can select is XeLaTeX. `pdflatex` in the image is a wrapper that
+executes that same XeLaTeX binary with shell-escape forced off. The image
+does not install the `lualatex` format (`texlive-luatex` is not in the
+image). XeLaTeX has no `\pdfcompresslevel`; uncompressed output uses
+`\special{dvipdfmx:config z 0}`.
 
 `403` `rejectKillSwitch` when the switch file is missing or unreadable:
 

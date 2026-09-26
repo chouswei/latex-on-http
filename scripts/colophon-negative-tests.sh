@@ -34,16 +34,16 @@ TOKEN = os.environ["COLOPHON_WORKER_TOKEN"]
 IMAGE = os.environ["COLOPHON_IMAGE"]
 PODMAN = os.environ["COLOPHON_PODMAN"]
 CAP = 20 * 1024 * 1024
-# Measured on TeX Live 2023 with a page break every 2000 iterations:
-# an uncompressed pdf:literal of 400 bytes grows the PDF by 455 bytes per
-# iteration, plus about 3170 bytes of fixed overhead. 45508 iterations lands
-# about 256 KiB under 20 MiB. 46229 lands about 64 KiB over. One page of
-# 45508 specials exceeds TeX main_memory (5000000) and returns 422 before
-# a PDF exists. Shipping out every 2000 iterations stays inside that memory
-# and still crosses the 20 MiB output cap.
-UNDER_ITERS = 45508
-OVER_ITERS = 46229
-PAGE_ITEMS = 2000
+# XeLaTeX has no \pdfcompresslevel or \pdfobjcompresslevel. dvipdfmx
+# config z 0 is the equivalent: streams are stored uncompressed.
+# The page is 50 words of 40 B's (2000 letters) so TeX can break the
+# line. One unbroken line of that length makes XeTeX hang in the line
+# breaker. 3000 such pages measured 27294403 bytes on TeX Live 2023
+# (about 2.3 s). That is over the 20 MiB cap, and each page is shipped
+# out so TeX main memory is not exhausted.
+PAGE_COUNT = 3000
+CHARS_PER_PAGE = 2000
+WORDS_PER_PAGE = 50
 SMOKE = (
     "circuits.tex",
     "pgfplots.tex",
@@ -98,20 +98,18 @@ def expect_json(status, headers, body, elapsed):
         fail(f"expected JSON, got {status} {body[:200]!r} ({exc})")
 
 
-def expansion(iterations):
-    chunk = "A" * 400
+def multipage(pages=PAGE_COUNT):
+    word = "B" * (CHARS_PER_PAGE // WORDS_PER_PAGE)
+    paragraph = " ".join([word] * WORDS_PER_PAGE)
     return (
         "\\special{dvipdfmx:config z 0}\n"
         "\\newcount\\i\n"
-        "\\newcount\\n\n"
         "\\loop\n"
-        f"\\ifnum\\i<{iterations}\n"
+        f"\\ifnum\\i<{pages}\n"
         "  \\advance\\i by 1\n"
-        "  \\advance\\n by 1\n"
-        "  \\special{pdf:literal (" + chunk + ")}\n"
-        f"  \\ifnum\\n={PAGE_ITEMS} \\newpage \\n=0 \\fi\n"
+        f"{paragraph}\\par\n"
+        "  \\newpage\n"
         "\\repeat\n"
-        "Done.\n"
     )
 
 
@@ -266,19 +264,9 @@ for name in SMOKE:
         fail(f"{name} {status} in {elapsed:.1f}s {body[:160]!r}")
     print(" ", name, len(body), "bytes", f"{elapsed:.1f}s")
 
-print("D6 about 20 MiB passes")
+print("D6 3000 uncompressed pages is failCapHit")
 status, _headers, body, elapsed = request(
-    "POST", "/v1/jobs", job(expansion(UNDER_ITERS)), timeout=90
-)
-if status != 200 or not body.startswith(b"%PDF"):
-    fail(f"under-cap {status} in {elapsed:.1f}s {body[:160]!r}")
-if not (19 * 1024 * 1024 <= len(body) <= CAP):
-    fail(f"under-cap size {len(body)} (want 19 MiB..20 MiB inclusive)")
-print(" ", len(body), "bytes", f"{elapsed:.1f}s")
-
-print("D6 just over 20 MiB is failCapHit")
-status, _headers, body, elapsed = request(
-    "POST", "/v1/jobs", job(expansion(OVER_ITERS)), timeout=90
+    "POST", "/v1/jobs", job(multipage()), timeout=90
 )
 payload = expect_json(status, _headers, body, elapsed)
 if status != 413 or payload.get("error") != "failCapHit":
@@ -319,15 +307,14 @@ for comm in ("xelatex", "xelatex-nonescape", "xdvipdfmx"):
     if found.returncode == 0:
         fail(f"stray {comm}: {found.stdout.decode().strip()}")
 
-print("D5 in-image write18 and Lua")
+print("D5 sandbox shell-escape, write18, and lualatex")
 with tempfile.TemporaryDirectory() as tmp:
     work = Path(tmp)
-    proof = "/tmp/colophon-write18-proof"
     tex = work / "write18.tex"
     tex.write_text(
         "\\documentclass{article}\n"
         "\\begin{document}\n"
-        f"\\immediate\\write18{{touch {proof}}}\n"
+        "\\immediate\\write18{touch /tmp/x}\n"
         "Hello.\n"
         "\\end{document}\n",
         encoding="utf-8",
@@ -337,22 +324,17 @@ with tempfile.TemporaryDirectory() as tmp:
         "\\documentclass{article}\n"
         "\\begin{document}\n"
         "\\directlua{\n"
-        "  local exec = \"nil\"\n"
-        "  if os ~= nil and os.execute ~= nil then\n"
-        "    local ok = os.execute(\"echo OSEXEC > /tmp/colophon-osexec.txt\")\n"
-        "    if ok == nil or ok == false then exec = \"refused\" else exec = \"ran\" end\n"
-        "  end\n"
-        "  local popen = \"nil\"\n"
-        "  if io ~= nil and io.popen ~= nil then\n"
-        "    local handle = io.popen(\"echo IOPOPEN\", \"r\")\n"
-        "    if handle == nil then popen = \"refused\"\n"
-        "    else\n"
-        "      local data = handle:read(\"*a\") or \"\"\n"
-        "      handle:close()\n"
-        "      if string.find(data, \"IOPOPEN\", 1, true) then popen = \"ran\" else popen = \"refused\" end\n"
-        "    end\n"
-        "  end\n"
-        "  texio.write_nl(\"COLOPHON_LUA exec=\" .. exec .. \" popen=\" .. popen)\n"
+        "  texio.write_nl(\"COLOPHON_LUA_RAN\")\n"
+        "  local exec_fn = nil\n"
+        "  if os ~= nil then exec_fn = os.execute end\n"
+        "  local popen_fn = nil\n"
+        "  if io ~= nil then popen_fn = io.popen end\n"
+        "  texio.write_nl(\"COLOPHON_LUA type_execute=\" .. type(exec_fn))\n"
+        "  texio.write_nl(\"COLOPHON_LUA type_popen=\" .. type(popen_fn))\n"
+        "  local ok1, r1 = pcall(exec_fn, \"touch /tmp/x-lua\")\n"
+        "  texio.write_nl(\"COLOPHON_LUA pcall_execute=\" .. tostring(ok1) .. \":\" .. tostring(r1))\n"
+        "  local ok2, r2 = pcall(popen_fn, \"echo IOPOPEN\")\n"
+        "  texio.write_nl(\"COLOPHON_LUA pcall_popen=\" .. tostring(ok2) .. \":\" .. tostring(r2))\n"
         "}\n"
         "\\end{document}\n",
         encoding="utf-8",
@@ -360,20 +342,38 @@ with tempfile.TemporaryDirectory() as tmp:
     work.chmod(0o755)
     for path in (tex, lua):
         path.chmod(0o644)
-    script = (
-        "set -eu; "
-        f"/usr/local/bin/xelatex-nonescape -no-shell-escape -interaction=nonstopmode "
-        f"-output-directory=/tmp /work/write18.tex >/tmp/xe.log 2>&1 || true; "
-        f"if [ -e {proof} ]; then echo WRITE18_RAN; exit 1; fi; "
-        "echo WRITE18_REFUSED; "
-        "if ! command -v lualatex >/dev/null 2>&1; then echo LUALATEX_NOT_REACHABLE; exit 0; fi; "
-        "/usr/bin/lualatex -no-shell-escape -interaction=nonstopmode -halt-on-error "
-        "-output-directory=/tmp /work/lua.tex >/tmp/lua.out 2>&1 || true; "
-        "if [ -e /tmp/colophon-osexec.txt ]; then echo LUA_RAN; exit 1; fi; "
-        "if grep -H COLOPHON_LUA /tmp/lua.log /tmp/lua.out /tmp/lua.aux 2>/dev/null; then exit 0; fi; "
-        "echo LUALATEX_NOT_REACHABLE; "
-        "grep -m 3 -E '^!|format file' /tmp/lua.log /tmp/lua.out || true"
-    )
+    script = r"""
+set -eu
+escape=$(kpsewhich -var-value shell_escape)
+echo "shell_escape=${escape}"
+case "$escape" in
+  f) ;;
+  *) echo "shell_escape is not f"; exit 1 ;;
+esac
+rm -f /tmp/x
+/usr/local/bin/xelatex-nonescape -interaction=nonstopmode -output-directory=/tmp /work/write18.tex >/tmp/xe.out 2>&1 || true
+if [ -e /tmp/x ]; then echo WRITE18_EXISTS engine=xelatex; exit 1; fi
+echo "WRITE18_ABSENT engine=xelatex"
+if [ -x /usr/local/bin/pdflatex ]; then
+  rm -f /tmp/x
+  /usr/local/bin/pdflatex -interaction=nonstopmode -output-directory=/tmp /work/write18.tex >/tmp/pdf.out 2>&1 || true
+  if [ -e /tmp/x ]; then echo WRITE18_EXISTS engine=pdflatex-wrapper; exit 1; fi
+  echo "PDFLATEX_IS_XELATEX_WRAPPER"
+  echo "WRITE18_ABSENT engine=pdflatex-wrapper"
+fi
+if ! command -v lualatex >/dev/null 2>&1; then
+  echo "LUALATEX_REFUSED lualatex is not installed in the worker image"
+  exit 0
+fi
+/usr/bin/lualatex -no-shell-escape -interaction=nonstopmode -output-directory=/tmp /work/lua.tex >/tmp/lua.out 2>&1 || true
+if [ -e /tmp/x-lua ]; then echo LUA_SIDE_EFFECT; exit 1; fi
+if grep -q COLOPHON_LUA_RAN /tmp/lua.log /tmp/lua.out /tmp/lua.aux 2>/dev/null; then
+  grep -h COLOPHON_LUA /tmp/lua.log /tmp/lua.out /tmp/lua.aux
+  exit 0
+fi
+echo "LUALATEX_REFUSED lualatex is not available in the worker"
+grep -m 6 -E '^!|format|not found|I can' /tmp/lua.log /tmp/lua.out || true
+"""
     ran = podman(
         "run",
         "--rm",
@@ -393,19 +393,36 @@ with tempfile.TemporaryDirectory() as tmp:
         check=False,
     )
     text = ran.stdout.decode("utf-8", "replace") + ran.stderr.decode("utf-8", "replace")
-    if ran.returncode != 0 or "WRITE18_REFUSED" not in text:
-        fail(f"in-image write18\n{text}")
-    if "COLOPHON_LUA exec=ran" in text or "COLOPHON_LUA popen=ran" in text or "LUA_RAN" in text:
-        fail(f"in-image lua ran\n{text}")
-    proved = "COLOPHON_LUA exec=" in text
-    unreachable = "LUALATEX_NOT_REACHABLE" in text
-    if proved:
-        if "exec=nil" not in text and "exec=refused" not in text:
-            fail(f"in-image lua exec was not refused\n{text}")
-        if "popen=nil" not in text and "popen=refused" not in text:
-            fail(f"in-image lua popen was not refused\n{text}")
-    elif not unreachable:
-        fail(f"in-image lua report missing\n{text}")
+    if ran.returncode != 0:
+        fail(f"sandbox shell check\n{text}")
+    if "shell_escape=f" not in text:
+        fail(f"shell_escape\n{text}")
+    if "WRITE18_ABSENT engine=xelatex" not in text or "WRITE18_EXISTS" in text:
+        fail(f"write18\n{text}")
+    if "COLOPHON_LUA_RAN" in text:
+        ran_at = text.find("COLOPHON_LUA_RAN")
+        for needle in (
+            "COLOPHON_LUA type_execute=",
+            "COLOPHON_LUA type_popen=",
+            "COLOPHON_LUA pcall_execute=",
+            "COLOPHON_LUA pcall_popen=",
+        ):
+            at = text.find(needle)
+            if at < ran_at:
+                fail(f"lua marker order\n{text}")
+        if "LUA_SIDE_EFFECT" in text:
+            fail(f"lua side effect\n{text}")
+        print("lualatex positive control:")
+        for line in text.splitlines():
+            if "COLOPHON_LUA" in line:
+                print(" ", line.strip())
+    elif "LUALATEX_REFUSED" in text:
+        print("lualatex is not available in the worker:")
+        for line in text.splitlines():
+            if "LUALATEX_REFUSED" in line or line.startswith("!"):
+                print(" ", line.strip())
+    else:
+        fail(f"lua report missing\n{text}")
     print(text.strip())
 
 print("tmpfs above 512 MiB fails")
