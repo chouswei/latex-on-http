@@ -3,7 +3,8 @@
 ## 2026-09-26-colophon
 
 * Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
-  Podman sandboxes. The listener binds only to one configured address.
+  Podman sandboxes. The listener binds only to one address inside
+  `COLOPHON_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.
   Host-side LaTeX is disabled. See NOTICE.
 * `GET /version` returns the git commit or tag baked at build time.
 * Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the

@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Colophon worker entry.
 
-The process binds only to COLOPHON_BIND_ADDRESS. It refuses an unset
-address, 0.0.0.0, ::, loopback, and a LAN address.
+The process binds only to COLOPHON_BIND_ADDRESS inside
+COLOPHON_BIND_ALLOWED_CIDR. It refuses an unset address, an unset CIDR,
+0.0.0.0, ::, loopback, link-local, multicast, RFC1918, and any address
+with is_global true.
 """
 
 from colophon.cli import main_worker

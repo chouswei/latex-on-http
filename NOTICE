@@ -19,10 +19,12 @@ compile service.
 - LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
   the image texmf). The host compiler path raises rather than running TeX
   on the worker host.
-- The listener binds only to one configured address (`COLOPHON_BIND_ADDRESS`,
-  documented as the placeholder `WORKER_BIND_ADDR`). It refuses to start if
-  that address is unset, unspecified (0.0.0.0 or ::), a hostname, loopback,
-  link-local, or a LAN address.
+- The listener binds only to one configured address (`COLOPHON_BIND_ADDRESS`)
+  inside the required `COLOPHON_BIND_ALLOWED_CIDR`. It refuses to start if
+  either is unset, if the address is unspecified (0.0.0.0 or ::), a hostname,
+  loopback, link-local, multicast, RFC1918, outside the CIDR, or `is_global`.
+  A unique-local address is allowed only when it is inside the CIDR. Common
+  examples of that CIDR are `100.64.0.0/10` and `fd7a:115c:a1e0::/48`.
 - `GET /version` returns the package version and the git commit or tag baked
   at image build time (`COLOPHON_GIT_COMMIT`), plus a link to that revision
   in this repository. The image also sets the OCI revision label.

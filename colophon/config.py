@@ -17,6 +17,7 @@ class ConfigError(RuntimeError):
 @dataclass(frozen=True)
 class WorkerConfig:
     bind_address: str
+    allowed_cidr: str
     port: int
     worker_token: str
     kill_switch_file: str
@@ -36,10 +37,15 @@ def _required(environ, name):
 def load_config(environ=None):
     env = os.environ if environ is None else environ
     bind_raw = _required(env, "COLOPHON_BIND_ADDRESS")
+    cidr_raw = _required(env, "COLOPHON_BIND_ALLOWED_CIDR")
     try:
-        bind_address = validate_bind_address(bind_raw)
+        bind_address = validate_bind_address(bind_raw, cidr_raw)
     except BindError as exc:
-        raise ConfigError(f"COLOPHON_BIND_ADDRESS refused ({exc.reason})") from exc
+        if exc.reason in {"cidr_unset", "cidr_invalid"}:
+            name = "COLOPHON_BIND_ALLOWED_CIDR"
+        else:
+            name = "COLOPHON_BIND_ADDRESS"
+        raise ConfigError(f"{name} refused ({exc.reason})") from exc
     token = _required(env, "COLOPHON_WORKER_TOKEN")
     if any(ch.isspace() for ch in token):
         raise ConfigError("COLOPHON_WORKER_TOKEN is unreadable")
@@ -63,6 +69,7 @@ def load_config(environ=None):
         raise ConfigError("COLOPHON_RETRY_AFTER_SEC is unreadable")
     return WorkerConfig(
         bind_address=bind_address,
+        allowed_cidr=cidr_raw,
         port=port,
         worker_token=token,
         kill_switch_file=switch,

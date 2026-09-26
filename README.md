@@ -71,13 +71,21 @@ sudo -u colophon -H bash -lc 'cd /opt/colophon && uv run python -m colophon.pref
 
 The process refuses to start unless every required variable is set.
 `COLOPHON_BIND_ADDRESS` is the single address the gateway uses to reach this
-process. Replace the placeholder `WORKER_BIND_ADDR`. An unset address,
-`0.0.0.0`, `::`, a hostname, loopback, link-local, and a LAN address are
-refused.
+process. Replace the placeholder `WORKER_BIND_ADDR`. It must fall inside
+`COLOPHON_BIND_ALLOWED_CIDR`. An unset address, an unset or invalid CIDR,
+`0.0.0.0`, `::`, a hostname, loopback, link-local, multicast, an RFC1918
+LAN address, and any address Python's `ipaddress` marks `is_global` are
+refused, even when the CIDR is wide enough to include them. A unique-local
+address is allowed only inside that CIDR.
+
+Common overlay examples are Tailscale's `100.64.0.0/10` and
+`fd7a:115c:a1e0::/48`. The address below is an example inside the first
+range, not a deployed host.
 
 ```sh
 # /home/colophon/.config/colophon/worker.env  (mode 0600)
-COLOPHON_BIND_ADDRESS=WORKER_BIND_ADDR
+COLOPHON_BIND_ADDRESS=100.64.0.1
+COLOPHON_BIND_ALLOWED_CIDR=100.64.0.0/10
 COLOPHON_WORKER_TOKEN=WORKER_TOKEN
 COLOPHON_KILL_SWITCH_FILE=/home/colophon/.config/colophon/kill-switch
 COLOPHON_IMAGE=colophon-render:local

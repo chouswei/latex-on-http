@@ -47,7 +47,8 @@ def switch_path(tmp_path):
 def config(switch_path):
     return load_config(
         {
-            "COLOPHON_BIND_ADDRESS": "192.0.2.10",
+            "COLOPHON_BIND_ADDRESS": "100.64.0.1",
+            "COLOPHON_BIND_ALLOWED_CIDR": "100.64.0.0/10",
             "COLOPHON_WORKER_TOKEN": TOKEN,
             "COLOPHON_KILL_SWITCH_FILE": str(switch_path),
             "COLOPHON_IMAGE": "colophon-render:local",
