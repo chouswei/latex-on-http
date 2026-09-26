@@ -116,7 +116,8 @@ def render_to_stdout(payload_bytes):
             status = "render_error"
         finally:
             paths = list(plan.files) + [plan.output_path, "/tmp/job.tex"]
-            paths.extend(str(path) for path in Path("/tmp").glob("*.log"))
+            for pattern in ("*.log", "*.aux", "*.out", "*.toc", "*.xdv"):
+                paths.extend(str(path) for path in Path("/tmp").glob(pattern))
             for path in paths:
                 try:
                     Path(path).unlink()

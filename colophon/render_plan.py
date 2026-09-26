@@ -32,6 +32,10 @@ def xelatex_argv(tex_path):
         "-interaction=nonstopmode",
         "-halt-on-error",
         "-file-line-error",
+        # Debian sets openout_any=p, which refuses the aux file when the
+        # job path is absolute. The read-only root still confines writes
+        # to the /tmp tmpfs.
+        "-cnf-line=openout_any=a",
         "-output-directory=/tmp",
         tex_path,
     ]
@@ -79,6 +83,7 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
             "--pdf-engine-opt=-interaction=nonstopmode",
             "--pdf-engine-opt=-halt-on-error",
             "--pdf-engine-opt=-file-line-error",
+            "--pdf-engine-opt=-cnf-line=openout_any=a",
             "--template",
             _template(job.lane, "pandoc.latex"),
             "-o",

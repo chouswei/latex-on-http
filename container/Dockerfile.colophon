@@ -156,7 +156,8 @@ RUN set -eu; \
     python3 /tmp/run_kind_fixtures.py --root /tmp/colophon-fixtures/kinds; \
     rm -rf /tmp/colophon-fixtures /tmp/packages-once.* /tmp/floorplan-two-room.* \
       /tmp/colophon-tikzscale-once.tikz /tmp/colophon-tikzscale-kind.tikz \
-      /tmp/colophon-check-refusals.py /tmp/run_kind_fixtures.py /tmp/floorplan.txt; \
+      /tmp/colophon-check-refusals.py /tmp/run_kind_fixtures.py /tmp/floorplan.txt \
+      /tmp/job.* /tmp/body.tex /tmp/input.* /tmp/out.*; \
     command -v pandoc; \
     command -v xelatex; \
     command -v d2; \
