@@ -89,7 +89,7 @@ def evaluate(probe: PreflightProbe):
     cannot_list = len(probe.listable_sockets) == 0
     checks.append(
         Check(
-            "cannot list other containers",
+            "cannot list other containers on the host",
             cannot_list,
             "list failed" if cannot_list else ",".join(probe.listable_sockets),
         )

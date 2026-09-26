@@ -9,8 +9,8 @@ unchanged: see LICENSE.
 What changed
 ------------
 
-The fork is the render worker for Inkmirage Colophon. It is not the public
-latex.ytotech.com service.
+The fork is the Colophon render worker. It is not the upstream hosted
+compile service.
 
 - Each job runs in a new rootless Podman container (`--network=none`,
   read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 2048 MiB memory,
@@ -19,9 +19,13 @@ latex.ytotech.com service.
 - LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
   the image texmf). The host compiler path raises rather than running TeX
   on the worker host.
-- The listener binds only to a configured Tailscale address. It refuses to
-  start if that address is unset, unspecified (0.0.0.0 or ::), a LAN
-  address, loopback, or any other non-Tailscale address.
+- The listener binds only to one configured address (`COLOPHON_BIND_ADDRESS`,
+  documented as the placeholder `WORKER_BIND_ADDR`). It refuses to start if
+  that address is unset, unspecified (0.0.0.0 or ::), a hostname, loopback,
+  link-local, or a LAN address.
+- `GET /version` returns the package version and the git commit or tag baked
+  at image build time (`COLOPHON_GIT_COMMIT`), plus a link to that revision
+  in this repository. The image also sets the OCI revision label.
 - Every request needs the shared worker token (Bearer). Concurrency is one
   job per process. A second job is refused at once with Retry-After. There
   is no queue.
@@ -55,6 +59,5 @@ Third-party pieces added with this fork
   `texlive-lang-cjk` as `xeCJK.sty` (kpathsea is case-sensitive). Noto CJK
   TC is installed from Debian `fonts-noto-cjk`, not from CTAN.
 
-`McpResponse.retryAfterSec` is unbound in the Colophon SysML model. This
-worker uses 10 seconds. `McpGate.maxInputKiB` is also unbound; the worker
-refuses request bodies above 16 MiB as a local transport cap.
+Busy and load-shed responses use `Retry-After: 10`. Request bodies above
+16 MiB are refused.

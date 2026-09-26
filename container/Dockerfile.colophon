@@ -123,6 +123,16 @@ RUN groupadd --gid 10001 colophon \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin colophon \
     && chown -R root:root /usr/local/share/colophon /opt/colophon
 
+# Baked at image build. GET /version on the worker reads COLOPHON_GIT_COMMIT
+# or colophon/GIT_COMMIT. Pass --build-arg COLOPHON_GIT_COMMIT=$(git rev-parse HEAD).
+ARG COLOPHON_GIT_COMMIT=unknown
+ENV COLOPHON_GIT_COMMIT=${COLOPHON_GIT_COMMIT}
+LABEL org.opencontainers.image.source="https://github.com/chouswei/latex-on-http" \
+      org.opencontainers.image.revision="${COLOPHON_GIT_COMMIT}" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
+RUN printf '%s\n' "${COLOPHON_GIT_COMMIT}" > /opt/colophon/colophon/GIT_COMMIT \
+    && chmod 0444 /opt/colophon/colophon/GIT_COMMIT
+
 USER 10001:10001
 WORKDIR /tmp
 ENTRYPOINT ["colophon-sandbox-render"]

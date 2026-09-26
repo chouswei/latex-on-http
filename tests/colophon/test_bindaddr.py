@@ -10,7 +10,7 @@ from colophon.config import ConfigError, load_config
 
 def _env(**overrides):
     base = {
-        "COLOPHON_BIND_ADDRESS": "100.64.1.2",
+        "COLOPHON_BIND_ADDRESS": "192.0.2.10",
         "COLOPHON_WORKER_TOKEN": "test-token-value",
         "COLOPHON_KILL_SWITCH_FILE": "/var/lib/colophon/kill-switch",
         "COLOPHON_IMAGE": "colophon-render:local",
@@ -36,11 +36,8 @@ def _env(**overrides):
         ("fd00::1", "lan"),
         ("127.0.0.1", "lan"),
         ("::1", "lan"),
-        ("8.8.8.8", "not_tailscale"),
-        ("100.63.255.255", "not_tailscale"),
-        ("100.128.0.1", "not_tailscale"),
-        ("1.2.3.4", "not_tailscale"),
         ("not-an-ip", "invalid"),
+        ("worker.example", "invalid"),
     ],
 )
 def test_bind_address_refused(address, reason):
@@ -51,9 +48,9 @@ def test_bind_address_refused(address, reason):
 
 @pytest.mark.parametrize(
     "address",
-    ["100.64.0.1", "100.127.255.254", "100.100.0.8", "fd7a:115c:a1e0::1"],
+    ["192.0.2.1", "198.51.100.20", "203.0.113.5", "2001:db8::1"],
 )
-def test_tailscale_address_accepted(address):
+def test_configured_unicast_address_accepted(address):
     assert validate_bind_address(address) == address
 
 

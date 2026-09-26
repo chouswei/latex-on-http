@@ -3,8 +3,9 @@
 ## 2026-09-26-colophon
 
 * Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
-  Podman sandboxes. The listener binds only to a Tailscale address. Host-side
-  LaTeX is disabled. See NOTICE.
+  Podman sandboxes. The listener binds only to one configured address.
+  Host-side LaTeX is disabled. See NOTICE.
+* `GET /version` returns the git commit or tag baked at build time.
 * Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the
   `xelatex` engine name (the no-shell-escape wrapper is first on `PATH`).
   HTML responses embed diagram resources. SVG diagrams in PDF go through

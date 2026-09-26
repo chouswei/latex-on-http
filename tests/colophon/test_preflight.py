@@ -55,5 +55,5 @@ def test_accessible_docker_socket_fails():
 def test_listing_other_containers_fails():
     checks = evaluate(_probe(listable_sockets=("/run/podman/podman.sock",)))
     assert report_ok(checks) is False
-    listed = [check for check in checks if check.name == "cannot list other containers"]
+    listed = [check for check in checks if check.name == "cannot list other containers on the host"]
     assert listed[0].passed is False

@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Colophon worker entry.
 
-The process binds only to COLOPHON_BIND_ADDRESS. It refuses 0.0.0.0, a LAN
-address, and any address that is not the Pi's Tailscale address.
+The process binds only to COLOPHON_BIND_ADDRESS. It refuses an unset
+address, 0.0.0.0, ::, loopback, and a LAN address.
 """
 
 from colophon.cli import main_worker

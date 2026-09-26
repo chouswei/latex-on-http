@@ -1,11 +1,10 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Locked Colophon limits (user decision 2026-09-26).
+"""Worker limits.
 
-``McpResponse.retryAfterSec`` is still unbound in the SysML model. The worker
-uses ``RETRY_AFTER_SEC`` (10) on busy and load-shed refusals. ``INPUT_CAP_BYTES``
-is a local transport cap: ``McpGate.maxInputKiB`` is still unbound.
+``RETRY_AFTER_SEC`` (10) is sent on busy and load-shed refusals.
+``INPUT_CAP_BYTES`` refuses request bodies above 16 MiB.
 """
 
 CPU_CORES = 1.0
@@ -33,5 +32,3 @@ STDERR_KEEP_BYTES = 16 * 1024
 
 SHARE_ROOT = "/usr/local/share/colophon"
 SANDBOX_USER = f"{SANDBOX_UID}:{SANDBOX_GID}"
-TAILSCALE_IPV4_CIDR = "100.64.0.0/10"
-TAILSCALE_IPV6_CIDR = "fd7a:115c:a1e0::/48"

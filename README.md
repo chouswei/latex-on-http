@@ -1,6 +1,6 @@
 # LaTeX-On-HTTP
 
-This repository is the Inkmirage Colophon render worker, an AGPL-3.0 fork of
+This repository is the Colophon render worker, an AGPL-3.0 fork of
 YtoTech/latex-on-http. Modifications are described in [NOTICE](NOTICE). The
 upstream HTTP API notes follow the Colophon section. Sandbox rules win where
 they disagree with the upstream service.
@@ -8,15 +8,20 @@ they disagree with the upstream service.
 ## Colophon render worker
 
 The worker turns Markdown (with Mermaid, D2, and TikZ) or a TeX body into
-PDF, HTML, or DOCX. It runs on the Raspberry Pi beside other lab services and
-is reached only from the gateway, over Tailscale. It does not deploy itself.
+PDF, HTML, or DOCX. It runs as a dedicated rootless user beside other
+containers on the host, and is reached only from the gateway. It does not
+deploy itself. Isolation comes from the per-job sandbox.
 
 ### Image
 
-Build on the Pi (or any machine that can produce an arm64 image):
+Build on an arm64 host, or any machine that can produce an arm64 image.
+`COLOPHON_GIT_COMMIT` is the commit or tag baked into the image label and
+into `GET /version`:
 
 ```sh
-podman build --platform linux/arm64 -f container/Dockerfile.colophon -t colophon-render:local .
+podman build --platform linux/arm64 \
+  --build-arg COLOPHON_GIT_COMMIT="$(git rev-parse HEAD)" \
+  -f container/Dockerfile.colophon -t colophon-render:local .
 ```
 
 The image is multi-arch (`linux/arm64` and `linux/amd64`). It bakes a trimmed
@@ -28,8 +33,8 @@ See [NOTICE](NOTICE).
 An amd64 rootless Podman build of this image compiled a Traditional Chinese
 page with XeLaTeX, CircuiTikZ, a Mermaid diagram (headless Chromium as the
 non-root job user, `--network=none`, `--cap-drop=ALL`), and a D2 diagram.
-The same job has not been run on arm64 or on a Raspberry Pi, so Chromium
-under rootless Podman on arm64 is still unverified. The image passes
+The same job has not been run on arm64, so Chromium under rootless Podman
+on arm64 is still unverified. The image passes
 `--no-sandbox` and `--disable-dev-shm-usage` to Chromium because the job
 user is not root and `/dev/shm` is not the writable tmpfs.
 
@@ -56,7 +61,7 @@ sudo -u colophon -H bash -lc 'cd /opt/colophon && uv sync'
 ```
 
 Preflight (non-zero if any check fails; it does not stop or inspect other
-containers beyond a list attempt on foreign sockets):
+containers on the host beyond a list attempt on foreign sockets):
 
 ```sh
 sudo -u colophon -H bash -lc 'cd /opt/colophon && uv run python -m colophon.preflight'
@@ -64,29 +69,33 @@ sudo -u colophon -H bash -lc 'cd /opt/colophon && uv run python -m colophon.pref
 
 ### Configuration
 
-The process refuses to start unless every required variable is set and the
-bind address is a Tailscale address (IPv4 `100.64.0.0/10` or IPv6
-`fd7a:115c:a1e0::/48`). `0.0.0.0`, `::`, RFC1918, link-local, other ULAs,
-loopback, and public addresses are refused.
+The process refuses to start unless every required variable is set.
+`COLOPHON_BIND_ADDRESS` is the single address the gateway uses to reach this
+process. Replace the placeholder `WORKER_BIND_ADDR`. An unset address,
+`0.0.0.0`, `::`, a hostname, loopback, link-local, and a LAN address are
+refused.
 
 ```sh
 # /home/colophon/.config/colophon/worker.env  (mode 0600)
-COLOPHON_BIND_ADDRESS=100.64.0.1
-COLOPHON_WORKER_TOKEN=replace-with-the-gate-token
+COLOPHON_BIND_ADDRESS=WORKER_BIND_ADDR
+COLOPHON_WORKER_TOKEN=WORKER_TOKEN
 COLOPHON_KILL_SWITCH_FILE=/home/colophon/.config/colophon/kill-switch
 COLOPHON_IMAGE=colophon-render:local
 COLOPHON_PORT=8080
+COLOPHON_GIT_COMMIT=unknown
 ```
+
+Set `COLOPHON_GIT_COMMIT` to the same commit or tag passed to the image
+build. `GET /version` returns that value and a link to this repository.
 
 `printf 'clear\n' > /home/colophon/.config/colophon/kill-switch`
 
 An unreadable or unrecognised kill-switch file is treated as engaged. The
-token is the shared worker token from the gate, sent as
+token is the shared worker token from the gateway, sent as
 `Authorization: Bearer`. It is not an end-user API key.
 
-`Retry-After` is 10 seconds. That duration is a worker default: the SysML
-model still leaves `retryAfterSec` unbound. Request bodies above 16 MiB are
-refused; the gate's maximum input size is still unbound.
+`Retry-After` defaults to 10 seconds. Request bodies above 16 MiB are
+refused.
 
 Start (one process; threads serve abort and load while a job runs):
 
@@ -103,6 +112,7 @@ sudo -u colophon -H bash -lc 'set -a; . ~/.config/colophon/worker.env; set +a; c
 | `POST /v1/jobs/abort` | `AbortJob`. Kills the running container only. |
 | `GET /v1/host-load` | `HostLoadReport`: 1-minute load average, MemAvailable (MiB), busy flag. Refresh every 10 s. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. |
+| `GET /version` | Version, and the git commit or tag baked at build time, with a source link. |
 
 A second job while one is running is `429` with `Retry-After` and is not
 queued. The same response is used when load average is above 3.0, available

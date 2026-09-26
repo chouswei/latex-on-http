@@ -1,7 +1,7 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
 # Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""HTTP worker. Binds only to the configured Tailscale address."""
+"""HTTP worker. Binds only to the configured address."""
 
 import hmac
 import logging
@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException
 from colophon.enums import JobRejected, parse_job
 from colophon.legacy import parse_legacy_build
 from colophon.limits import HOST_LOAD_REPORT_INTERVAL_SEC, INPUT_CAP_BYTES
+from colophon.revision import version_payload
 from colophon.runner import Outcome, enforce_output_cap, kill_container
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,14 @@ def create_app(config, switch, monitor, supervisor):
         response = app.response_class(outcome.body, mimetype=outcome.content_type)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Colophon-Result"] = "ok"
+        return response
+
+    @app.get("/version")
+    def version():
+        if not authorized():
+            return _error_status_401()
+        response = jsonify(version_payload())
+        response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.get("/")
@@ -215,7 +224,7 @@ def _error_status_401():
 
 
 def serve(config, switch, monitor, supervisor):
-    """Listen on the Tailscale address. One process, several threads.
+    """Listen on the configured address. One process, several threads.
 
     Threads let AbortJob and HostLoadReport run while the single job holds
     the concurrency lock. A second process would not share that lock.
