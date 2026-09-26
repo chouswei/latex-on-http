@@ -69,9 +69,12 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
     command = _pandoc_base(source_name, job)
     if job.output_format == "pdf":
         output = "/tmp/out.pdf"
+        # Pandoc 3 accepts only a known engine name here, not a path.
+        # /usr/local/bin/xelatex is the no-shell-escape wrapper, and that
+        # directory is first on PATH in the image.
         command += [
             "--pdf-engine",
-            "/usr/local/bin/xelatex-nonescape",
+            "xelatex",
             "--pdf-engine-opt=-no-shell-escape",
             "--pdf-engine-opt=-interaction=nonstopmode",
             "--pdf-engine-opt=-halt-on-error",
@@ -85,6 +88,7 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
         output = "/tmp/out.html"
         command += [
             "--standalone",
+            "--embed-resources",
             "--template",
             _template(job.lane, "pandoc.html"),
             "-o",

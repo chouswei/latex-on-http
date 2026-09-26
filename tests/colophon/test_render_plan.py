@@ -24,7 +24,8 @@ def test_xelatex_shell_escape_is_off():
     plan = build_render_plan(_job())
     flat = _flat(plan)
     assert "-no-shell-escape" in flat
-    assert "/usr/local/bin/xelatex-nonescape" in flat
+    assert "--pdf-engine xelatex" in flat
+    assert "/usr/local/bin/xelatex-nonescape" not in flat
     assert "-shell-escape" not in flat.replace("-no-shell-escape", "")
     assert "--shell-escape" not in flat
 
@@ -43,6 +44,13 @@ def test_each_lane_uses_its_own_template():
         assert all(f"/{lane}/" in part for part in templates)
         seen.add(tuple(templates))
     assert len(seen) == 3
+
+
+def test_html_embeds_diagrams_in_the_single_response():
+    plan = build_render_plan(_job(output_format="html"))
+    flat = _flat(plan)
+    assert "--embed-resources" in flat
+    assert "--standalone" in flat
 
 
 def test_tex_pdf_uses_xelatex_not_pandoc():

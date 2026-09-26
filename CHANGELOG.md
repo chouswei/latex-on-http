@@ -5,6 +5,10 @@
 * Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
   Podman sandboxes. The listener binds only to a Tailscale address. Host-side
   LaTeX is disabled. See NOTICE.
+* Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the
+  `xelatex` engine name (the no-shell-escape wrapper is first on `PATH`).
+  HTML responses embed diagram resources. SVG diagrams in PDF go through
+  `rsvg-convert`.
 
 ## 2026-04-10-3
 

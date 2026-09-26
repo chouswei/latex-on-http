@@ -177,7 +177,9 @@ local tikz_template = pandoc.template.compile [[
 $for(header-includes)$
 $it$
 $endfor$
-$additional-packages$
+$for(additional-packages)$
+$it$
+$endfor$
 \begin{document}
 $body$
 \end{document}
@@ -200,12 +202,34 @@ local tikz = {
         local tikz_file = file_template:format(tmpdir, "tex")
         local pdf_file = file_template:format(tmpdir, "pdf")
 
-        -- Treat string values as raw LaTeX
+        -- Treat string values as raw LaTeX. Pandoc 3 turns a YAML literal
+        -- into a RawBlock, and stringify() drops RawBlock text.
+        local function raw_latex(value)
+          if not value or value == '' then
+            return ''
+          end
+          local ty = utils.type(value)
+          if ty == 'Blocks' or ty == 'Inlines' or ty == 'List' then
+            local parts = {}
+            for _, item in ipairs(value) do
+              if item.text then
+                table.insert(parts, item.text)
+              else
+                table.insert(parts, stringify(item))
+              end
+            end
+            return table.concat(parts, '\n')
+          end
+          if value.text then
+            return value.text
+          end
+          return stringify(value)
+        end
         local meta = {
           ['header-includes'] = user_opts['header-includes'],
           ['additional-packages'] = {pandoc.RawInline(
             'latex',
-            stringify(user_opts['additional-packages'] or '')
+            raw_latex(user_opts['additional-packages'])
           )},
         }
         local tex_code = pandoc.write(

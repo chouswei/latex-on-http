@@ -25,10 +25,13 @@ and d2. Package managers are not used at runtime. PIDcircuitTikZ is vendored
 because it is not a CTAN package; CircuiTikZ is the CTAN package `circuitikz`.
 See [NOTICE](NOTICE).
 
-Chromium under rootless Podman on arm64 was not executed in the environment
-that prepared this tree. The image passes `--no-sandbox` and
-`--disable-dev-shm-usage` to Chromium because the job user is not root and
-`/dev/shm` is not the writable tmpfs.
+An amd64 rootless Podman build of this image compiled a Traditional Chinese
+page with XeLaTeX, CircuiTikZ, a Mermaid diagram (headless Chromium as the
+non-root job user, `--network=none`, `--cap-drop=ALL`), and a D2 diagram.
+The same job has not been run on arm64 or on a Raspberry Pi, so Chromium
+under rootless Podman on arm64 is still unverified. The image passes
+`--no-sandbox` and `--disable-dev-shm-usage` to Chromium because the job
+user is not root and `/dev/shm` is not the writable tmpfs.
 
 ### Dedicated rootless user
 

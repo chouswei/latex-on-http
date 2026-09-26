@@ -6,7 +6,8 @@
 #
 # PIDcircuitTikZ has no CTAN package name (checked 2026-09-26). It is vendored
 # from jellespijker/PIDcircuitTikZ (MIT). CircuiTikZ is the separate CTAN
-# package `circuitikz`. TikZ is CTAN `pgf`. xeCJK is CTAN `xecjk`.
+# package `circuitikz`. TikZ is CTAN `pgf`. xeCJK is CTAN `xecjk`, shipped by
+# Debian bookworm `texlive-lang-cjk` as xeCJK.sty (kpathsea is case-sensitive).
 
 FROM debian:12-slim
 
@@ -22,16 +23,19 @@ ENV LANG=C.UTF-8 \
 RUN apt-get update -qq \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        chromium \
         curl \
         fontconfig \
         fonts-noto-cjk \
         inkscape \
+        librsvg2-bin \
         nodejs \
         npm \
         python3 \
         xz-utils \
     && apt-get install -y \
         texlive-xetex \
+        texlive-lang-cjk \
         texlive-lang-chinese \
         texlive-pictures \
         texlive-science \
@@ -87,11 +91,16 @@ RUN set -eu; \
     fc-cache -f; \
     kpsewhich circuitikz.sty; \
     kpsewhich tikz.sty; \
-    kpsewhich xecjk.sty; \
+    kpsewhich xeCJK.sty; \
     kpsewhich fontspec.sty; \
     kpsewhich siunitx.sty; \
     kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
     fc-list : family | grep -F "Noto Sans CJK TC"; \
+    sed 's/__BODY__/繁體中文/' \
+        /usr/local/share/colophon/templates/Weft/wrapper.tex > /tmp/cjk.tex; \
+    xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp /tmp/cjk.tex; \
+    test -s /tmp/cjk.pdf; \
+    rm -f /tmp/cjk.tex /tmp/cjk.pdf /tmp/cjk.aux /tmp/cjk.log /tmp/cjk.out; \
     command -v pandoc; \
     command -v xelatex; \
     command -v d2; \
@@ -105,7 +114,8 @@ RUN set -eu; \
     done; \
     rm -f /tmp/reference.docx /tmp/stamp_reference_docx.py; \
     rm -f /usr/bin/tlmgr; \
-    apt-get purge -y curl wget || true; \
+    apt-get purge -y curl; \
+    apt-get purge -y wget || true; \
     apt-get autoremove -y; \
     rm -rf /var/lib/apt/lists/* /root/.npm
 

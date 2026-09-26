@@ -43,13 +43,17 @@ Third-party pieces added with this fork
 ----------------------------------------
 
 - pandoc-ext/diagram, commit 5aaf35e6f775ddf501045fe28b03642ee73db2f4,
-  MIT. See vendor/diagram/LICENSE. SHA-256 of the vendored diagram.lua:
-  856a957f5d188aaaeb6b0f080011092b8c5adbffb00f02023b46de9f29746cef.
+  MIT, with two local edits (see vendor/diagram/README.md). SHA-256 of the
+  vendored diagram.lua:
+  b8e65d171bcf62475e0ec93cb77bbbcc66dd501f8e91a49fcfecf912e5842fae.
+  Debian `librsvg2-bin` supplies `rsvg-convert`, which Pandoc uses to place
+  SVG diagrams in a PDF.
 - PIDcircuitTikZ by Jelle Spijker, MIT. There is no CTAN package of this
   name (CTAN search, 2026-09-26). It is not CircuiTikZ. CircuiTikZ is the
   CTAN package `circuitikz`. TikZ is delivered by CTAN package `pgf`.
-  xeCJK is CTAN package `xecjk`. Noto CJK TC is installed from Debian
-  `fonts-noto-cjk`, not from CTAN.
+  xeCJK is CTAN package `xecjk`. Debian bookworm ships it in
+  `texlive-lang-cjk` as `xeCJK.sty` (kpathsea is case-sensitive). Noto CJK
+  TC is installed from Debian `fonts-noto-cjk`, not from CTAN.
 
 `McpResponse.retryAfterSec` is unbound in the Colophon SysML model. This
 worker uses 10 seconds. `McpGate.maxInputKiB` is also unbound; the worker
