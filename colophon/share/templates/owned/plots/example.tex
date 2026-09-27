@@ -1,0 +1,10 @@
+% Reference caller body for templateId plots. The worker owns the preamble.
+\begin{tikzpicture}
+\begin{axis}[width=0.9\linewidth, height=6cm,
+    xlabel={時間 Time (\si{\second})},
+    ylabel={電壓 Voltage (\si{\volt})},
+    grid=major, legend pos=north west, title={充電曲線 Charging}]
+  \addplot[thick, domain=0:5, samples=50] {5*(1-exp(-x))};
+  \addlegendentry{$V_C$}
+\end{axis}
+\end{tikzpicture}

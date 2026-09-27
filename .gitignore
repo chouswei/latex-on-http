@@ -88,6 +88,10 @@ celerybeat-schedule
 # dotenv
 .env
 
+# Build-time revision and package set written into the image. Not source files.
+colophon/GIT_COMMIT
+colophon/PACKAGE_SET
+
 # virtualenv
 venv/
 venv_tests/

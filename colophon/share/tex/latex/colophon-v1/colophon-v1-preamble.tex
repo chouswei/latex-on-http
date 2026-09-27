@@ -1,0 +1,41 @@
+% Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+% Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% Colophon engine preamble v1. The TeX wrapper, the Pandoc template, and
+% TikZ diagram blocks all input this file. A package that is only installed
+% is not reachable until it is named here.
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap}
+\usepackage{circuitikz}
+\usepackage{siunitx}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{chemfig}
+\usepackage{mhchem}
+\usepackage{tikz-3dplot}
+\usepackage[compat=1.1.0]{tikz-feynman}
+\usepackage{tikz-cd}
+\usepackage{forest}
+\usepackage{tikz-timing}
+\usepackage{bytefield}
+\usepackage{pgfgantt}
+\usepackage{tikz-dimline}
+\usepackage{tikzscale}
+\usepackage{colophon-floorplan}
+\usetikzlibrary{circuits.pid.ISO14617}
+% PIDcircuitTikZ replaces TikZ's /tikz/at coordinate key and /tikz/pos.
+% Chemfig places atoms with /tikz/at, so that key is restored.
+% /tikz/pos stays shared: the number is TikZ's path time and PID's
+% \flowpos, so a flow arrow can sit at pos= and chemfig bonds still place.
+\makeatletter
+\tikzoption{at}{\tikz@scan@one@point\tikz@set@at#1}%
+\tikzoption{pos}{%
+  \edef\tikz@time{#1}%
+  \ifx\tikz@time\pgfutil@empty
+  \else
+    \pgfmathsetmacro\tikz@time{\tikz@time}%
+    \let\flowpos\tikz@time
+  \fi
+}%
+\makeatother

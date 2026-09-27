@@ -1,0 +1,11 @@
+% COLOPHON-R27. Server-owned preamble for templateId document-shell.
+% The caller sends the body only. This file is not a request field.
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\input{colophon-v1-preamble.tex}
+\newcommand{\ColophonLane}{__LANE__}
+\begin{document}
+__BODY__
+\end{document}

@@ -1,20 +1,15 @@
-from latexonhttp.app import app
+# Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Colophon worker entry.
+
+The process binds only to COLOPHON_BIND_ADDRESS inside
+COLOPHON_BIND_ALLOWED_CIDR. It refuses an unset address, an unset CIDR,
+0.0.0.0, ::, loopback, link-local, multicast, RFC1918, and any address
+with is_global true.
+"""
+
+from colophon.cli import main_worker
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Latex on HTTP.")
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Print verbose logging to stdout",
-        default=False,
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Debug mode (including reloading on file changes)",
-        default=False,
-    )
-    args = parser.parse_args()
-    app.run(host="0.0.0.0", port=8080, debug=args.debug, threaded=True)
+    raise SystemExit(main_worker())

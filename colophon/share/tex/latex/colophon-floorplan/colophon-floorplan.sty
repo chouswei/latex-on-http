@@ -1,0 +1,260 @@
+% Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+% Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% Floor-plan TikZ styles. Pure TeX: no shell escape and no outside program.
+% Room area is w*h*plan-scale^2/10^6 from the corner numbers. Dimension
+% lengths use the literal (x,y) numbers when both ends are written that
+% way. Dividing a pt length by 28.45274 labels a 3 m wall as 2.99 m.
+% scale= or tikzscale changes the canvas, not those numbers.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{colophon-floorplan}[2026/09/26 Colophon floor-plan styles]
+
+\RequirePackage{tikz}
+\RequirePackage{siunitx}
+\RequirePackage{tikz-dimline}
+\usetikzlibrary{calc,arrows.meta}
+
+\pgfkeys{
+  /floorplan/.is family,
+  /floorplan,
+  % Real millimetres represented by one TikZ centimetre.
+  plan-scale/.initial=500,
+  wall thickness/.initial=0.16cm,
+  door swing/.initial=90,
+}
+
+% One TikZ centimetre is 28.45274pt. pgf lengths from \pgfpointdiff are in pt.
+\newcommand{\colophonfloorplan@cmtopt}{28.45274}
+
+% Literal (x,y). The numbers are picture coordinates, so a surrounding
+% scale= does not change them. Used from a node option, where the TikZ
+% coordinate scanner is not available.
+\def\colophonfloorplan@xy(#1,#2)\relax{%
+  \def\colophonfloorplan@x{#1}%
+  \def\colophonfloorplan@y{#2}%
+}
+\newcommand{\colophonfloorplan@readxy}[1]{%
+  \expandafter\colophonfloorplan@xy#1\relax
+}
+
+% Axis-aligned rectangle: w * h * plan-scale^2 / 10^6 square metres.
+\newcommand{\colophonfloorplan@rectarea}[2]{%
+  \colophonfloorplan@readxy{#1}%
+  \let\colophonfloorplan@xone\colophonfloorplan@x
+  \let\colophonfloorplan@yone\colophonfloorplan@y
+  \colophonfloorplan@readxy{#2}%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
+  \pgfmathsetmacro{\colophonfloorplan@area}{(abs(\colophonfloorplan@x-\colophonfloorplan@xone)*\colophonfloorplan@scale/1000)*(abs(\colophonfloorplan@y-\colophonfloorplan@yone)*\colophonfloorplan@scale/1000)}%
+}
+
+% Shoelace helper. Argument is a comma-separated coordinate list.
+% \floorplanPolygonArea{(0,0),(4,0),(4,3),(0,3)}
+\newcount\colophonfloorplan@npt
+\newcount\colophonfloorplan@ii
+\newcount\colophonfloorplan@jj
+\newcommand{\floorplanPolygonArea}[1]{%
+  \colophonfloorplan@npt=0
+  \foreach \pt in {#1} {%
+    \colophonfloorplan@readxy{\pt}%
+    \global\advance\colophonfloorplan@npt by 1
+    \expandafter\xdef\csname colophonfloorplan@px\the\colophonfloorplan@npt\endcsname{\colophonfloorplan@x}%
+    \expandafter\xdef\csname colophonfloorplan@py\the\colophonfloorplan@npt\endcsname{\colophonfloorplan@y}%
+  }%
+  \gdef\colophonfloorplan@sum{0}%
+  \colophonfloorplan@ii=1
+  \loop
+    \colophonfloorplan@jj=\colophonfloorplan@ii
+    \advance\colophonfloorplan@jj by 1
+    \ifnum\colophonfloorplan@jj>\colophonfloorplan@npt
+      \colophonfloorplan@jj=1
+    \fi
+    \edef\colophonfloorplan@pair{%
+      \csname colophonfloorplan@px\the\colophonfloorplan@ii\endcsname*%
+      \csname colophonfloorplan@py\the\colophonfloorplan@jj\endcsname-%
+      \csname colophonfloorplan@px\the\colophonfloorplan@jj\endcsname*%
+      \csname colophonfloorplan@py\the\colophonfloorplan@ii\endcsname%
+    }%
+    \pgfmathsetmacro{\colophonfloorplan@sum}{\colophonfloorplan@sum+\colophonfloorplan@pair}%
+    \xdef\colophonfloorplan@sum{\colophonfloorplan@sum}%
+    \advance\colophonfloorplan@ii by 1
+  \ifnum\colophonfloorplan@ii<\numexpr\colophonfloorplan@npt+1\relax
+  \repeat
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
+  \pgfmathsetmacro{\colophonfloorplan@area}{(abs(\colophonfloorplan@sum)/2)*(\colophonfloorplan@scale/1000)*(\colophonfloorplan@scale/1000)}%
+}
+
+% First token of a coordinate. A literal (x,y) starts with a parenthesis.
+\def\colophonfloorplan@start#1#2\relax{%
+  \ifx(#1\def\colophonfloorplan@islit{1}\fi
+}
+\newcommand{\colophonfloorplan@isliteral}[1]{%
+  \def\colophonfloorplan@islit{0}%
+  \colophonfloorplan@start#1.\relax
+}
+\newcommand{\colophonfloorplan@setends}[2]{%
+  \path #1 coordinate (colophon floorplan a);
+  \path #2 coordinate (colophon floorplan b);
+  \pgfmathanglebetweenpoints{\pgfpointanchor{colophon floorplan a}{center}}{\pgfpointanchor{colophon floorplan b}{center}}%
+  \let\colophonfloorplan@angle\pgfmathresult
+  \colophonfloorplan@isliteral{#1}%
+  \ifnum\colophonfloorplan@islit=1
+    \colophonfloorplan@isliteral{#2}%
+  \fi
+  \ifnum\colophonfloorplan@islit=1
+    % Picture centimetres from the coordinate numbers. veclen is short of
+    % an exact axis length, which prints a 3 m wall as 2.99 m.
+    \colophonfloorplan@readxy{#1}%
+    \let\colophonfloorplan@xone\colophonfloorplan@x
+    \let\colophonfloorplan@yone\colophonfloorplan@y
+    \colophonfloorplan@readxy{#2}%
+    \pgfmathsetmacro{\colophonfloorplan@dx}{abs(\colophonfloorplan@x-\colophonfloorplan@xone)}%
+    \pgfmathsetmacro{\colophonfloorplan@dy}{abs(\colophonfloorplan@y-\colophonfloorplan@yone)}%
+    \pgfmathparse{\colophonfloorplan@dy == 0 ? 1 : 0}%
+    \ifnum\pgfmathresult=1
+      \let\colophonfloorplan@cm\colophonfloorplan@dx
+    \else
+      \pgfmathparse{\colophonfloorplan@dx == 0 ? 1 : 0}%
+      \ifnum\pgfmathresult=1
+        \let\colophonfloorplan@cm\colophonfloorplan@dy
+      \else
+        \pgfmathsetmacro{\colophonfloorplan@cm}{sqrt(\colophonfloorplan@dx*\colophonfloorplan@dx+\colophonfloorplan@dy*\colophonfloorplan@dy)}%
+      \fi
+    \fi
+  \else
+    \pgfpointdiff{\pgfpointanchor{colophon floorplan a}{center}}{\pgfpointanchor{colophon floorplan b}{center}}%
+    \pgf@xa=\pgf@x
+    \pgf@ya=\pgf@y
+    \pgfmathsetmacro{\colophonfloorplan@cm}{veclen(\pgf@xa,\pgf@ya)/\colophonfloorplan@cmtopt}%
+  \fi
+  % Nearest millimetre of the drawing. pgfmath is short of an exact
+  % 3 cm by enough that two decimal places print 2.99 m.
+  \pgfmathsetmacro{\colophonfloorplan@realcm}{round(\colophonfloorplan@cm*10)/10}%
+}
+
+\newcommand{\colophonfloorplan@dimlabel}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
+  % pgfmath turns (3/1000)*1000 into 2.99. l3fp keeps the millimetre scale.
+  \edef\colophonfloorplan@realm{\fpeval{\colophonfloorplan@realcm * \colophonfloorplan@scale / 1000}}%
+  \ifnum\fpeval{\colophonfloorplan@realm < 1}=1
+    \edef\colophonfloorplan@realmm{\fpeval{round(\colophonfloorplan@realm * 1000, 0)}}%
+    \qty{\colophonfloorplan@realmm}{\milli\metre}%
+  \else
+    \begingroup
+    \sisetup{round-mode=places,round-precision=2,drop-zero-decimal=false}%
+    \qty{\colophonfloorplan@realm}{\metre}%
+    \endgroup
+  \fi
+}
+
+\newcommand{\colophonfloorplan@arealabel}{%
+  \begingroup
+  \sisetup{round-mode=places,round-precision=2,drop-zero-decimal=true}%
+  \qty{\colophonfloorplan@area}{\square\metre}%
+  \endgroup
+}
+
+% Two calling conventions share each name.
+% \tikzset{floorplan door={(0,0)}{(1,0)}} draws the symbol from the
+% coordinates. \draw[floorplan door] only sets the path style, which is
+% what a caller body does when it draws the arc itself.
+% pgfkeys puts every brace group up to the next comma into #1.
+% An empty #1 is the path style. A valued #1 is the coordinate form.
+\newcommand{\colophonfloorplan@ifvalued}[3]{%
+  \if\relax\detokenize{#1}\relax
+    #2%
+  \else
+    #3#1%
+  \fi
+}
+\newcommand{\colophonfloorplan@doorcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\colophonfloorplan@doortwo}%
+}
+\newcommand{\colophonfloorplan@doortwo}[2]{%
+  \colophonfloorplan@setends{#1}{#2}%
+  \pgfkeysgetvalue{/floorplan/door swing}{\colophonfloorplan@swing}%
+  \draw[thin] (colophon floorplan a) -- (colophon floorplan b);
+  \draw[thin] (colophon floorplan b) arc[%
+    start angle=\colophonfloorplan@angle,
+    delta angle=\colophonfloorplan@swing,
+    radius=\colophonfloorplan@cm cm%
+  ];
+}
+\newcommand{\colophonfloorplan@windowcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{%
+    \pgfkeysalso{line width=0.7pt, double, double distance=0.12cm}%
+  }{\colophonfloorplan@windowtwo}%
+}
+\newcommand{\colophonfloorplan@windowtwo}[2]{%
+  \colophonfloorplan@setends{#1}{#2}%
+  \draw[line width=0.7pt] (colophon floorplan a) -- (colophon floorplan b);
+  \draw[line width=0.35pt, double distance=0.12cm, double]
+    (colophon floorplan a) -- (colophon floorplan b);
+}
+\newcommand{\colophonfloorplan@labelcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{%
+    \pgfkeysalso{align=center, font=\sffamily, inner sep=1pt}%
+  }{\colophonfloorplan@labelthree}%
+}
+\newcommand{\colophonfloorplan@labelthree}[3]{%
+  \colophonfloorplan@rectarea{#2}{#3}%
+  \pgfkeysalso{%
+    align=center,
+    font=\sffamily,
+    inner sep=1pt,
+    node contents={#1\\[0.15em]\colophonfloorplan@arealabel},
+  }%
+}
+\newcommand{\colophonfloorplan@dimcode}[1]{%
+  \colophonfloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\colophonfloorplan@dimtwo}%
+}
+\newcommand{\colophonfloorplan@dimtwo}[2]{%
+  \colophonfloorplan@setends{#1}{#2}%
+  \dimline[%
+    extension start length=0.22cm,
+    extension end length=0.22cm,
+    label style={font=\small, inner sep=1pt, fill=white},
+  ]{#1}{#2}{\colophonfloorplan@dimlabel}%
+}
+
+\newcommand{\colophonfloorplan@scalebar}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\colophonfloorplan@scale}%
+  \pgfmathsetmacro{\colophonfloorplan@bar}{1000/\colophonfloorplan@scale}%
+  \draw[line cap=rect] (0,0) -- (\colophonfloorplan@bar,0);
+  \draw (0,-0.08) -- (0,0.08);
+  \draw (\colophonfloorplan@bar,-0.08) -- (\colophonfloorplan@bar,0.08);
+  \node[above=2pt, font=\small\sffamily, inner sep=1pt] at
+    ({\colophonfloorplan@bar/2},0) {\qty{1}{\metre}};
+}
+\newcommand{\colophonfloorplan@northarrow}{%
+  \draw[-{Stealth}, line width=0.8pt] (0,0) -- (0,0.9);
+  \node[above=1pt, font=\small\sffamily, inner sep=0pt] at (0,0.9) {N};
+}
+
+\tikzset{
+  floorplan wall/.code={%
+    \pgfkeysalso{%
+      line cap=rect,
+      line width=0.4pt,
+      double,
+      double distance=\pgfkeysvalueof{/floorplan/wall thickness},
+    }%
+  },
+  floorplan door/.code={\colophonfloorplan@doorcode{#1}},
+  floorplan door/.default={},
+  floorplan window/.code={\colophonfloorplan@windowcode{#1}},
+  floorplan window/.default={},
+  floorplan room label/.code={\colophonfloorplan@labelcode{#1}},
+  floorplan room label/.default={},
+  % Scale bar and north arrow draw once, at the local origin.
+  % Place them with a shifted scope and \tikzset, or with a pic:
+  % \pic at (0,-1.5) {floorplan scale bar};
+  % Using either name as a \draw option also draws that mark at the
+  % origin, in addition to the path. The owned template does not do that.
+  floorplan scale bar/.code={\colophonfloorplan@scalebar},
+  floorplan north arrow/.code={\colophonfloorplan@northarrow},
+  pics/floorplan scale bar/.style={code={\colophonfloorplan@scalebar}},
+  pics/floorplan north arrow/.style={code={\colophonfloorplan@northarrow}},
+  floorplan dimension/.code={\colophonfloorplan@dimcode{#1}},
+  floorplan dimension/.default={},
+}

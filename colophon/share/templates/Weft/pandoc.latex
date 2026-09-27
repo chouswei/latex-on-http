@@ -1,0 +1,32 @@
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\usepackage{graphicx}
+% Pandoc 3.6 wraps images in \pandocbounded. Taken from its common.latex partial.
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{%
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi
+}
+\makeatother
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\input{colophon-v1-preamble.tex}
+\newcommand{\ColophonLane}{Weft}
+$if(title)$
+\title{$title$}
+$endif$
+\begin{document}
+$if(title)$
+\maketitle
+$endif$
+$body$
+\end{document}

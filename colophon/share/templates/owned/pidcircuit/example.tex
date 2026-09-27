@@ -1,0 +1,9 @@
+% Reference caller body for templateId pidcircuit. The worker owns the preamble.
+\begin{tikzpicture}[circuit pid ISO14617, every info/.style={font=\small}]
+  \draw (0,0) to[valve={info=V-101}] (2.5,0)
+              to[pump={info=P-101}] (5,0)
+              to[valve={info=V-102}] (7.5,0);
+  \draw[flow path] (7.5,0) -- (9,0);
+  \node[measurement device={info=FI}] (fi) at (5,1.5) {};
+  \draw[dashed] (fi.south) -- (5,0.35);
+\end{tikzpicture}

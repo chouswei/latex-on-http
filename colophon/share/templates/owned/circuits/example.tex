@@ -1,0 +1,7 @@
+% Reference caller body for templateId circuits. The worker owns the preamble.
+\begin{circuitikz}
+  \draw (0,0) to[V, v=$V_s$] (0,3)
+        to[R, l=$R_1$, a=\qty{1}{\kilo\ohm}] (4,3)
+        to[C, l=$C_1$, a=\qty{10}{\micro\farad}] (4,0)
+        -- (0,0);
+\end{circuitikz}

@@ -1,0 +1,141 @@
+Colophon render worker
+======================
+
+This tree is a public AGPL-3.0 fork of YtoTech/latex-on-http. The original
+work is Copyright (C) 2017-2019 Yoan Tournade and other contributors, licensed
+under the GNU Affero General Public License, version 3. That licence is
+unchanged: see LICENSE.
+
+What changed
+------------
+
+The fork is the Colophon render worker. It is not the upstream hosted
+compile service.
+
+- Each job runs in a new rootless Podman container (`--network=none`,
+  read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 256 pids, 60 s wall
+  clock, 20 MiB output cap). The address-space ceiling is `RLIMIT_AS`
+  (default 2048 MiB, `COLOPHON_RLIMIT_AS_BYTES`). Podman 4.4 and newer
+  receive `--ulimit as=`. Podman 4.3 rejects that flag, so the worker
+  injects the rlimit with a precreate hook that crun applies. A wall
+  clock at or after 60 s is `failTimeout`, including Podman 4.3 exit 255.
+  `GET /v1/host-load` is the token-gated load report (`loadAvg1m`,
+  `memAvailableMiB`, `busy`, `stale`, `intervalSec`, `readable`,
+  `reportedAt`). There is no `/load` path. `POST /v1/jobs/abort` kills
+  the running container.
+  `--memory=2048m` and `--memory-swap=2048m` are set only when the cgroup
+  memory controller is available. Without it (for example
+  `cgroup_disable=memory`) both flags are omitted and the process logs a
+  warning. Soft and hard are both `2147483648` by default. A missing `cpu` controller refuses
+  startup. Preflight requires `cpu` and `pids`; memory is optional.
+  `RLIMIT_AS` limits virtual address space per process, not resident set
+  size and not the whole container (worst case 256 × 2 GiB; one job at a
+  time, few TeX processes, and the MemAvailable shed bound it). An
+  allocation failure is `failCapHit`, the same outcome as an early
+  SIGKILL. The 2048 MiB default is enough for the measured XeLaTeX and
+  LuaLaTeX jobs. The container is removed afterwards. The result is returned in
+  the HTTP response and is not kept.
+- LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
+  the image texmf). The host compiler path raises rather than running TeX
+  on the worker host.
+- The listener binds only to one configured address (`COLOPHON_BIND_ADDRESS`)
+  inside the required `COLOPHON_BIND_ALLOWED_CIDR`. It refuses to start if
+  either is unset, if the address is unspecified (0.0.0.0 or ::), a hostname,
+  loopback, link-local, multicast, RFC1918, outside the CIDR, or `is_global`.
+  A unique-local address is allowed only when it is inside the CIDR. Common
+  examples of that CIDR are `100.64.0.0/10` and `fd7a:115c:a1e0::/48`.
+- `GET /version` returns the package version and the git commit or tag baked
+  at image build time (`COLOPHON_GIT_COMMIT`), plus a link to that revision
+  in this repository. The image also sets the OCI revision label.
+- Every request needs the shared worker token (Bearer). Concurrency is one
+  job per process. A second job is refused at once with Retry-After. There
+  is no queue.
+- New jobs are refused when the 1-minute load average is above 3.0, when
+  MemAvailable is below 4096 MiB, or when the load sample is stale or
+  unreadable. An unreadable kill-switch file is treated as engaged.
+- Spawn failures, Pandoc failures, diagram failures, and LaTeX failures
+  fail closed. A wall-clock kill is `failTimeout`, which is not a render
+  error. Output over 20 MiB is `failCapHit`.
+- `POST /builds/sync` still accepts a single inline TeX or Markdown resource,
+  but URL, git, tar, and cache resources are rejected, and the only compiler
+  is XeLaTeX.
+- The image bakes a trimmed TeX Live (XeLaTeX, xeCJK, Noto CJK TC, TikZ,
+  CircuiTikZ) plus Pandoc, the pandoc-ext/diagram Lua filter (TikZ engine
+  only), and a vendored PIDcircuitTikZ. Chromium, Node, mermaid-cli, and
+  d2 are not installed. There is no runtime package fetch and no Tectonic.
+  `tlmgr` is removed from the image. No Asymptote binary is installed.
+  Jobs that ask for shell-escape, `\write18`, minted, the TikZ `external`
+  library, Asymptote, gnuplot, epstopdf, the `svg` package,
+  `\feynmandiagram`, an un-starred `\diagram`, or a fenced Mermaid or D2
+  block are refused before compilation. The patterns match TeX directives
+  and fences, not prose. `\vertex` and `\diagram*` stay allowed.
+  `packages-once.tex` is an install check only.
+- TeX Live packages, by tlmgr name and not via `scheme-full`: `circuitikz`,
+  `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`, `tikz-feynman`,
+  `tikz-cd`, `forest`, `tikz-timing`, `bytefield`, `pgfgantt`,
+  `tikz-dimline`, `tikzscale`, and `pgf` (TikZ libraries `shapes`,
+  `arrows.meta`, `positioning`, `calc`, `automata`, and `mindmap`). These
+  are the files shipped by the Debian `texlive-pictures` and
+  `texlive-science` collections already in the image.
+- `colophon-v1-preamble.tex` is the one engine preamble. The TeX wrapper,
+  the Pandoc template, and TikZ diagram blocks input it. It loads
+  `circuitikz`, `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`,
+  `tikz-feynman`, `tikz-cd`, `forest`, `tikz-timing`, `bytefield`,
+  `pgfgantt`, `tikz-dimline`, `tikzscale`, `colophon-floorplan`, the TikZ
+  libraries `shapes`, `arrows.meta`, `positioning`, `calc`, `automata`,
+  and `mindmap`, and `\usetikzlibrary{circuits.pid.ISO14617}`. A fence
+  option cannot replace that list. The PID library replaces TikZ's `at`
+  and `pos` keys; the preamble puts those two keys back so chemfig and
+  ordinary nodes keep working. PID symbols still load.
+- `colophon-floorplan.sty` is installed in the local texmf tree. It defines
+  the TikZ styles `floorplan wall`, `floorplan door`, `floorplan window`,
+  `floorplan room label`, `floorplan scale bar`, `floorplan north arrow`,
+  and `floorplan dimension`. Room area is computed from the corner numbers
+  (`w*h*plan-scale^2/10^6`, or the shoelace helper
+  `\floorplanPolygonArea`). The dimension label uses coordinate anchors, so
+  `scale=` and tikzscale do not change it. Labels use `siunitx`. The style
+  file is pure TeX.
+- A failed render returns a result class (`ok`, `failTimeout`,
+  `failCapHit`, `renderError`, or `refused`), wall time, `memory.peak` and
+  `pids.peak` from the job cgroup, and on a render error the first TeX
+  or TikZ diagram diagnostic (message, file, line, fence index). When the
+  sandbox reports it, `memory.mode` is `cgroup` or `rlimit`. The success
+  body stays the artifact. Meters for a success are the `X-Colophon-Job`
+  header. `X-Colophon-Result` stays `ok`. Without the memory controller,
+  `memory.peak` is null.
+- Sold-candidate kinds are P&ID, circuits, plots (pgfplots, including a
+  small 3D sample), chemistry, Gantt, and floor plans, plus the document
+  shell. Mermaid and D2 are not kinds. A kind is not claimed sold here.
+  `tikz-cd`, `forest`,
+  `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
+  `bytefield` stay in the preamble and are smoke-compiled only. The
+  tikz-feynman refusal of `\feynmandiagram` and un-starred `\diagram` stays.
+- Fenced diagrams in HTML and DOCX are images from the diagram filter.
+  Inline `siunitx` and `mhchem` notation is typeset in PDF only. HTML and
+  DOCX keep that command text in the artifact and add `warnings` with code
+  `notationPdfOnly` on `X-Colophon-Job`. The result class stays `ok`.
+- `GET /version` includes `packageSet` and `packageSetHash`. The set is the
+  sorted TeX package names in `colophon/package_set.txt`, including
+  `colophon-floorplan`. The image build writes that list to `PACKAGE_SET`
+  after checking each `kpsewhich` name. The hash is the sha256 of the names
+  joined by newlines, with no trailing newline. The request reads the baked
+  file and does not run a shell.
+
+Third-party pieces added with this fork
+----------------------------------------
+
+- pandoc-ext/diagram, commit 5aaf35e6f775ddf501045fe28b03642ee73db2f4,
+  MIT, with local edits (see vendor/diagram/README.md). SHA-256 of the
+  vendored diagram.lua:
+  f37001cabcda9061264552523eb36ba22ecc328f7026dae4b5bc14599b98da1b.
+  Debian `librsvg2-bin` supplies `rsvg-convert`, which Pandoc uses to place
+  SVG diagrams in a PDF.
+- PIDcircuitTikZ by Jelle Spijker, MIT. There is no CTAN package of this
+  name (CTAN search, 2026-09-26). It is not CircuiTikZ. CircuiTikZ is the
+  CTAN package `circuitikz`. TikZ is delivered by CTAN package `pgf`.
+  xeCJK is CTAN package `xecjk`. Debian bookworm ships it in
+  `texlive-lang-cjk` as `xeCJK.sty` (kpathsea is case-sensitive). Noto CJK
+  TC is installed from Debian `fonts-noto-cjk`, not from CTAN.
+
+Busy and load-shed responses use `Retry-After: 10`. Request bodies above
+16 MiB are refused.

@@ -1,5 +1,99 @@
 # CHANGELOG
 
+## 2026-09-26-colophon
+
+* TeX is started on a relative name from the job directory. `openin_any`
+  and `openout_any` stay `p`. The image CJK check compiles `cjk.tex` from
+  `/tmp`, not `/tmp/cjk.tex`. Pandoc's absolute `input.tex` is rewritten
+  to that basename by `xelatex-nonescape`. Fenced TikZ compiles
+  `tikz-image.tex` in its temp directory. Owned templates are read by
+  kpathsea name.
+* Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
+  Podman sandboxes. The listener binds only to one address inside
+  `COLOPHON_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.
+  Host-side LaTeX is disabled. See NOTICE.
+* `GET /version` returns the git commit or tag baked at build time, plus
+  `packageSet` and `packageSetHash` from the package list written at image
+  build.
+* Floor-plan TikZ styles and the listed tlmgr packages are in the image.
+  Shell-escape, `\write18`, minted, TikZ `external`, Asymptote, gnuplot,
+  epstopdf, the `svg` package, automatic tikz-feynman layout, and fenced
+  Mermaid or D2 are refused before compilation. There is no Asymptote,
+  Mermaid, D2, Chromium, or Node binary.
+* `colophon-v1-preamble.tex` is the shared engine preamble for the TeX
+  wrapper, the Pandoc template, and TikZ fences. Room area comes from the
+  corner numbers. Dimension labels do not change under `scale=`.
+* A job result carries a result class, wall time, cgroup `memory.peak` and
+  `pids.peak`, and on a render error the first diagnostic. `memory.mode`
+  is `cgroup` or `rlimit` when the sandbox reports it.
+* Each job sets an `RLIMIT_AS` ceiling (`COLOPHON_RLIMIT_AS_BYTES`,
+  default `2147483648:2147483648`). Podman 4.4 and newer get
+  `--ulimit as=<soft>:<hard>`. Podman below 4.4, including rootless 4.3.1,
+  rejects that flag. The worker then passes `--hooks-dir` and annotation
+  `io.colophon.rlimit.as`, and a precreate hook writes OCI `RLIMIT_AS` for
+  crun. `/usr/bin/podman` is not replaced. `--memory` and `--memory-swap` are
+  passed only when the memory controller is present. Preflight requires
+  `cpu` and `pids`; a missing memory controller is a warning and the job
+  uses rlimit mode. A missing `cpu` controller refuses startup. An
+  allocation failure (`not enough memory`, `memory exhausted`,
+  `Cannot allocate memory`, xdvipdfmx `Out of memory`, Pandoc
+  `Heap exhausted`) is `failCapHit`, the same outcome as an early SIGKILL.
+  `RLIMIT_AS` is per process, so the worst case is 256 × 2 GiB; one job
+  at a time, few TeX processes, and the MemAvailable shed bound it.
+  Other caps are unchanged (60 s, 20 MiB output, 256 pids, 512 MiB tmpfs,
+  no network, shell-escape off, load shed at loadavg 3 or MemAvailable
+  4096 MiB). The default ceiling fits the measured XeLaTeX and LuaLaTeX
+  jobs. A wall clock at or after 60 s is `failTimeout` for every exit
+  code, including Podman 4.3's timeout exit 255. An earlier 255 stays a
+  render error.
+* `GET /v1/host-load` is the token-gated load report. JSON keys are
+  `loadAvg1m`, `memAvailableMiB`, `busy`, `stale`, `intervalSec`,
+  `readable`, and `reportedAt` (UTC, ISO-8601 with a `+00:00` offset).
+  `busy` means a job holds the worker, not that the load average is high.
+  `stale: true` is a shed. `readable: false` is HTTP 503. There is no
+  `/load` path. `POST /v1/jobs/abort` kills the running container.
+* Fenced TikZ diagrams load fontspec and xeCJK with Noto Sans CJK TC, the
+  same fonts as the document path, so zh-TW labels in a fence are in the
+  PDF image used for PDF, HTML, and DOCX. `\input`, `\include`, and
+  `\openin` of an absolute path or `..` are `rejectInvalidInput` field
+  `openin`. The image sets `openin_any = p` and `openout_any = p`.
+  Runaway loops stay on the 60 s wall cap (`failTimeout`). More than five
+  TikZ fences is field `fences`. `GET /version` publishes `limits`
+  (`cpu`, `memMiB`, `wallSec`, `outputMiB`, `pidsMax`, `tmpfsMiB`,
+  `inputMiB`, `maxFencesPerJob`, `retryAfterSec`). Inline siunitx and
+  mhchem still return `warnings` on `X-Colophon-Job`: objects with
+  `code` `notationPdfOnly`, `packages`, and `message`. P&ID `pos` sets
+  both TikZ's path time and `\flowpos`. Floor-plan lengths use the
+  coordinate numbers, so a 3 m wall reads 3.00 m. Scale bar and north
+  arrow are pics as well as styles. Owned examples match the playbook
+  review replacements, including a Gantt chart with no `\\` after the
+  last bar.
+* COLOPHON-R27. A job sends `templateId` and `body`. The worker owns
+  the preamble and still refuses a caller `\documentclass` or raw
+  preamble. An unknown `templateId` is `rejectInvalidInput` field
+  `templateId`. The engine is XeLaTeX.
+  `compiler` other than `xelatex`, and `\directlua`, are refused.
+  An output over 20 MiB is `failCapHit`. The cap probe is 3000
+  uncompressed pages (`dvipdfmx:config z 0`).
+* Rootless storage on the Pi must be `driver=overlay` with
+  `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
+* Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli
+  (`mmdc`), d2, and their pandoc-ext/diagram engines are not in the worker.
+  A Mermaid or D2 fence is `rejectInvalidInput`. Those kind fixtures are
+  gone, so they no longer emit job meters. The TikZ engine stays for
+  P&ID, circuits, plots, chemistry, Gantt, and floor plans.
+* The required fixture set is the document shell plus P&ID, circuits,
+  plots, chemistry, Gantt, and floor plans. `tikz-cd`, `forest`,
+  `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
+  `bytefield` stay installed with a smoke compile and are not a sold kind.
+* HTML and DOCX render fenced diagrams as images. Inline `siunitx` and
+  `mhchem` stay PDF-only: those formats keep the source text and return
+  a `notationPdfOnly` warning. The result class stays `ok`.
+* Image: Debian `texlive-lang-cjk` provides `xeCJK.sty`. Pandoc PDF uses the
+  `xelatex` engine name (the no-shell-escape wrapper is first on `PATH`).
+  HTML responses embed diagram resources. SVG diagrams in PDF go through
+  `rsvg-convert`.
+
 ## 2026-04-10-3
 
 * Add CHANGELOG link

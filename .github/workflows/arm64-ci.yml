@@ -1,0 +1,36 @@
+# arm64 CI, not Pi proof. ubuntu-24.04-arm is a GitHub-hosted runner.
+# It builds the arm64 image and runs the required kind fixtures (document
+# shell, P&ID, circuits, plots, chemistry, Gantt, floor plans)
+# plus the unsold-package smoke compiles, under the same Podman caps the
+# worker uses. A green run here is not a Raspberry Pi proof.
+name: arm64 CI, not Pi proof
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  arm64-fixtures:
+    name: arm64 CI, not Pi proof
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rootless Podman and pdftotext
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman uidmap poppler-utils python3
+      - name: Build the arm64 image
+        run: |
+          podman build \
+            -f container/Dockerfile.colophon \
+            --build-arg COLOPHON_GIT_COMMIT="${GITHUB_SHA}" \
+            -t colophon-render:ci .
+      - name: Run the fixture suite under the worker caps
+        run: |
+          PYTHONPATH=. python3 container/run_kind_fixtures.py \
+            --image colophon-render:ci \
+            --podman podman
