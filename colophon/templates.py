@@ -1,7 +1,7 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Server-owned templates. COLOPHON-R27.
+"""Server-owned templates. ENDLEAF-R27.
 
 A caller sends ``templateId`` and a body. The worker builds the document
 as that template's preamble plus the body. The class and the packages in
@@ -51,7 +51,7 @@ ALLOWED_PACKAGES = frozenset(
         "pgfgantt",
         "tikz-dimline",
         "tikzscale",
-        "colophon-floorplan",
+        "endleaf-floorplan",
     }
 )
 ALLOWED_LIBRARIES = frozenset(

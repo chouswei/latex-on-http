@@ -1,7 +1,7 @@
 bytefield
 chemfig
 circuitikz
-colophon-floorplan
+endleaf-floorplan
 forest
 mhchem
 pgf

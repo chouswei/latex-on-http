@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
@@ -92,9 +92,9 @@ def _posted(client, auth, runner, output_format):
     )
     assert response.status_code == 200
     assert response.data == b"%PDF-1.4"
-    assert response.headers["X-Colophon-Result"] == "ok"
+    assert response.headers["X-Endleaf-Result"] == "ok"
     assert runner.calls[0].source == _PROSE
-    record = json.loads(response.headers["X-Colophon-Job"])
+    record = json.loads(response.headers["X-Endleaf-Job"])
     assert record["result"] == "ok"
     assert record["warnings"] == [
         {

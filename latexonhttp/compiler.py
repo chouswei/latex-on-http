@@ -97,7 +97,7 @@ def run_command(directory, command, timeout=DEFAULT_COMPILE_TIMEOUT):
 
 
 def latexToPdf(compilerName, directory, main_resource, workspace_id, options={}):
-    # Colophon: never compile on the host. The sandbox flags in
+    # Endleaf: never compile on the host. The sandbox flags in
     # colophon.podman_args are the only supported path (shell-escape off,
     # no network, throwaway container).
     raise RuntimeError(

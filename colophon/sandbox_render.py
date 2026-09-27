@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """In-container render. Stdout is the artifact; nothing is kept afterwards."""
 
@@ -12,12 +12,13 @@ from pathlib import Path
 from colophon.diagnostics import first_tex_error
 from colophon.enums import JobRejected, parse_job
 from colophon.limits import OUTPUT_CAP_BYTES
+from colophon.settings import setting
 from colophon.templates import compose
 from colophon.render_plan import RenderPlanError, build_render_plan
 
 
 def _status(name):
-    sys.stderr.write(f"COLOPHON_STATUS {name}\n")
+    sys.stderr.write(f"ENDLEAF_STATUS {name}\n")
     sys.stderr.flush()
 
 
@@ -36,10 +37,11 @@ def _read_int(paths):
 def _memory_mode():
     """``cgroup`` when the launcher applied ``--memory``, else ``rlimit``.
 
-    The launcher sets ``COLOPHON_MEMORY_MODE``. A direct sandbox run falls
-    back to the container's own controller list.
+    The launcher sets ``ENDLEAF_MEMORY_MODE``. ``COLOPHON_MEMORY_MODE`` is
+    still read. A direct sandbox run with neither set falls back to the
+    container's own controller list.
     """
-    raw = os.environ.get("COLOPHON_MEMORY_MODE", "").strip()
+    raw, _name = setting(os.environ, "MEMORY_MODE", default="")
     if raw in ("cgroup", "rlimit"):
         return raw
     try:
@@ -63,7 +65,7 @@ def _emit_meters():
         "memoryMode": _memory_mode(),
     }
     sys.stderr.write(
-        "COLOPHON_METERS " + json.dumps(payload, separators=(",", ":")) + "\n"
+        "ENDLEAF_METERS " + json.dumps(payload, separators=(",", ":")) + "\n"
     )
     sys.stderr.flush()
 
@@ -72,7 +74,7 @@ def _emit_diag(diagnostic):
     if not diagnostic:
         return
     sys.stderr.write(
-        "COLOPHON_DIAG " + json.dumps(diagnostic, separators=(",", ":")) + "\n"
+        "ENDLEAF_DIAG " + json.dumps(diagnostic, separators=(",", ":")) + "\n"
     )
     sys.stderr.flush()
 

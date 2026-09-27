@@ -26,11 +26,11 @@ jobs:
       - name: Build the arm64 image
         run: |
           podman build \
-            -f container/Dockerfile.colophon \
-            --build-arg COLOPHON_GIT_COMMIT="${GITHUB_SHA}" \
-            -t colophon-render:ci .
+            -f container/Dockerfile.endleaf \
+            --build-arg ENDLEAF_GIT_COMMIT="${GITHUB_SHA}" \
+            -t endleaf-render:ci .
       - name: Run the fixture suite under the worker caps
         run: |
           PYTHONPATH=. python3 container/run_kind_fixtures.py \
-            --image colophon-render:ci \
+            --image endleaf-render:ci \
             --podman podman

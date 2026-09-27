@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import pytest

@@ -1,0 +1,260 @@
+% Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+% Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% Floor-plan TikZ styles. Pure TeX: no shell escape and no outside program.
+% Room area is w*h*plan-scale^2/10^6 from the corner numbers. Dimension
+% lengths use the literal (x,y) numbers when both ends are written that
+% way. Dividing a pt length by 28.45274 labels a 3 m wall as 2.99 m.
+% scale= or tikzscale changes the canvas, not those numbers.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{endleaf-floorplan}[2026/09/26 Endleaf floor-plan styles]
+
+\RequirePackage{tikz}
+\RequirePackage{siunitx}
+\RequirePackage{tikz-dimline}
+\usetikzlibrary{calc,arrows.meta}
+
+\pgfkeys{
+  /floorplan/.is family,
+  /floorplan,
+  % Real millimetres represented by one TikZ centimetre.
+  plan-scale/.initial=500,
+  wall thickness/.initial=0.16cm,
+  door swing/.initial=90,
+}
+
+% One TikZ centimetre is 28.45274pt. pgf lengths from \pgfpointdiff are in pt.
+\newcommand{\elfloorplan@cmtopt}{28.45274}
+
+% Literal (x,y). The numbers are picture coordinates, so a surrounding
+% scale= does not change them. Used from a node option, where the TikZ
+% coordinate scanner is not available.
+\def\elfloorplan@xy(#1,#2)\relax{%
+  \def\elfloorplan@x{#1}%
+  \def\elfloorplan@y{#2}%
+}
+\newcommand{\elfloorplan@readxy}[1]{%
+  \expandafter\elfloorplan@xy#1\relax
+}
+
+% Axis-aligned rectangle: w * h * plan-scale^2 / 10^6 square metres.
+\newcommand{\elfloorplan@rectarea}[2]{%
+  \elfloorplan@readxy{#1}%
+  \let\elfloorplan@xone\elfloorplan@x
+  \let\elfloorplan@yone\elfloorplan@y
+  \elfloorplan@readxy{#2}%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\elfloorplan@scale}%
+  \pgfmathsetmacro{\elfloorplan@area}{(abs(\elfloorplan@x-\elfloorplan@xone)*\elfloorplan@scale/1000)*(abs(\elfloorplan@y-\elfloorplan@yone)*\elfloorplan@scale/1000)}%
+}
+
+% Shoelace helper. Argument is a comma-separated coordinate list.
+% \floorplanPolygonArea{(0,0),(4,0),(4,3),(0,3)}
+\newcount\elfloorplan@npt
+\newcount\elfloorplan@ii
+\newcount\elfloorplan@jj
+\newcommand{\floorplanPolygonArea}[1]{%
+  \elfloorplan@npt=0
+  \foreach \pt in {#1} {%
+    \elfloorplan@readxy{\pt}%
+    \global\advance\elfloorplan@npt by 1
+    \expandafter\xdef\csname elfloorplan@px\the\elfloorplan@npt\endcsname{\elfloorplan@x}%
+    \expandafter\xdef\csname elfloorplan@py\the\elfloorplan@npt\endcsname{\elfloorplan@y}%
+  }%
+  \gdef\elfloorplan@sum{0}%
+  \elfloorplan@ii=1
+  \loop
+    \elfloorplan@jj=\elfloorplan@ii
+    \advance\elfloorplan@jj by 1
+    \ifnum\elfloorplan@jj>\elfloorplan@npt
+      \elfloorplan@jj=1
+    \fi
+    \edef\elfloorplan@pair{%
+      \csname elfloorplan@px\the\elfloorplan@ii\endcsname*%
+      \csname elfloorplan@py\the\elfloorplan@jj\endcsname-%
+      \csname elfloorplan@px\the\elfloorplan@jj\endcsname*%
+      \csname elfloorplan@py\the\elfloorplan@ii\endcsname%
+    }%
+    \pgfmathsetmacro{\elfloorplan@sum}{\elfloorplan@sum+\elfloorplan@pair}%
+    \xdef\elfloorplan@sum{\elfloorplan@sum}%
+    \advance\elfloorplan@ii by 1
+  \ifnum\elfloorplan@ii<\numexpr\elfloorplan@npt+1\relax
+  \repeat
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\elfloorplan@scale}%
+  \pgfmathsetmacro{\elfloorplan@area}{(abs(\elfloorplan@sum)/2)*(\elfloorplan@scale/1000)*(\elfloorplan@scale/1000)}%
+}
+
+% First token of a coordinate. A literal (x,y) starts with a parenthesis.
+\def\elfloorplan@start#1#2\relax{%
+  \ifx(#1\def\elfloorplan@islit{1}\fi
+}
+\newcommand{\elfloorplan@isliteral}[1]{%
+  \def\elfloorplan@islit{0}%
+  \elfloorplan@start#1.\relax
+}
+\newcommand{\elfloorplan@setends}[2]{%
+  \path #1 coordinate (endleaf floorplan a);
+  \path #2 coordinate (endleaf floorplan b);
+  \pgfmathanglebetweenpoints{\pgfpointanchor{endleaf floorplan a}{center}}{\pgfpointanchor{endleaf floorplan b}{center}}%
+  \let\elfloorplan@angle\pgfmathresult
+  \elfloorplan@isliteral{#1}%
+  \ifnum\elfloorplan@islit=1
+    \elfloorplan@isliteral{#2}%
+  \fi
+  \ifnum\elfloorplan@islit=1
+    % Picture centimetres from the coordinate numbers. veclen is short of
+    % an exact axis length, which prints a 3 m wall as 2.99 m.
+    \elfloorplan@readxy{#1}%
+    \let\elfloorplan@xone\elfloorplan@x
+    \let\elfloorplan@yone\elfloorplan@y
+    \elfloorplan@readxy{#2}%
+    \pgfmathsetmacro{\elfloorplan@dx}{abs(\elfloorplan@x-\elfloorplan@xone)}%
+    \pgfmathsetmacro{\elfloorplan@dy}{abs(\elfloorplan@y-\elfloorplan@yone)}%
+    \pgfmathparse{\elfloorplan@dy == 0 ? 1 : 0}%
+    \ifnum\pgfmathresult=1
+      \let\elfloorplan@cm\elfloorplan@dx
+    \else
+      \pgfmathparse{\elfloorplan@dx == 0 ? 1 : 0}%
+      \ifnum\pgfmathresult=1
+        \let\elfloorplan@cm\elfloorplan@dy
+      \else
+        \pgfmathsetmacro{\elfloorplan@cm}{sqrt(\elfloorplan@dx*\elfloorplan@dx+\elfloorplan@dy*\elfloorplan@dy)}%
+      \fi
+    \fi
+  \else
+    \pgfpointdiff{\pgfpointanchor{endleaf floorplan a}{center}}{\pgfpointanchor{endleaf floorplan b}{center}}%
+    \pgf@xa=\pgf@x
+    \pgf@ya=\pgf@y
+    \pgfmathsetmacro{\elfloorplan@cm}{veclen(\pgf@xa,\pgf@ya)/\elfloorplan@cmtopt}%
+  \fi
+  % Nearest millimetre of the drawing. pgfmath is short of an exact
+  % 3 cm by enough that two decimal places print 2.99 m.
+  \pgfmathsetmacro{\elfloorplan@realcm}{round(\elfloorplan@cm*10)/10}%
+}
+
+\newcommand{\elfloorplan@dimlabel}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\elfloorplan@scale}%
+  % pgfmath turns (3/1000)*1000 into 2.99. l3fp keeps the millimetre scale.
+  \edef\elfloorplan@realm{\fpeval{\elfloorplan@realcm * \elfloorplan@scale / 1000}}%
+  \ifnum\fpeval{\elfloorplan@realm < 1}=1
+    \edef\elfloorplan@realmm{\fpeval{round(\elfloorplan@realm * 1000, 0)}}%
+    \qty{\elfloorplan@realmm}{\milli\metre}%
+  \else
+    \begingroup
+    \sisetup{round-mode=places,round-precision=2,drop-zero-decimal=false}%
+    \qty{\elfloorplan@realm}{\metre}%
+    \endgroup
+  \fi
+}
+
+\newcommand{\elfloorplan@arealabel}{%
+  \begingroup
+  \sisetup{round-mode=places,round-precision=2,drop-zero-decimal=true}%
+  \qty{\elfloorplan@area}{\square\metre}%
+  \endgroup
+}
+
+% Two calling conventions share each name.
+% \tikzset{floorplan door={(0,0)}{(1,0)}} draws the symbol from the
+% coordinates. \draw[floorplan door] only sets the path style, which is
+% what a caller body does when it draws the arc itself.
+% pgfkeys puts every brace group up to the next comma into #1.
+% An empty #1 is the path style. A valued #1 is the coordinate form.
+\newcommand{\elfloorplan@ifvalued}[3]{%
+  \if\relax\detokenize{#1}\relax
+    #2%
+  \else
+    #3#1%
+  \fi
+}
+\newcommand{\elfloorplan@doorcode}[1]{%
+  \elfloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\elfloorplan@doortwo}%
+}
+\newcommand{\elfloorplan@doortwo}[2]{%
+  \elfloorplan@setends{#1}{#2}%
+  \pgfkeysgetvalue{/floorplan/door swing}{\elfloorplan@swing}%
+  \draw[thin] (endleaf floorplan a) -- (endleaf floorplan b);
+  \draw[thin] (endleaf floorplan b) arc[%
+    start angle=\elfloorplan@angle,
+    delta angle=\elfloorplan@swing,
+    radius=\elfloorplan@cm cm%
+  ];
+}
+\newcommand{\elfloorplan@windowcode}[1]{%
+  \elfloorplan@ifvalued{#1}{%
+    \pgfkeysalso{line width=0.7pt, double, double distance=0.12cm}%
+  }{\elfloorplan@windowtwo}%
+}
+\newcommand{\elfloorplan@windowtwo}[2]{%
+  \elfloorplan@setends{#1}{#2}%
+  \draw[line width=0.7pt] (endleaf floorplan a) -- (endleaf floorplan b);
+  \draw[line width=0.35pt, double distance=0.12cm, double]
+    (endleaf floorplan a) -- (endleaf floorplan b);
+}
+\newcommand{\elfloorplan@labelcode}[1]{%
+  \elfloorplan@ifvalued{#1}{%
+    \pgfkeysalso{align=center, font=\sffamily, inner sep=1pt}%
+  }{\elfloorplan@labelthree}%
+}
+\newcommand{\elfloorplan@labelthree}[3]{%
+  \elfloorplan@rectarea{#2}{#3}%
+  \pgfkeysalso{%
+    align=center,
+    font=\sffamily,
+    inner sep=1pt,
+    node contents={#1\\[0.15em]\elfloorplan@arealabel},
+  }%
+}
+\newcommand{\elfloorplan@dimcode}[1]{%
+  \elfloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\elfloorplan@dimtwo}%
+}
+\newcommand{\elfloorplan@dimtwo}[2]{%
+  \elfloorplan@setends{#1}{#2}%
+  \dimline[%
+    extension start length=0.22cm,
+    extension end length=0.22cm,
+    label style={font=\small, inner sep=1pt, fill=white},
+  ]{#1}{#2}{\elfloorplan@dimlabel}%
+}
+
+\newcommand{\elfloorplan@scalebar}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\elfloorplan@scale}%
+  \pgfmathsetmacro{\elfloorplan@bar}{1000/\elfloorplan@scale}%
+  \draw[line cap=rect] (0,0) -- (\elfloorplan@bar,0);
+  \draw (0,-0.08) -- (0,0.08);
+  \draw (\elfloorplan@bar,-0.08) -- (\elfloorplan@bar,0.08);
+  \node[above=2pt, font=\small\sffamily, inner sep=1pt] at
+    ({\elfloorplan@bar/2},0) {\qty{1}{\metre}};
+}
+\newcommand{\elfloorplan@northarrow}{%
+  \draw[-{Stealth}, line width=0.8pt] (0,0) -- (0,0.9);
+  \node[above=1pt, font=\small\sffamily, inner sep=0pt] at (0,0.9) {N};
+}
+
+\tikzset{
+  floorplan wall/.code={%
+    \pgfkeysalso{%
+      line cap=rect,
+      line width=0.4pt,
+      double,
+      double distance=\pgfkeysvalueof{/floorplan/wall thickness},
+    }%
+  },
+  floorplan door/.code={\elfloorplan@doorcode{#1}},
+  floorplan door/.default={},
+  floorplan window/.code={\elfloorplan@windowcode{#1}},
+  floorplan window/.default={},
+  floorplan room label/.code={\elfloorplan@labelcode{#1}},
+  floorplan room label/.default={},
+  % Scale bar and north arrow draw once, at the local origin.
+  % Place them with a shifted scope and \tikzset, or with a pic:
+  % \pic at (0,-1.5) {floorplan scale bar};
+  % Using either name as a \draw option also draws that mark at the
+  % origin, in addition to the path. The owned template does not do that.
+  floorplan scale bar/.code={\elfloorplan@scalebar},
+  floorplan north arrow/.code={\elfloorplan@northarrow},
+  pics/floorplan scale bar/.style={code={\elfloorplan@scalebar}},
+  pics/floorplan north arrow/.style={code={\elfloorplan@northarrow}},
+  floorplan dimension/.code={\elfloorplan@dimcode{#1}},
+  floorplan dimension/.default={},
+}

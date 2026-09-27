@@ -538,7 +538,7 @@ end
 
 local function fail_diagram (engine_name, fence, message)
   io.stderr:write(string.format(
-    'COLOPHON_DIAG {"engine":"%s","message":"%s","file":null,"line":null,"fence":%d}\n',
+    'ENDLEAF_DIAG {"engine":"%s","message":"%s","file":null,"line":null,"fence":%d}\n',
     json_escape(engine_name),
     json_escape(message),
     fence

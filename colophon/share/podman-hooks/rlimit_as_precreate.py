@@ -6,14 +6,14 @@
 Podman 4.3 rejects ``--ulimit as=`` because go-units leaves that name
 disabled. This hook runs on the host, before crun creates the container.
 stdin is the proposed OCI spec. stdout is that spec plus ``RLIMIT_AS``.
-The ceiling is the annotation ``io.colophon.rlimit.as`` (bytes). A missing
+The ceiling is the annotation ``io.endleaf.rlimit.as`` (bytes). A missing
 or invalid annotation fails the start so the job cannot run without the cap.
 """
 
 import json
 import sys
 
-ANNOTATION = "io.colophon.rlimit.as"
+ANNOTATION = "io.endleaf.rlimit.as"
 
 
 def inject(spec):

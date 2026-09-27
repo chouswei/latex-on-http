@@ -1,6 +1,23 @@
 # CHANGELOG
 
-## 2026-09-26-colophon
+## 2026-09-27-endleaf
+
+* The product is Endleaf by Inkmirage (formerly Colophon). This repository
+  stays `chouswei/latex-on-http`. The Python module stays `colophon`
+  (`python -m colophon`). `\input{colophon-v1-preamble.tex}` is unchanged.
+* `colophon-floorplan` is now `endleaf-floorplan`. `packageSetHash` is
+  `f2946ed8f9682cc0e0dffa468d29fdc25ae2feb85e7d9d1291414dc1cf2a310d`
+  (was `c6676798e00bd9655bf3391f0c0f21dec100684d5c6783a6e0b2c3f8ae078c01`).
+  The hash changed because that one package name changed. No package was
+  added or removed. `openin_any` stays `p`.
+* Settings are `ENDLEAF_*`. `COLOPHON_*` is still read when the new name is
+  unset, and each use logs a deprecation line.
+* Floor-plan internals are `\elfloorplan@…`. LaTeX rejects a `\newcommand`
+  name that starts with `\end`, so `\endleaffloorplan@` could not load.
+  The package and file stay `endleaf-floorplan`, and `packageSetHash`
+  stays `f2946ed8f9682cc0e0dffa468d29fdc25ae2feb85e7d9d1291414dc1cf2a310d`.
+
+## 2026-09-26
 
 * TeX is started on a relative name from the job directory. `openin_any`
   and `openout_any` stay `p`. The image CJK check compiles `cjk.tex` from
@@ -8,9 +25,9 @@
   to that basename by `xelatex-nonescape`. Fenced TikZ compiles
   `tikz-image.tex` in its temp directory. Owned templates are read by
   kpathsea name.
-* Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
+* Fork behaviour: Endleaf by Inkmirage render worker. Jobs run in throwaway rootless
   Podman sandboxes. The listener binds only to one address inside
-  `COLOPHON_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.
+  `ENDLEAF_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.
   Host-side LaTeX is disabled. See NOTICE.
 * `GET /version` returns the git commit or tag baked at build time, plus
   `packageSet` and `packageSetHash` from the package list written at image
@@ -26,11 +43,11 @@
 * A job result carries a result class, wall time, cgroup `memory.peak` and
   `pids.peak`, and on a render error the first diagnostic. `memory.mode`
   is `cgroup` or `rlimit` when the sandbox reports it.
-* Each job sets an `RLIMIT_AS` ceiling (`COLOPHON_RLIMIT_AS_BYTES`,
+* Each job sets an `RLIMIT_AS` ceiling (`ENDLEAF_RLIMIT_AS_BYTES`,
   default `2147483648:2147483648`). Podman 4.4 and newer get
   `--ulimit as=<soft>:<hard>`. Podman below 4.4, including rootless 4.3.1,
   rejects that flag. The worker then passes `--hooks-dir` and annotation
-  `io.colophon.rlimit.as`, and a precreate hook writes OCI `RLIMIT_AS` for
+  `io.endleaf.rlimit.as`, and a precreate hook writes OCI `RLIMIT_AS` for
   crun. `/usr/bin/podman` is not replaced. `--memory` and `--memory-swap` are
   passed only when the memory controller is present. Preflight requires
   `cpu` and `pids`; a missing memory controller is a warning and the job
@@ -61,14 +78,14 @@
   TikZ fences is field `fences`. `GET /version` publishes `limits`
   (`cpu`, `memMiB`, `wallSec`, `outputMiB`, `pidsMax`, `tmpfsMiB`,
   `inputMiB`, `maxFencesPerJob`, `retryAfterSec`). Inline siunitx and
-  mhchem still return `warnings` on `X-Colophon-Job`: objects with
+  mhchem still return `warnings` on `X-Endleaf-Job`: objects with
   `code` `notationPdfOnly`, `packages`, and `message`. P&ID `pos` sets
   both TikZ's path time and `\flowpos`. Floor-plan lengths use the
   coordinate numbers, so a 3 m wall reads 3.00 m. Scale bar and north
   arrow are pics as well as styles. Owned examples match the playbook
   review replacements, including a Gantt chart with no `\\` after the
   last bar.
-* COLOPHON-R27. A job sends `templateId` and `body`. The worker owns
+* ENDLEAF-R27. A job sends `templateId` and `body`. The worker owns
   the preamble and still refuses a caller `\documentclass` or raw
   preamble. An unknown `templateId` is `rejectInvalidInput` field
   `templateId`. The engine is XeLaTeX.
@@ -77,7 +94,7 @@
   uncompressed pages (`dvipdfmx:config z 0`).
 * Rootless storage on the Pi must be `driver=overlay` with
   `mount_program=fuse-overlayfs`. The vfs default used about 57 GB.
-* Colophon v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli
+* Endleaf v1 renders LaTeX kinds only. Chromium, puppeteer, mermaid-cli
   (`mmdc`), d2, and their pandoc-ext/diagram engines are not in the worker.
   A Mermaid or D2 fence is `rejectInvalidInput`. Those kind fixtures are
   gone, so they no longer emit job meters. The TikZ engine stays for

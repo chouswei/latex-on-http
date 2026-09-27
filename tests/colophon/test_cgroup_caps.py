@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from colophon.cgroup_caps import (
@@ -98,5 +98,5 @@ def test_process_in_user_slice_matches_the_uid_path():
     assert process_in_user_slice(text, uid=1000) is True
     assert process_in_user_slice(text, uid=1001) is False
     assert (
-        process_in_user_slice("0::/system.slice/colophon.service\n", uid=1000) is False
+        process_in_user_slice("0::/system.slice/endleaf.service\n", uid=1000) is False
     )

@@ -1,7 +1,7 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Write the Colophon TeX package set into the image. Build time only."""
+"""Write the Endleaf TeX package set into the image. Build time only."""
 
 import subprocess
 import sys

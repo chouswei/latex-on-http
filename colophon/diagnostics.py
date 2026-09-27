@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Structured render errors. No shell."""
 
@@ -45,14 +45,14 @@ def _fill_line(diagnostic):
 
 
 def parse_stderr(stderr):
-    """Read ``COLOPHON_METERS`` and the first ``COLOPHON_DIAG`` line."""
+    """Read ``ENDLEAF_METERS`` and the first ``ENDLEAF_DIAG`` line."""
     meters = {"memoryPeak": None, "pidsPeak": None}
     diagnostic = None
     if not stderr:
         return meters, diagnostic
     text = stderr.decode("utf-8", "replace")
     for line in text.splitlines():
-        if line.startswith("COLOPHON_METERS "):
+        if line.startswith("ENDLEAF_METERS "):
             try:
                 parsed = json.loads(line.split(" ", 1)[1])
             except json.JSONDecodeError:
@@ -63,7 +63,7 @@ def parse_stderr(stderr):
                 mode = parsed.get("memoryMode")
                 if mode in ("cgroup", "rlimit"):
                     meters["memoryMode"] = mode
-        elif line.startswith("COLOPHON_DIAG ") and diagnostic is None:
+        elif line.startswith("ENDLEAF_DIAG ") and diagnostic is None:
             try:
                 parsed = json.loads(line.split(" ", 1)[1])
             except json.JSONDecodeError:

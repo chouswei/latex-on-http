@@ -20,7 +20,7 @@
 \usepackage{longtable}
 \usepackage{hyperref}
 \input{colophon-v1-preamble.tex}
-\newcommand{\ColophonLane}{Investor}
+\newcommand{\EndleafLane}{Investor}
 $if(title)$
 \title{$title$}
 $endif$

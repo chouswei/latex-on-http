@@ -1,5 +1,5 @@
 #!/bin/bash
-# Colophon: LaTeX shell-escape is off.
+# Endleaf: LaTeX shell-escape is off.
 # TeX honours the last shell-escape flag, so enabling flags are removed and
 # -no-shell-escape is placed last.
 #

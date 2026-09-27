@@ -1,4 +1,4 @@
-# Colophon render sandbox.
+# Endleaf by Inkmirage render sandbox.
 #
 # arm64 and amd64. Everything the job needs is installed here. The container
 # has no network at runtime, and tlmgr is removed so a job cannot fetch
@@ -53,9 +53,9 @@ RUN set -eu; \
 
 COPY container/xelatex-nonescape /usr/local/bin/xelatex-nonescape
 COPY container/pdflatex-nonescape /usr/local/bin/pdflatex
-COPY container/colophon-sandbox-render /usr/local/bin/colophon-sandbox-render
+COPY container/endleaf-sandbox-render /usr/local/bin/endleaf-sandbox-render
 RUN chmod 0755 /usr/local/bin/xelatex-nonescape /usr/local/bin/pdflatex \
-        /usr/local/bin/colophon-sandbox-render \
+        /usr/local/bin/endleaf-sandbox-render \
     && ln -sf /usr/local/bin/xelatex-nonescape /usr/local/bin/xelatex
 
 COPY vendor/pidcircuittikz/ /usr/local/share/texmf/tex/latex/pidcircuittikz/
@@ -64,21 +64,21 @@ COPY vendor/pidcircuittikz/ /usr/local/share/texmf/tex/latex/pidcircuittikz/
 # one and fails the build if a file is missing.
 #   circuitikz siunitx pgfplots chemfig mhchem tikz-3dplot tikz-feynman
 #   tikz-cd forest tikz-timing bytefield pgfgantt tikz-dimline tikzscale pgf
-COPY colophon/share/tex/latex/colophon-floorplan/ /usr/local/share/texmf/tex/latex/colophon-floorplan/
+COPY colophon/share/tex/latex/endleaf-floorplan/ /usr/local/share/texmf/tex/latex/endleaf-floorplan/
 COPY colophon/share/tex/latex/colophon-v1/ /usr/local/share/texmf/tex/latex/colophon-v1/
-COPY tests/colophon/fixtures/ /tmp/colophon-fixtures/
-COPY container/check_fixture_refusals.py /tmp/colophon-check-refusals.py
+COPY tests/colophon/fixtures/ /tmp/endleaf-fixtures/
+COPY container/check_fixture_refusals.py /tmp/endleaf-check-refusals.py
 COPY container/run_kind_fixtures.py /tmp/run_kind_fixtures.py
 COPY vendor/diagram/diagram.lua /usr/local/share/colophon/diagram.lua
 COPY colophon/share/ /usr/local/share/colophon/
 COPY colophon/ /opt/colophon/colophon/
 COPY container/stamp_reference_docx.py /tmp/stamp_reference_docx.py
-COPY container/bake_package_set.py /tmp/colophon-bake-package-set.py
+COPY container/bake_package_set.py /tmp/endleaf-bake-package-set.py
 
 RUN set -eu; \
     apt-get update -qq; \
     apt-get install -y --no-install-recommends poppler-utils; \
-    printf 'shell_escape = f\nopenin_any = p\nopenout_any = p\n' > /etc/texmf/texmf.d/00colophon.cnf; \
+    printf 'shell_escape = f\nopenin_any = p\nopenout_any = p\n' > /etc/texmf/texmf.d/00endleaf.cnf; \
     update-texmf; \
     mktexlsr; \
     fc-cache -f; \
@@ -103,13 +103,13 @@ RUN set -eu; \
     kpsewhich tikzlibrarycalc.code.tex; \
     kpsewhich tikzlibraryautomata.code.tex; \
     kpsewhich tikzlibrarymindmap.code.tex; \
-    kpsewhich colophon-floorplan.sty; \
+    kpsewhich endleaf-floorplan.sty; \
     kpsewhich colophon-v1-preamble.tex; \
     kpsewhich xeCJK.sty; \
     kpsewhich fontspec.sty; \
     kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
-    python3 /tmp/colophon-bake-package-set.py; \
-    rm -f /tmp/colophon-bake-package-set.py; \
+    python3 /tmp/endleaf-bake-package-set.py; \
+    rm -f /tmp/endleaf-bake-package-set.py; \
     if command -v asy >/dev/null || command -v asymptote >/dev/null \
         || command -v d2 >/dev/null || command -v mmdc >/dev/null \
         || command -v chromium >/dev/null || command -v node >/dev/null \
@@ -124,7 +124,7 @@ RUN set -eu; \
     xelatex -interaction=nonstopmode -halt-on-error cjk.tex; \
     test -s /tmp/cjk.pdf; \
     rm -f /tmp/cjk.tex /tmp/cjk.pdf /tmp/cjk.aux /tmp/cjk.log /tmp/cjk.out; \
-    cd /tmp/colophon-fixtures; \
+    cd /tmp/endleaf-fixtures; \
     xelatex -interaction=nonstopmode -halt-on-error packages-once.tex; \
     test -s packages-once.pdf; \
     xelatex -interaction=nonstopmode -halt-on-error floorplan-two-room.tex; \
@@ -135,11 +135,11 @@ RUN set -eu; \
     grep -F "3 m2" /tmp/floorplan.txt; \
     grep -F "2.25 m2" /tmp/floorplan.txt; \
     cd /tmp; \
-    python3 /tmp/colophon-check-refusals.py; \
-    python3 /tmp/run_kind_fixtures.py --root /tmp/colophon-fixtures/kinds; \
-    rm -rf /tmp/colophon-fixtures /tmp/packages-once.* /tmp/floorplan-two-room.* \
-      /tmp/colophon-tikzscale-once.tikz /tmp/colophon-tikzscale-kind.tikz \
-      /tmp/colophon-check-refusals.py /tmp/run_kind_fixtures.py /tmp/floorplan.txt \
+    python3 /tmp/endleaf-check-refusals.py; \
+    python3 /tmp/run_kind_fixtures.py --root /tmp/endleaf-fixtures/kinds; \
+    rm -rf /tmp/endleaf-fixtures /tmp/packages-once.* /tmp/floorplan-two-room.* \
+      /tmp/endleaf-tikzscale-once.tikz /tmp/endleaf-tikzscale-kind.tikz \
+      /tmp/endleaf-check-refusals.py /tmp/run_kind_fixtures.py /tmp/floorplan.txt \
       /tmp/job.* /tmp/body.tex /tmp/input.* /tmp/out.*; \
     command -v pandoc; \
     command -v xelatex; \
@@ -157,20 +157,27 @@ RUN set -eu; \
     apt-get autoremove -y; \
     rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --gid 10001 colophon \
-    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin colophon \
+RUN groupadd --gid 10001 endleaf \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin endleaf \
     && chown -R root:root /usr/local/share/colophon /opt/colophon
 
-# Baked at image build. GET /version on the worker reads COLOPHON_GIT_COMMIT
-# or colophon/GIT_COMMIT. Pass --build-arg COLOPHON_GIT_COMMIT=$(git rev-parse HEAD).
+# Baked at image build. GET /version on the worker reads ENDLEAF_GIT_COMMIT
+# or colophon/GIT_COMMIT. Pass --build-arg ENDLEAF_GIT_COMMIT=$(git rev-parse HEAD).
+# COLOPHON_GIT_COMMIT is still accepted. When only that arg is set, the build
+# logs a deprecation line and the baked commit is that value.
 ARG COLOPHON_GIT_COMMIT=unknown
-ENV COLOPHON_GIT_COMMIT=${COLOPHON_GIT_COMMIT}
+ARG ENDLEAF_GIT_COMMIT=$COLOPHON_GIT_COMMIT
+ENV ENDLEAF_GIT_COMMIT=${ENDLEAF_GIT_COMMIT}
 LABEL org.opencontainers.image.source="https://github.com/chouswei/latex-on-http" \
-      org.opencontainers.image.revision="${COLOPHON_GIT_COMMIT}" \
+      org.opencontainers.image.revision="${ENDLEAF_GIT_COMMIT}" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
-RUN printf '%s\n' "${COLOPHON_GIT_COMMIT}" > /opt/colophon/colophon/GIT_COMMIT \
+RUN if [ "${COLOPHON_GIT_COMMIT}" != "unknown" ] \
+        && [ "${ENDLEAF_GIT_COMMIT}" = "${COLOPHON_GIT_COMMIT}" ]; then \
+      echo "deprecated build-arg COLOPHON_GIT_COMMIT; set ENDLEAF_GIT_COMMIT" >&2; \
+    fi; \
+    printf '%s\n' "${ENDLEAF_GIT_COMMIT}" > /opt/colophon/colophon/GIT_COMMIT \
     && chmod 0444 /opt/colophon/colophon/GIT_COMMIT
 
 USER 10001:10001
 WORKDIR /tmp
-ENTRYPOINT ["colophon-sandbox-render"]
+ENTRYPOINT ["endleaf-sandbox-render"]

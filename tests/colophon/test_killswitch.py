@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from colophon.killswitch import KillSwitch
@@ -65,5 +65,5 @@ def test_http_refuses_when_switch_file_says_engaged(
 def test_clear_switch_allows_a_job(client, auth):
     response = client.post("/v1/jobs", json=valid_body(), headers=auth)
     assert response.status_code == 200
-    assert response.headers["X-Colophon-Result"] == "ok"
+    assert response.headers["X-Endleaf-Result"] == "ok"
     assert response.headers["Cache-Control"] == "no-store"

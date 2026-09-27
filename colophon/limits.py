@@ -1,14 +1,17 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Worker limits.
 
 ``RETRY_AFTER_SEC`` (10) is sent on busy and load-shed refusals.
 ``INPUT_CAP_BYTES`` refuses request bodies above 16 MiB.
-``COLOPHON_RLIMIT_AS_BYTES`` is the per-job ``RLIMIT_AS`` ceiling in bytes.
+``ENDLEAF_RLIMIT_AS_BYTES`` is the per-job ``RLIMIT_AS`` ceiling in bytes.
+``COLOPHON_RLIMIT_AS_BYTES`` is still read when that name is unset.
 """
 
 import os
+
+from colophon.settings import setting
 
 CPU_CORES = 1.0
 MEMORY_MIB = 2048
@@ -116,13 +119,12 @@ def rlimit_as_bytes(environ=None):
     not a positive integer fitting in a signed 64-bit rlimit is refused.
     """
     env = os.environ if environ is None else environ
-    raw = env.get("COLOPHON_RLIMIT_AS_BYTES")
-    if raw is None or str(raw).strip() == "":
+    text, name = setting(env, "RLIMIT_AS_BYTES")
+    if text is None:
         return DEFAULT_RLIMIT_AS_BYTES
-    text = str(raw).strip()
     if not text.isdigit():
-        raise LimitError("COLOPHON_RLIMIT_AS_BYTES is unreadable")
+        raise LimitError(f"{name} is unreadable")
     value = int(text)
     if value <= 0 or value > _RLIMIT_MAX:
-        raise LimitError("COLOPHON_RLIMIT_AS_BYTES is unreadable")
+        raise LimitError(f"{name} is unreadable")
     return value

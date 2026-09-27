@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Lane, output format, and input kind. Unknown values are rejected."""
 
@@ -45,7 +45,7 @@ _RAW_PREAMBLE = ("\\usepackage", "\\RequirePackage", "\\begin{document}")
 def parse_job(payload):
     """Parse a render job. Unknown enum values raise ``JobRejected``.
 
-    COLOPHON-R27: the caller sends ``templateId`` and ``body``. The worker
+    ENDLEAF-R27: the caller sends ``templateId`` and ``body``. The worker
     owns the preamble. ``input`` and ``inputKind`` are not fields.
     """
     if not isinstance(payload, dict):

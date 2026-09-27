@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from pathlib import Path
@@ -156,8 +156,8 @@ def test_floorplan_styles_are_defined():
         / "share"
         / "tex"
         / "latex"
-        / "colophon-floorplan"
-        / "colophon-floorplan.sty"
+        / "endleaf-floorplan"
+        / "endleaf-floorplan.sty"
     ).read_text(encoding="utf-8")
     for name in STYLES:
         assert f"{name}/." in text
@@ -276,7 +276,7 @@ def test_shared_preamble_is_the_only_package_list():
         "pgfgantt",
         "tikz-dimline",
         "tikzscale",
-        "colophon-floorplan",
+        "endleaf-floorplan",
         "circuits.pid.ISO14617",
     ):
         assert name in preamble
@@ -307,7 +307,7 @@ def test_shared_preamble_is_the_only_package_list():
 
 def test_image_recipe_drops_mermaid_and_d2():
     root = Path(__file__).resolve().parents[2]
-    docker = (root / "container/Dockerfile.colophon").read_text(encoding="utf-8")
+    docker = (root / "container/Dockerfile.endleaf").read_text(encoding="utf-8")
     for banned in (
         "nodejs",
         "npm install",

@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import hashlib
@@ -15,13 +15,13 @@ PACKAGE_SET_SOURCE = (
 )
 
 # Widened set from commits 19de0c2 and 5e07aef: circuitikz through pgfgantt,
-# plus colophon-floorplan. The digest is sha256 of these names joined by
+# plus endleaf-floorplan. The digest is sha256 of these names joined by
 # newlines, with no trailing newline.
 WIDENED_PACKAGE_SET = [
     "bytefield",
     "chemfig",
     "circuitikz",
-    "colophon-floorplan",
+    "endleaf-floorplan",
     "forest",
     "mhchem",
     "pgf",
@@ -36,7 +36,7 @@ WIDENED_PACKAGE_SET = [
     "tikzscale",
 ]
 WIDENED_PACKAGE_SET_HASH = (
-    "c6676798e00bd9655bf3391f0c0f21dec100684d5c6783a6e0b2c3f8ae078c01"
+    "f2946ed8f9682cc0e0dffa468d29fdc25ae2feb85e7d9d1291414dc1cf2a310d"
 )
 
 
@@ -46,9 +46,7 @@ def test_version_requires_token(client):
 
 
 def test_version_returns_baked_commit(client, auth, monkeypatch):
-    monkeypatch.setenv(
-        "COLOPHON_GIT_COMMIT", "0123456789abcdef0123456789abcdef01234567"
-    )
+    monkeypatch.setenv("ENDLEAF_GIT_COMMIT", "0123456789abcdef0123456789abcdef01234567")
     response = client.get("/version", headers=auth)
     assert response.status_code == 200
     body = response.get_json()
@@ -59,6 +57,7 @@ def test_version_returns_baked_commit(client, auth, monkeypatch):
 
 
 def test_missing_revision_is_unknown(monkeypatch):
+    monkeypatch.delenv("ENDLEAF_GIT_COMMIT", raising=False)
     monkeypatch.delenv("COLOPHON_GIT_COMMIT", raising=False)
     monkeypatch.setattr("colophon.revision._read_baked_file", lambda: "")
     body = version_payload()
@@ -72,13 +71,28 @@ def test_widened_package_set_hash_is_pinned():
     assert package_set_hash(WIDENED_PACKAGE_SET) == WIDENED_PACKAGE_SET_HASH
 
 
+def test_deprecated_git_commit_env(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.delenv("ENDLEAF_GIT_COMMIT", raising=False)
+    monkeypatch.setenv("COLOPHON_GIT_COMMIT", "abc1234")
+    with caplog.at_level(logging.WARNING):
+        body = version_payload()
+    assert body["commit"] == "abc1234"
+    assert (
+        "deprecated environment variable COLOPHON_GIT_COMMIT; set ENDLEAF_GIT_COMMIT"
+        in caplog.text
+    )
+
+
 def test_version_package_set_is_sorted_and_hashed(client, auth, monkeypatch):
+    monkeypatch.delenv("ENDLEAF_GIT_COMMIT", raising=False)
     monkeypatch.delenv("COLOPHON_GIT_COMMIT", raising=False)
     response = client.get("/version", headers=auth)
     assert response.status_code == 200
     body = response.get_json()
     names = package_set()
-    assert "colophon-floorplan" in names
+    assert "endleaf-floorplan" in names
     assert names == sorted(names)
     assert body["packageSet"] == names
     digest = hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
