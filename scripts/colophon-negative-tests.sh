@@ -362,13 +362,22 @@ case "$escape" in
   f) ;;
   *) echo "shell_escape is not f"; exit 1 ;;
 esac
-rm -f /tmp/x
-/usr/local/bin/xelatex-nonescape -interaction=nonstopmode -output-directory=/tmp /work/write18.tex >/tmp/xe.out 2>&1 || true
+rm -f /tmp/x /tmp/x-lua
+# /work is a read-only mount. openin_any=p refuses that absolute path.
+# Copy the sources into the tmpfs and compile the basename from /tmp.
+cp /work/write18.tex /tmp/write18.tex
+cp /work/lua.tex /tmp/lua.tex
+cd /tmp
+/usr/local/bin/xelatex-nonescape -interaction=nonstopmode -cnf-line=openin_any=p write18.tex >/tmp/xe.out 2>&1 || true
+if grep -q 'Not reading' /tmp/xe.out /tmp/write18.log 2>/dev/null; then echo OPENIN_REFUSED engine=xelatex; exit 1; fi
+if [ ! -s /tmp/write18.pdf ]; then echo XELATEX_DID_NOT_COMPILE; exit 1; fi
 if [ -e /tmp/x ]; then echo WRITE18_EXISTS engine=xelatex; exit 1; fi
 echo "WRITE18_ABSENT engine=xelatex"
 if [ -x /usr/local/bin/pdflatex ]; then
-  rm -f /tmp/x
-  /usr/local/bin/pdflatex -interaction=nonstopmode -output-directory=/tmp /work/write18.tex >/tmp/pdf.out 2>&1 || true
+  rm -f /tmp/x /tmp/write18.pdf
+  /usr/local/bin/pdflatex -interaction=nonstopmode -cnf-line=openin_any=p write18.tex >/tmp/pdf.out 2>&1 || true
+  if grep -q 'Not reading' /tmp/pdf.out /tmp/write18.log 2>/dev/null; then echo OPENIN_REFUSED engine=pdflatex-wrapper; exit 1; fi
+  if [ ! -s /tmp/write18.pdf ]; then echo PDFLATEX_DID_NOT_COMPILE; exit 1; fi
   if [ -e /tmp/x ]; then echo WRITE18_EXISTS engine=pdflatex-wrapper; exit 1; fi
   echo "PDFLATEX_IS_XELATEX_WRAPPER"
   echo "WRITE18_ABSENT engine=pdflatex-wrapper"
@@ -377,7 +386,8 @@ if ! command -v lualatex >/dev/null 2>&1; then
   echo "LUALATEX_REFUSED lualatex is not installed in the worker image"
   exit 0
 fi
-/usr/bin/lualatex -no-shell-escape -interaction=nonstopmode -output-directory=/tmp /work/lua.tex >/tmp/lua.out 2>&1 || true
+/usr/bin/lualatex -no-shell-escape -interaction=nonstopmode -cnf-line=openin_any=p lua.tex >/tmp/lua.out 2>&1 || true
+if grep -q 'Not reading' /tmp/lua.out /tmp/lua.log 2>/dev/null; then echo OPENIN_REFUSED engine=lualatex; exit 1; fi
 if [ -e /tmp/x-lua ]; then echo LUA_SIDE_EFFECT; exit 1; fi
 if grep -q COLOPHON_LUA_RAN /tmp/lua.log /tmp/lua.out /tmp/lua.aux 2>/dev/null; then
   grep -h COLOPHON_LUA /tmp/lua.log /tmp/lua.out /tmp/lua.aux

@@ -2,6 +2,12 @@
 
 ## 2026-09-26-colophon
 
+* TeX is started on a relative name from the job directory. `openin_any`
+  and `openout_any` stay `p`. The image CJK check compiles `cjk.tex` from
+  `/tmp`, not `/tmp/cjk.tex`. Pandoc's absolute `input.tex` is rewritten
+  to that basename by `xelatex-nonescape`. Fenced TikZ compiles
+  `tikz-image.tex` in its temp directory. Owned templates are read by
+  kpathsea name.
 * Fork behaviour: Colophon render worker. Jobs run in throwaway rootless
   Podman sandboxes. The listener binds only to one address inside
   `COLOPHON_BIND_ALLOWED_CIDR`, and refuses a public (`is_global`) address.

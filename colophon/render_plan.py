@@ -25,23 +25,34 @@ def _template(lane, name):
     return f"{SHARE_ROOT}/templates/{lane}/{name}"
 
 
-def xelatex_argv(tex_path):
-    """XeLaTeX with shell-escape forced off. The wrapper repeats the flag."""
+# Image PATH lists /usr/local/bin first. The name is absolute so a job
+# cannot select another binary. The sandbox runs this with cwd /tmp.
+XELATEX_BIN = "/usr/local/bin/xelatex-nonescape"
+
+
+def xelatex_argv(tex_name):
+    """XeLaTeX with shell-escape forced off. The wrapper repeats the flag.
+
+    ``tex_name`` is a relative file in the job directory. ``openin_any=p``
+    refuses an absolute path and ``..``. Aux files are written beside that
+    name, so ``openout_any`` stays ``p`` as well.
+    """
+    if (
+        not tex_name
+        or tex_name.startswith("/")
+        or tex_name.startswith("~")
+        or ".." in tex_name.split("/")
+    ):
+        raise RenderPlanError("tex path")
     return [
-        "/usr/local/bin/xelatex-nonescape",
+        XELATEX_BIN,
         "-no-shell-escape",
         "-interaction=nonstopmode",
         "-halt-on-error",
         "-file-line-error",
-        # Debian sets openout_any=p, which refuses the aux file when the
-        # job path is absolute. The read-only root still confines writes
-        # to the /tmp tmpfs. openin_any stays paranoid: absolute paths and
-        # parent directories cannot be read. The image texmf sets the same
-        # openin_any, including for fenced TikZ compiles.
-        "-cnf-line=openout_any=a",
         "-cnf-line=openin_any=p",
-        "-output-directory=/tmp",
-        tex_path,
+        "-cnf-line=openout_any=p",
+        tex_name,
     ]
 
 
@@ -69,7 +80,7 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
         files["/tmp/job.tex"] = None  # filled by the sandbox from the wrapper
         return RenderPlan(
             files=files,
-            commands=(xelatex_argv("/tmp/job.tex"),),
+            commands=(xelatex_argv("job.tex"),),
             output_path="/tmp/job.pdf",
         )
     source_name = "/tmp/input.md" if job.input_kind == "markdown" else "/tmp/input.tex"
@@ -91,8 +102,10 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
             "--pdf-engine-opt=-interaction=nonstopmode",
             "--pdf-engine-opt=-halt-on-error",
             "--pdf-engine-opt=-file-line-error",
-            "--pdf-engine-opt=-cnf-line=openout_any=a",
+            # Pandoc writes an absolute input.tex. xelatex-nonescape turns
+            # that into a basename before TeX reads it. openin stays p.
             "--pdf-engine-opt=-cnf-line=openin_any=p",
+            "--pdf-engine-opt=-cnf-line=openout_any=p",
             "--template",
             _template(job.lane, "pandoc.latex"),
             "-o",

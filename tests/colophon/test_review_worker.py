@@ -130,9 +130,6 @@ def test_scale_bar_pic_draws_once(tmp_path):
     assert "N" in text
 
 
-@pytest.mark.skipif(
-    _XELATEX is None or _PDFTOTEXT is None, reason="poppler or xelatex missing"
-)
 def _word_x(pdf, word):
     completed = subprocess.run(
         ["pdftotext", "-bbox", str(pdf), "-"],
@@ -149,6 +146,9 @@ def _word_x(pdf, word):
     return float(match.group(1))
 
 
+@pytest.mark.skipif(
+    _XELATEX is None or _PDFTOTEXT is None, reason="poppler or xelatex missing"
+)
 def test_pid_pos_moves_the_flow_marker(tmp_path):
     """pos= is local to the path, so the marker moves and chemfig still places."""
     body = (

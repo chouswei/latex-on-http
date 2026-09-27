@@ -2,6 +2,11 @@
 # Colophon: LaTeX shell-escape is off.
 # TeX honours the last shell-escape flag, so enabling flags are removed and
 # -no-shell-escape is placed last.
+#
+# openin_any=p refuses an absolute path and a ".." segment. Pandoc passes
+# an absolute input.tex and does not chdir. When that path has no ".."
+# segment, compile the basename from its directory, and turn a matching
+# -output-directory into ".". openin_any is not relaxed.
 set -eu
 filtered=()
 for arg in "$@"; do
@@ -13,4 +18,66 @@ for arg in "$@"; do
       ;;
   esac
 done
-exec /usr/bin/xelatex -no-shell-escape "${filtered[@]}"
+
+tex_dir=""
+rewritten=()
+i=0
+n=${#filtered[@]}
+while [ "$i" -lt "$n" ]; do
+  arg=${filtered[$i]}
+  case "$arg" in
+    /*.tex|/*.ltx)
+      case "$arg" in
+        *..*)
+          rewritten+=("$arg")
+          ;;
+        *)
+          if [ -z "$tex_dir" ]; then
+            tex_dir=$(dirname -- "$arg")
+            rewritten+=("$(basename -- "$arg")")
+          else
+            rewritten+=("$arg")
+          fi
+          ;;
+      esac
+      ;;
+    *)
+      rewritten+=("$arg")
+      ;;
+  esac
+  i=$((i + 1))
+done
+
+final=()
+i=0
+n=${#rewritten[@]}
+while [ "$i" -lt "$n" ]; do
+  arg=${rewritten[$i]}
+  if [ "$arg" = "-output-directory" ]; then
+    final+=("$arg")
+    i=$((i + 1))
+    if [ "$i" -lt "$n" ]; then
+      nxt=${rewritten[$i]}
+      if [ -n "$tex_dir" ] && [ "$(realpath -m -- "$nxt")" = "$(realpath -m -- "$tex_dir")" ]; then
+        final+=(".")
+      else
+        final+=("$nxt")
+      fi
+    fi
+  elif [[ "$arg" == -output-directory=* ]]; then
+    nxt=${arg#-output-directory=}
+    if [ -n "$tex_dir" ] && [ "$(realpath -m -- "$nxt")" = "$(realpath -m -- "$tex_dir")" ]; then
+      final+=("-output-directory=.")
+    else
+      final+=("$arg")
+    fi
+  else
+    final+=("$arg")
+  fi
+  i=$((i + 1))
+done
+
+if [ -n "$tex_dir" ]; then
+  cd -- "$tex_dir"
+fi
+exec /usr/bin/xelatex -no-shell-escape "${final[@]}"

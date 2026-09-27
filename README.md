@@ -316,9 +316,12 @@ More than `maxFencesPerJob` TikZ fences is `field` `fences`. An unbounded
 `\loop` is not a separate refusal: it hits `wallSec` and the result is
 `failTimeout`. `\input`, `\include`, `\@@input`, and `\openin` with an
 absolute path or a `..` segment are `field` `openin`. The image sets
-`openin_any = p` and `openout_any = p`. A job still passes
-`openout_any=a` so the absolute `/tmp` aux file can be written; reads stay
-paranoid.
+`openin_any = p` and `openout_any = p`. XeLaTeX is started in `/tmp` on a
+relative name (`job.tex`, or `tikz-image.tex` for a fence), so the aux
+file is written there without widening `openout_any`. Pandoc passes an
+absolute `input.tex`; `xelatex-nonescape` rewrites that to the basename
+before TeX reads it. Owned preambles use the kpathsea name
+`colophon-v1-preamble.tex`, not an absolute path.
 
 ### Job input
 

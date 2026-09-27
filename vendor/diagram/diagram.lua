@@ -219,11 +219,19 @@ local tikz = {
         )
         write_file(tikz_file, tex_code)
 
-        -- Execute the LaTeX compiler:
+        -- The working directory is already tmpdir. openin_any=p refuses
+        -- an absolute path. TeX is given the basename only. Aux files
+        -- land in the cwd.
         local success, result = pcall(
           pipe,
           self.execpath or 'pdflatex',
-          { '-interaction=nonstopmode', '-cnf-line=openin_any=p', '-output-directory', tmpdir, tikz_file },
+          {
+            '-interaction=nonstopmode',
+            '-halt-on-error',
+            '-cnf-line=openin_any=p',
+            '-cnf-line=openout_any=p',
+            'tikz-image.tex',
+          },
           ''
         )
         if not success then

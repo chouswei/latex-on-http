@@ -95,8 +95,11 @@ def _wrap_tex(template_id, lane, body):
 
 
 def _run(command):
+    # Job files live in /tmp. TeX is given a relative name, so the engine
+    # must be started there. openin_any=p refuses an absolute input path.
     completed = subprocess.run(
         command,
+        cwd="/tmp",
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         check=False,

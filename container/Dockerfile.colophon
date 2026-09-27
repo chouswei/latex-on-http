@@ -120,21 +120,21 @@ RUN set -eu; \
     fc-list : family | grep -F "Noto Sans CJK TC"; \
     sed 's/__BODY__/繁體中文/' \
         /usr/local/share/colophon/templates/Weft/wrapper.tex > /tmp/cjk.tex; \
-    xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp /tmp/cjk.tex; \
+    cd /tmp; \
+    xelatex -interaction=nonstopmode -halt-on-error cjk.tex; \
     test -s /tmp/cjk.pdf; \
     rm -f /tmp/cjk.tex /tmp/cjk.pdf /tmp/cjk.aux /tmp/cjk.log /tmp/cjk.out; \
-    cd /tmp; \
-    xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp \
-      /tmp/colophon-fixtures/packages-once.tex; \
-    test -s /tmp/packages-once.pdf; \
-    xelatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp \
-      /tmp/colophon-fixtures/floorplan-two-room.tex; \
-    test -s /tmp/floorplan-two-room.pdf; \
-    pdftotext -raw /tmp/floorplan-two-room.pdf - | tee /tmp/floorplan.txt; \
+    cd /tmp/colophon-fixtures; \
+    xelatex -interaction=nonstopmode -halt-on-error packages-once.tex; \
+    test -s packages-once.pdf; \
+    xelatex -interaction=nonstopmode -halt-on-error floorplan-two-room.tex; \
+    test -s floorplan-two-room.pdf; \
+    pdftotext -raw floorplan-two-room.pdf - | tee /tmp/floorplan.txt; \
     grep -F "2.00 m" /tmp/floorplan.txt; \
     grep -F "1.50 m" /tmp/floorplan.txt; \
     grep -F "3 m2" /tmp/floorplan.txt; \
     grep -F "2.25 m2" /tmp/floorplan.txt; \
+    cd /tmp; \
     python3 /tmp/colophon-check-refusals.py; \
     python3 /tmp/run_kind_fixtures.py --root /tmp/colophon-fixtures/kinds; \
     rm -rf /tmp/colophon-fixtures /tmp/packages-once.* /tmp/floorplan-two-room.* \
