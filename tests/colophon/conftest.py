@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import pytest
@@ -47,11 +47,11 @@ def switch_path(tmp_path):
 def config(switch_path):
     return load_config(
         {
-            "COLOPHON_BIND_ADDRESS": "100.64.0.1",
-            "COLOPHON_BIND_ALLOWED_CIDR": "100.64.0.0/10",
-            "COLOPHON_WORKER_TOKEN": TOKEN,
-            "COLOPHON_KILL_SWITCH_FILE": str(switch_path),
-            "COLOPHON_IMAGE": "colophon-render:local",
+            "ENDLEAF_BIND_ADDRESS": "100.64.0.1",
+            "ENDLEAF_BIND_ALLOWED_CIDR": "100.64.0.0/10",
+            "ENDLEAF_WORKER_TOKEN": TOKEN,
+            "ENDLEAF_KILL_SWITCH_FILE": str(switch_path),
+            "ENDLEAF_IMAGE": "endleaf-render:local",
         }
     )
 

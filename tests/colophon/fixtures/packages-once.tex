@@ -17,7 +17,7 @@
 \usepackage{pgfgantt}
 \usepackage{tikz-dimline}
 \usepackage{tikzscale}
-\usepackage{colophon-floorplan}
+\usepackage{endleaf-floorplan}
 \begin{document}
 \qty{1}{\metre}
 \begin{circuitikz}
@@ -69,12 +69,12 @@
   \dimline{(0,0)}{(1,0)}{1};
 \end{tikzpicture}
 
-\begin{filecontents}[overwrite]{colophon-tikzscale-once.tikz}
+\begin{filecontents}[overwrite]{endleaf-tikzscale-once.tikz}
 \begin{tikzpicture}
   \draw (0,0) rectangle (1,1);
 \end{tikzpicture}
 \end{filecontents}
-\includegraphics[width=2cm]{colophon-tikzscale-once.tikz}
+\includegraphics[width=2cm]{endleaf-tikzscale-once.tikz}
 
 \begin{tikzpicture}
   \node[circle, draw, minimum size=4mm] (q0) {};

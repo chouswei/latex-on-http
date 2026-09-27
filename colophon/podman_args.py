@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Exact ``podman run`` argument list for one throwaway job."""
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Podman gets an OCI precreate hook that writes ``RLIMIT_AS`` into the spec
 # crun already understands. The hook does not replace ``/usr/bin/podman``.
 ULIMIT_AS_MIN = (4, 4)
-RLIMIT_ANNOTATION = "io.colophon.rlimit.as"
+RLIMIT_ANNOTATION = "io.endleaf.rlimit.as"
 _VERSION = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
 
@@ -104,7 +104,7 @@ def ensure_rlimit_hook_dir(dest=None):
     """Write the precreate hook JSON. Return the directory Podman should read.
 
     ``--hooks-dir`` is a Podman global flag. The JSON points at the script in
-    this install. The script reads ``io.colophon.rlimit.as`` from the OCI spec
+    this install. The script reads ``io.endleaf.rlimit.as`` from the OCI spec
     and adds ``RLIMIT_AS`` before crun creates the container.
     """
     script = hook_script_path()
@@ -114,7 +114,7 @@ def ensure_rlimit_hook_dir(dest=None):
     directory = (
         Path(dest)
         if dest is not None
-        else Path.home() / ".local/share/colophon/podman-hooks"
+        else Path.home() / ".local/share/endleaf/podman-hooks"
     )
     directory.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -148,7 +148,7 @@ def build_podman_run_args(
     ``RLIMIT_AS`` ceiling (default 2048 MiB). Podman 4.4 and newer take
     ``--ulimit as=<soft>:<hard>``. Podman 4.3 does not: go-units rejects
     ``as``. That version gets ``--hooks-dir`` (a global flag, before
-    ``run``) and ``--annotation io.colophon.rlimit.as=<bytes>``. The
+    ``run``) and ``--annotation io.endleaf.rlimit.as=<bytes>``. The
     precreate hook writes the OCI ``RLIMIT_AS`` crun applies. ``--memory``
     and ``--memory-swap`` are passed only when the memory controller is
     available. Without it, Podman would fail the start or ignore the cap, so
@@ -226,11 +226,11 @@ def build_podman_run_args(
             "--env",
             "LANG=C.UTF-8",
             "--env",
-            f"COLOPHON_MEMORY_MODE={memory_mode}",
+            f"ENDLEAF_MEMORY_MODE={memory_mode}",
             "--log-driver=none",
             "-i",
             image,
-            "colophon-sandbox-render",
+            "endleaf-sandbox-render",
         ]
     )
     return args

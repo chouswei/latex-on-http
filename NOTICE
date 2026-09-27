@@ -1,4 +1,4 @@
-Colophon render worker
+Endleaf by Inkmirage render worker
 ======================
 
 This tree is a public AGPL-3.0 fork of YtoTech/latex-on-http. The original
@@ -9,13 +9,13 @@ unchanged: see LICENSE.
 What changed
 ------------
 
-The fork is the Colophon render worker. It is not the upstream hosted
+The fork is the Endleaf by Inkmirage render worker. It is not the upstream hosted
 compile service.
 
 - Each job runs in a new rootless Podman container (`--network=none`,
   read-only root, 512 MiB tmpfs, non-root user, 1 CPU, 256 pids, 60 s wall
   clock, 20 MiB output cap). The address-space ceiling is `RLIMIT_AS`
-  (default 2048 MiB, `COLOPHON_RLIMIT_AS_BYTES`). Podman 4.4 and newer
+  (default 2048 MiB, `ENDLEAF_RLIMIT_AS_BYTES`). Podman 4.4 and newer
   receive `--ulimit as=`. Podman 4.3 rejects that flag, so the worker
   injects the rlimit with a precreate hook that crun applies. A wall
   clock at or after 60 s is `failTimeout`, including Podman 4.3 exit 255.
@@ -38,14 +38,15 @@ compile service.
 - LaTeX shell-escape is off (`-no-shell-escape`, and `shell_escape = f` in
   the image texmf). The host compiler path raises rather than running TeX
   on the worker host.
-- The listener binds only to one configured address (`COLOPHON_BIND_ADDRESS`)
-  inside the required `COLOPHON_BIND_ALLOWED_CIDR`. It refuses to start if
+- The listener binds only to one configured address (`ENDLEAF_BIND_ADDRESS`)
+  inside the required `ENDLEAF_BIND_ALLOWED_CIDR`. `COLOPHON_*` is still read
+  when the new name is unset, and each use logs a deprecation line. It refuses to start if
   either is unset, if the address is unspecified (0.0.0.0 or ::), a hostname,
   loopback, link-local, multicast, RFC1918, outside the CIDR, or `is_global`.
   A unique-local address is allowed only when it is inside the CIDR. Common
   examples of that CIDR are `100.64.0.0/10` and `fd7a:115c:a1e0::/48`.
 - `GET /version` returns the package version and the git commit or tag baked
-  at image build time (`COLOPHON_GIT_COMMIT`), plus a link to that revision
+  at image build time (`ENDLEAF_GIT_COMMIT`), plus a link to that revision
   in this repository. The image also sets the OCI revision label.
 - Every request needs the shared worker token (Bearer). Concurrency is one
   job per process. A second job is refused at once with Retry-After. There
@@ -81,13 +82,13 @@ compile service.
   the Pandoc template, and TikZ diagram blocks input it. It loads
   `circuitikz`, `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`,
   `tikz-feynman`, `tikz-cd`, `forest`, `tikz-timing`, `bytefield`,
-  `pgfgantt`, `tikz-dimline`, `tikzscale`, `colophon-floorplan`, the TikZ
+  `pgfgantt`, `tikz-dimline`, `tikzscale`, `endleaf-floorplan`, the TikZ
   libraries `shapes`, `arrows.meta`, `positioning`, `calc`, `automata`,
   and `mindmap`, and `\usetikzlibrary{circuits.pid.ISO14617}`. A fence
   option cannot replace that list. The PID library replaces TikZ's `at`
   and `pos` keys; the preamble puts those two keys back so chemfig and
   ordinary nodes keep working. PID symbols still load.
-- `colophon-floorplan.sty` is installed in the local texmf tree. It defines
+- `endleaf-floorplan.sty` is installed in the local texmf tree. It defines
   the TikZ styles `floorplan wall`, `floorplan door`, `floorplan window`,
   `floorplan room label`, `floorplan scale bar`, `floorplan north arrow`,
   and `floorplan dimension`. Room area is computed from the corner numbers
@@ -100,8 +101,9 @@ compile service.
   `pids.peak` from the job cgroup, and on a render error the first TeX
   or TikZ diagram diagnostic (message, file, line, fence index). When the
   sandbox reports it, `memory.mode` is `cgroup` or `rlimit`. The success
-  body stays the artifact. Meters for a success are the `X-Colophon-Job`
-  header. `X-Colophon-Result` stays `ok`. Without the memory controller,
+  body stays the artifact. Meters for a success are the `X-Endleaf-Job`
+  header. `X-Colophon-Job` and `X-Colophon-Result` carry the same values.
+  `X-Endleaf-Result` stays `ok`. Without the memory controller,
   `memory.peak` is null.
 - Sold-candidate kinds are P&ID, circuits, plots (pgfplots, including a
   small 3D sample), chemistry, Gantt, and floor plans, plus the document
@@ -113,10 +115,10 @@ compile service.
 - Fenced diagrams in HTML and DOCX are images from the diagram filter.
   Inline `siunitx` and `mhchem` notation is typeset in PDF only. HTML and
   DOCX keep that command text in the artifact and add `warnings` with code
-  `notationPdfOnly` on `X-Colophon-Job`. The result class stays `ok`.
+  `notationPdfOnly` on `X-Endleaf-Job`. The result class stays `ok`.
 - `GET /version` includes `packageSet` and `packageSetHash`. The set is the
   sorted TeX package names in `colophon/package_set.txt`, including
-  `colophon-floorplan`. The image build writes that list to `PACKAGE_SET`
+  `endleaf-floorplan`. The image build writes that list to `PACKAGE_SET`
   after checking each `kpsewhich` name. The hash is the sha256 of the names
   joined by newlines, with no trailing newline. The request reads the baked
   file and does not run a shell.

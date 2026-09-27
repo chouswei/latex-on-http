@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Compile the sold-candidate kinds, plus a short smoke set.
 
@@ -76,7 +76,7 @@ def _render(payload, *, image, podman):
             args = build_podman_run_args(
                 podman=podman,
                 image=image,
-                name=f"colophon-kind-{uuid.uuid4().hex[:12]}",
+                name=f"endleaf-kind-{uuid.uuid4().hex[:12]}",
                 podman_version=version,
                 hooks_dir=hooks_dir,
             )
@@ -141,9 +141,9 @@ def _compile(path, *, image, podman):
         podman=podman,
     )
     err = stderr.decode("utf-8", "replace")
-    if code != 0 or not stdout.startswith(b"%PDF") or "COLOPHON_STATUS ok" not in err:
+    if code != 0 or not stdout.startswith(b"%PDF") or "ENDLEAF_STATUS ok" not in err:
         sys.exit(f"{path.name} failed rc={code}\n{err[-4000:]}")
-    if "COLOPHON_METERS " not in err:
+    if "ENDLEAF_METERS " not in err:
         sys.exit(f"{path.name} did not report cgroup meters")
     if path.stem.startswith("floorplan"):
         _assert_floorplan(path.name, stdout)

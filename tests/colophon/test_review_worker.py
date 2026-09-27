@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Playbook-review worker fixes: fence CJK, dimension labels, PID pos."""
 
@@ -18,7 +18,7 @@ _OWNED = _ROOT / "colophon/share/templates/owned"
 _TEXINPUTS = os.pathsep.join(
     (
         str(_ROOT / "colophon/share/tex/latex/colophon-v1"),
-        str(_ROOT / "colophon/share/tex/latex/colophon-floorplan"),
+        str(_ROOT / "colophon/share/tex/latex/endleaf-floorplan"),
         str(_ROOT / "vendor/pidcircuittikz"),
         "",
     )

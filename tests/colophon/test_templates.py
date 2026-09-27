@@ -1,7 +1,7 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""COLOPHON-R27. templateId plus body, server-owned preambles."""
+"""ENDLEAF-R27. templateId plus body, server-owned preambles."""
 
 import os
 import re
@@ -33,7 +33,7 @@ _TEXINPUTS = os.pathsep.join(
         ),
         str(
             Path(__file__).resolve().parents[2]
-            / "colophon/share/tex/latex/colophon-floorplan"
+            / "colophon/share/tex/latex/endleaf-floorplan"
         ),
         str(Path(__file__).resolve().parents[2] / "vendor/pidcircuittikz"),
         "",
@@ -134,7 +134,7 @@ def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
         sample = "Hello from the document shell."
     tex = compose(template_id, "InstruMeasure", sample, _ROOT)
     assert "\\documentclass{article}" in tex
-    assert "\\newcommand{\\ColophonLane}{InstruMeasure}" in tex
+    assert "\\newcommand{\\EndleafLane}{InstruMeasure}" in tex
     assert sample in tex
     if shutil.which("kpsewhich"):
         found = subprocess.run(

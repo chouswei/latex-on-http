@@ -1,0 +1,260 @@
+% Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
+% Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% Floor-plan TikZ styles. Pure TeX: no shell escape and no outside program.
+% Room area is w*h*plan-scale^2/10^6 from the corner numbers. Dimension
+% lengths use the literal (x,y) numbers when both ends are written that
+% way. Dividing a pt length by 28.45274 labels a 3 m wall as 2.99 m.
+% scale= or tikzscale changes the canvas, not those numbers.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{endleaf-floorplan}[2026/09/26 Endleaf floor-plan styles]
+
+\RequirePackage{tikz}
+\RequirePackage{siunitx}
+\RequirePackage{tikz-dimline}
+\usetikzlibrary{calc,arrows.meta}
+
+\pgfkeys{
+  /floorplan/.is family,
+  /floorplan,
+  % Real millimetres represented by one TikZ centimetre.
+  plan-scale/.initial=500,
+  wall thickness/.initial=0.16cm,
+  door swing/.initial=90,
+}
+
+% One TikZ centimetre is 28.45274pt. pgf lengths from \pgfpointdiff are in pt.
+\newcommand{\endleaffloorplan@cmtopt}{28.45274}
+
+% Literal (x,y). The numbers are picture coordinates, so a surrounding
+% scale= does not change them. Used from a node option, where the TikZ
+% coordinate scanner is not available.
+\def\endleaffloorplan@xy(#1,#2)\relax{%
+  \def\endleaffloorplan@x{#1}%
+  \def\endleaffloorplan@y{#2}%
+}
+\newcommand{\endleaffloorplan@readxy}[1]{%
+  \expandafter\endleaffloorplan@xy#1\relax
+}
+
+% Axis-aligned rectangle: w * h * plan-scale^2 / 10^6 square metres.
+\newcommand{\endleaffloorplan@rectarea}[2]{%
+  \endleaffloorplan@readxy{#1}%
+  \let\endleaffloorplan@xone\endleaffloorplan@x
+  \let\endleaffloorplan@yone\endleaffloorplan@y
+  \endleaffloorplan@readxy{#2}%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\endleaffloorplan@scale}%
+  \pgfmathsetmacro{\endleaffloorplan@area}{(abs(\endleaffloorplan@x-\endleaffloorplan@xone)*\endleaffloorplan@scale/1000)*(abs(\endleaffloorplan@y-\endleaffloorplan@yone)*\endleaffloorplan@scale/1000)}%
+}
+
+% Shoelace helper. Argument is a comma-separated coordinate list.
+% \floorplanPolygonArea{(0,0),(4,0),(4,3),(0,3)}
+\newcount\endleaffloorplan@npt
+\newcount\endleaffloorplan@ii
+\newcount\endleaffloorplan@jj
+\newcommand{\floorplanPolygonArea}[1]{%
+  \endleaffloorplan@npt=0
+  \foreach \pt in {#1} {%
+    \endleaffloorplan@readxy{\pt}%
+    \global\advance\endleaffloorplan@npt by 1
+    \expandafter\xdef\csname endleaffloorplan@px\the\endleaffloorplan@npt\endcsname{\endleaffloorplan@x}%
+    \expandafter\xdef\csname endleaffloorplan@py\the\endleaffloorplan@npt\endcsname{\endleaffloorplan@y}%
+  }%
+  \gdef\endleaffloorplan@sum{0}%
+  \endleaffloorplan@ii=1
+  \loop
+    \endleaffloorplan@jj=\endleaffloorplan@ii
+    \advance\endleaffloorplan@jj by 1
+    \ifnum\endleaffloorplan@jj>\endleaffloorplan@npt
+      \endleaffloorplan@jj=1
+    \fi
+    \edef\endleaffloorplan@pair{%
+      \csname endleaffloorplan@px\the\endleaffloorplan@ii\endcsname*%
+      \csname endleaffloorplan@py\the\endleaffloorplan@jj\endcsname-%
+      \csname endleaffloorplan@px\the\endleaffloorplan@jj\endcsname*%
+      \csname endleaffloorplan@py\the\endleaffloorplan@ii\endcsname%
+    }%
+    \pgfmathsetmacro{\endleaffloorplan@sum}{\endleaffloorplan@sum+\endleaffloorplan@pair}%
+    \xdef\endleaffloorplan@sum{\endleaffloorplan@sum}%
+    \advance\endleaffloorplan@ii by 1
+  \ifnum\endleaffloorplan@ii<\numexpr\endleaffloorplan@npt+1\relax
+  \repeat
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\endleaffloorplan@scale}%
+  \pgfmathsetmacro{\endleaffloorplan@area}{(abs(\endleaffloorplan@sum)/2)*(\endleaffloorplan@scale/1000)*(\endleaffloorplan@scale/1000)}%
+}
+
+% First token of a coordinate. A literal (x,y) starts with a parenthesis.
+\def\endleaffloorplan@start#1#2\relax{%
+  \ifx(#1\def\endleaffloorplan@islit{1}\fi
+}
+\newcommand{\endleaffloorplan@isliteral}[1]{%
+  \def\endleaffloorplan@islit{0}%
+  \endleaffloorplan@start#1.\relax
+}
+\newcommand{\endleaffloorplan@setends}[2]{%
+  \path #1 coordinate (endleaf floorplan a);
+  \path #2 coordinate (endleaf floorplan b);
+  \pgfmathanglebetweenpoints{\pgfpointanchor{endleaf floorplan a}{center}}{\pgfpointanchor{endleaf floorplan b}{center}}%
+  \let\endleaffloorplan@angle\pgfmathresult
+  \endleaffloorplan@isliteral{#1}%
+  \ifnum\endleaffloorplan@islit=1
+    \endleaffloorplan@isliteral{#2}%
+  \fi
+  \ifnum\endleaffloorplan@islit=1
+    % Picture centimetres from the coordinate numbers. veclen is short of
+    % an exact axis length, which prints a 3 m wall as 2.99 m.
+    \endleaffloorplan@readxy{#1}%
+    \let\endleaffloorplan@xone\endleaffloorplan@x
+    \let\endleaffloorplan@yone\endleaffloorplan@y
+    \endleaffloorplan@readxy{#2}%
+    \pgfmathsetmacro{\endleaffloorplan@dx}{abs(\endleaffloorplan@x-\endleaffloorplan@xone)}%
+    \pgfmathsetmacro{\endleaffloorplan@dy}{abs(\endleaffloorplan@y-\endleaffloorplan@yone)}%
+    \pgfmathparse{\endleaffloorplan@dy == 0 ? 1 : 0}%
+    \ifnum\pgfmathresult=1
+      \let\endleaffloorplan@cm\endleaffloorplan@dx
+    \else
+      \pgfmathparse{\endleaffloorplan@dx == 0 ? 1 : 0}%
+      \ifnum\pgfmathresult=1
+        \let\endleaffloorplan@cm\endleaffloorplan@dy
+      \else
+        \pgfmathsetmacro{\endleaffloorplan@cm}{sqrt(\endleaffloorplan@dx*\endleaffloorplan@dx+\endleaffloorplan@dy*\endleaffloorplan@dy)}%
+      \fi
+    \fi
+  \else
+    \pgfpointdiff{\pgfpointanchor{endleaf floorplan a}{center}}{\pgfpointanchor{endleaf floorplan b}{center}}%
+    \pgf@xa=\pgf@x
+    \pgf@ya=\pgf@y
+    \pgfmathsetmacro{\endleaffloorplan@cm}{veclen(\pgf@xa,\pgf@ya)/\endleaffloorplan@cmtopt}%
+  \fi
+  % Nearest millimetre of the drawing. pgfmath is short of an exact
+  % 3 cm by enough that two decimal places print 2.99 m.
+  \pgfmathsetmacro{\endleaffloorplan@realcm}{round(\endleaffloorplan@cm*10)/10}%
+}
+
+\newcommand{\endleaffloorplan@dimlabel}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\endleaffloorplan@scale}%
+  % pgfmath turns (3/1000)*1000 into 2.99. l3fp keeps the millimetre scale.
+  \edef\endleaffloorplan@realm{\fpeval{\endleaffloorplan@realcm * \endleaffloorplan@scale / 1000}}%
+  \ifnum\fpeval{\endleaffloorplan@realm < 1}=1
+    \edef\endleaffloorplan@realmm{\fpeval{round(\endleaffloorplan@realm * 1000, 0)}}%
+    \qty{\endleaffloorplan@realmm}{\milli\metre}%
+  \else
+    \begingroup
+    \sisetup{round-mode=places,round-precision=2,drop-zero-decimal=false}%
+    \qty{\endleaffloorplan@realm}{\metre}%
+    \endgroup
+  \fi
+}
+
+\newcommand{\endleaffloorplan@arealabel}{%
+  \begingroup
+  \sisetup{round-mode=places,round-precision=2,drop-zero-decimal=true}%
+  \qty{\endleaffloorplan@area}{\square\metre}%
+  \endgroup
+}
+
+% Two calling conventions share each name.
+% \tikzset{floorplan door={(0,0)}{(1,0)}} draws the symbol from the
+% coordinates. \draw[floorplan door] only sets the path style, which is
+% what a caller body does when it draws the arc itself.
+% pgfkeys puts every brace group up to the next comma into #1.
+% An empty #1 is the path style. A valued #1 is the coordinate form.
+\newcommand{\endleaffloorplan@ifvalued}[3]{%
+  \if\relax\detokenize{#1}\relax
+    #2%
+  \else
+    #3#1%
+  \fi
+}
+\newcommand{\endleaffloorplan@doorcode}[1]{%
+  \endleaffloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\endleaffloorplan@doortwo}%
+}
+\newcommand{\endleaffloorplan@doortwo}[2]{%
+  \endleaffloorplan@setends{#1}{#2}%
+  \pgfkeysgetvalue{/floorplan/door swing}{\endleaffloorplan@swing}%
+  \draw[thin] (endleaf floorplan a) -- (endleaf floorplan b);
+  \draw[thin] (endleaf floorplan b) arc[%
+    start angle=\endleaffloorplan@angle,
+    delta angle=\endleaffloorplan@swing,
+    radius=\endleaffloorplan@cm cm%
+  ];
+}
+\newcommand{\endleaffloorplan@windowcode}[1]{%
+  \endleaffloorplan@ifvalued{#1}{%
+    \pgfkeysalso{line width=0.7pt, double, double distance=0.12cm}%
+  }{\endleaffloorplan@windowtwo}%
+}
+\newcommand{\endleaffloorplan@windowtwo}[2]{%
+  \endleaffloorplan@setends{#1}{#2}%
+  \draw[line width=0.7pt] (endleaf floorplan a) -- (endleaf floorplan b);
+  \draw[line width=0.35pt, double distance=0.12cm, double]
+    (endleaf floorplan a) -- (endleaf floorplan b);
+}
+\newcommand{\endleaffloorplan@labelcode}[1]{%
+  \endleaffloorplan@ifvalued{#1}{%
+    \pgfkeysalso{align=center, font=\sffamily, inner sep=1pt}%
+  }{\endleaffloorplan@labelthree}%
+}
+\newcommand{\endleaffloorplan@labelthree}[3]{%
+  \endleaffloorplan@rectarea{#2}{#3}%
+  \pgfkeysalso{%
+    align=center,
+    font=\sffamily,
+    inner sep=1pt,
+    node contents={#1\\[0.15em]\endleaffloorplan@arealabel},
+  }%
+}
+\newcommand{\endleaffloorplan@dimcode}[1]{%
+  \endleaffloorplan@ifvalued{#1}{\pgfkeysalso{thin}}{\endleaffloorplan@dimtwo}%
+}
+\newcommand{\endleaffloorplan@dimtwo}[2]{%
+  \endleaffloorplan@setends{#1}{#2}%
+  \dimline[%
+    extension start length=0.22cm,
+    extension end length=0.22cm,
+    label style={font=\small, inner sep=1pt, fill=white},
+  ]{#1}{#2}{\endleaffloorplan@dimlabel}%
+}
+
+\newcommand{\endleaffloorplan@scalebar}{%
+  \pgfkeysgetvalue{/floorplan/plan-scale}{\endleaffloorplan@scale}%
+  \pgfmathsetmacro{\endleaffloorplan@bar}{1000/\endleaffloorplan@scale}%
+  \draw[line cap=rect] (0,0) -- (\endleaffloorplan@bar,0);
+  \draw (0,-0.08) -- (0,0.08);
+  \draw (\endleaffloorplan@bar,-0.08) -- (\endleaffloorplan@bar,0.08);
+  \node[above=2pt, font=\small\sffamily, inner sep=1pt] at
+    ({\endleaffloorplan@bar/2},0) {\qty{1}{\metre}};
+}
+\newcommand{\endleaffloorplan@northarrow}{%
+  \draw[-{Stealth}, line width=0.8pt] (0,0) -- (0,0.9);
+  \node[above=1pt, font=\small\sffamily, inner sep=0pt] at (0,0.9) {N};
+}
+
+\tikzset{
+  floorplan wall/.code={%
+    \pgfkeysalso{%
+      line cap=rect,
+      line width=0.4pt,
+      double,
+      double distance=\pgfkeysvalueof{/floorplan/wall thickness},
+    }%
+  },
+  floorplan door/.code={\endleaffloorplan@doorcode{#1}},
+  floorplan door/.default={},
+  floorplan window/.code={\endleaffloorplan@windowcode{#1}},
+  floorplan window/.default={},
+  floorplan room label/.code={\endleaffloorplan@labelcode{#1}},
+  floorplan room label/.default={},
+  % Scale bar and north arrow draw once, at the local origin.
+  % Place them with a shifted scope and \tikzset, or with a pic:
+  % \pic at (0,-1.5) {floorplan scale bar};
+  % Using either name as a \draw option also draws that mark at the
+  % origin, in addition to the path. The owned template does not do that.
+  floorplan scale bar/.code={\endleaffloorplan@scalebar},
+  floorplan north arrow/.code={\endleaffloorplan@northarrow},
+  pics/floorplan scale bar/.style={code={\endleaffloorplan@scalebar}},
+  pics/floorplan north arrow/.style={code={\endleaffloorplan@northarrow}},
+  floorplan dimension/.code={\endleaffloorplan@dimcode{#1}},
+  floorplan dimension/.default={},
+}

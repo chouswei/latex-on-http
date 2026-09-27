@@ -20,7 +20,7 @@
 \usepackage{longtable}
 \usepackage{hyperref}
 \input{colophon-v1-preamble.tex}
-\newcommand{\ColophonLane}{Weft}
+\newcommand{\EndleafLane}{Weft}
 $if(title)$
 \title{$title$}
 $endif$

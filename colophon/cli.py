@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Process entry points for the worker and the preflight command."""
 
@@ -23,10 +23,10 @@ def main_worker():
         config = load_config()
         require_cpu_controller()
     except ConfigError as exc:
-        print(f"colophon: refusing to start: {exc}", file=sys.stderr)
+        print(f"endleaf: refusing to start: {exc}", file=sys.stderr)
         return 2
     except CpuControllerMissing as exc:
-        print(f"colophon: refusing to start: {exc}", file=sys.stderr)
+        print(f"endleaf: refusing to start: {exc}", file=sys.stderr)
         return 2
     switch = KillSwitch(config.kill_switch_file)
     monitor = LoadMonitor()

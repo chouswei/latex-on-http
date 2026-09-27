@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
@@ -27,8 +27,8 @@ _NO_MEMORY = frozenset({"cpu", "pids"})
 def _args(**overrides):
     base = dict(
         podman="podman",
-        image="colophon-render:local",
-        name="colophon-job-abc",
+        image="endleaf-render:local",
+        name="endleaf-job-abc",
         controllers=_PRESENT,
     )
     base.update(overrides)
@@ -42,7 +42,7 @@ def test_podman_run_args_are_exact():
         "run",
         "--rm",
         "--name",
-        "colophon-job-abc",
+        "endleaf-job-abc",
         "--network=none",
         "--read-only",
         "--tmpfs",
@@ -74,11 +74,11 @@ def test_podman_run_args_are_exact():
         "--env",
         "LANG=C.UTF-8",
         "--env",
-        "COLOPHON_MEMORY_MODE=cgroup",
+        "ENDLEAF_MEMORY_MODE=cgroup",
         "--log-driver=none",
         "-i",
-        "colophon-render:local",
-        "colophon-sandbox-render",
+        "endleaf-render:local",
+        "endleaf-sandbox-render",
     ]
 
 
@@ -89,7 +89,7 @@ def test_memory_controller_present_sets_memory_and_ulimit():
     assert f"--memory-swap={MEMORY_MIB}m" in args
     assert "--ulimit" in args
     assert f"as={DEFAULT_RLIMIT_AS_BYTES}:{DEFAULT_RLIMIT_AS_BYTES}" in args
-    assert "COLOPHON_MEMORY_MODE=cgroup" in args
+    assert "ENDLEAF_MEMORY_MODE=cgroup" in args
     assert DEFAULT_RLIMIT_AS_BYTES == 2147483648
 
 
@@ -102,7 +102,7 @@ def test_memory_controller_absent_omits_memory_and_keeps_ulimit(caplog):
     assert "--network=none" in args
     assert not any(arg.startswith("--memory") for arg in args)
     assert f"as={DEFAULT_RLIMIT_AS_BYTES}:{DEFAULT_RLIMIT_AS_BYTES}" in args
-    assert "COLOPHON_MEMORY_MODE=rlimit" in args
+    assert "ENDLEAF_MEMORY_MODE=rlimit" in args
     assert any("omitting --memory" in rec.message for rec in caplog.records)
 
 
@@ -112,14 +112,14 @@ def test_cpu_controller_absent_refuses_to_start():
 
 
 def test_rlimit_as_bytes_env_sets_the_ceiling(monkeypatch):
-    monkeypatch.setenv("COLOPHON_RLIMIT_AS_BYTES", "3221225472")
+    monkeypatch.setenv("ENDLEAF_RLIMIT_AS_BYTES", "3221225472")
     args = _args()
     assert "as=3221225472:3221225472" in args
     assert f"--memory={MEMORY_MIB}m" in args
 
 
 def test_explicit_ceiling_overrides_the_env(monkeypatch):
-    monkeypatch.setenv("COLOPHON_RLIMIT_AS_BYTES", "3221225472")
+    monkeypatch.setenv("ENDLEAF_RLIMIT_AS_BYTES", "3221225472")
     args = _args(as_bytes=1073741824)
     assert "as=1073741824:1073741824" in args
 
@@ -139,7 +139,7 @@ def test_podman_args_do_not_open_the_host():
 
 
 def test_dockerfile_user_matches_podman_user():
-    text = Path("container/Dockerfile.colophon").read_text(encoding="utf-8")
+    text = Path("container/Dockerfile.endleaf").read_text(encoding="utf-8")
     assert f"--uid {SANDBOX_UID}" in text
     assert f"USER {SANDBOX_UID}:{SANDBOX_UID}" in text
 
@@ -172,7 +172,7 @@ def test_runner_refuses_to_start_when_cpu_is_absent(monkeypatch, config, switch_
             "lane": "Weft",
         }
     )
-    outcome = runner(job, "colophon-job-abc", threading.Event())
+    outcome = runner(job, "endleaf-job-abc", threading.Event())
     assert outcome.kind == "rejectSpawnFail"
     assert outcome.detail == "cpu-controller"
 
@@ -183,7 +183,7 @@ def test_podman_43_injects_rlimit_as_with_a_precreate_hook(tmp_path):
     assert args[:4] == ["podman", "--hooks-dir", str(hooks), "run"]
     assert "--ulimit" not in args
     assert not any(str(arg).startswith("as=") for arg in args)
-    assert f"io.colophon.rlimit.as={DEFAULT_RLIMIT_AS_BYTES}" in args
+    assert f"io.endleaf.rlimit.as={DEFAULT_RLIMIT_AS_BYTES}" in args
     assert f"--memory={MEMORY_MIB}m" in args
     assert f"--timeout={WALL_SEC}" in args
     assert "--network=none" in args
@@ -233,9 +233,9 @@ def test_precreate_hook_writes_rlimit_as():
     from colophon.podman_args import hook_script_path
 
     spec = {
-        "annotations": {"io.colophon.rlimit.as": "2147483648"},
+        "annotations": {"io.endleaf.rlimit.as": "2147483648"},
         "process": {
-            "args": ["colophon-sandbox-render"],
+            "args": ["endleaf-sandbox-render"],
             "rlimits": [{"type": "RLIMIT_NOFILE", "soft": 1024, "hard": 1024}],
         },
     }
@@ -265,7 +265,7 @@ def test_precreate_hook_refuses_a_spec_without_the_ceiling():
 
     completed = subprocess.run(
         [sys.executable, str(hook_script_path())],
-        input=b'{"process":{"args":["colophon-sandbox-render"]}}',
+        input=b'{"process":{"args":["endleaf-sandbox-render"]}}',
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
@@ -293,11 +293,11 @@ def test_worker_process_refuses_to_start_without_cpu(monkeypatch, tmp_path):
 
     switch = tmp_path / "kill-switch"
     switch.write_text("clear\n", encoding="utf-8")
-    monkeypatch.setenv("COLOPHON_BIND_ADDRESS", "100.64.0.1")
-    monkeypatch.setenv("COLOPHON_BIND_ALLOWED_CIDR", "100.64.0.0/10")
-    monkeypatch.setenv("COLOPHON_WORKER_TOKEN", "test-token-value")
-    monkeypatch.setenv("COLOPHON_KILL_SWITCH_FILE", str(switch))
-    monkeypatch.setenv("COLOPHON_IMAGE", "colophon-render:local")
+    monkeypatch.setenv("ENDLEAF_BIND_ADDRESS", "100.64.0.1")
+    monkeypatch.setenv("ENDLEAF_BIND_ALLOWED_CIDR", "100.64.0.0/10")
+    monkeypatch.setenv("ENDLEAF_WORKER_TOKEN", "test-token-value")
+    monkeypatch.setenv("ENDLEAF_KILL_SWITCH_FILE", str(switch))
+    monkeypatch.setenv("ENDLEAF_IMAGE", "endleaf-render:local")
 
     def _missing():
         raise CpuControllerMissing(

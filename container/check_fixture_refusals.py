@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Image-build check: negative fixtures are refused before TeX runs."""
 
@@ -9,7 +9,7 @@ from pathlib import Path
 from colophon.enums import JobRejected
 from colophon.source_policy import reject_forbidden_source
 
-ROOT = Path("/tmp/colophon-fixtures")
+ROOT = Path("/tmp/endleaf-fixtures")
 EXPECT = {
     "reject-shell-escape.tex": "write18",
     "reject-minted.tex": "minted",

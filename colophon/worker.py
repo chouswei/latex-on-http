@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """HTTP worker. Binds only to the configured address."""
 
@@ -77,7 +77,7 @@ def _switch_block(switch):
 
 
 def create_app(config, switch, monitor, supervisor):
-    app = Flask("colophon")
+    app = Flask("endleaf")
     app.config["MAX_CONTENT_LENGTH"] = INPUT_CAP_BYTES
     app.config["PROPAGATE_EXCEPTIONS"] = False
 
@@ -130,8 +130,7 @@ def create_app(config, switch, monitor, supervisor):
             return _error("rejectRenderError", outcome=outcome)
         response = app.response_class(outcome.body, mimetype=outcome.content_type)
         response.headers["Cache-Control"] = "no-store"
-        response.headers["X-Colophon-Result"] = "ok"
-        response.headers["X-Colophon-Job"] = json.dumps(
+        record = json.dumps(
             job_record(
                 "ok",
                 outcome.wall_sec,
@@ -144,6 +143,11 @@ def create_app(config, switch, monitor, supervisor):
             ),
             separators=(",", ":"),
         )
+        response.headers["X-Endleaf-Result"] = "ok"
+        response.headers["X-Endleaf-Job"] = record
+        # The live gate still reads the old header names.
+        response.headers["X-Colophon-Result"] = "ok"
+        response.headers["X-Colophon-Job"] = record
         return response
 
     @app.get("/version")
@@ -159,7 +163,7 @@ def create_app(config, switch, monitor, supervisor):
         if not authorized():
             return _error_status_401()
         return jsonify(
-            service="colophon-render-worker",
+            service="endleaf-render-worker",
             sandbox="rootless-podman",
         )
 
@@ -268,7 +272,7 @@ def serve(config, switch, monitor, supervisor):
         while not stop.wait(HOST_LOAD_REPORT_INTERVAL_SEC):
             monitor.sample()
 
-    thread = threading.Thread(target=loop, name="colophon-load", daemon=True)
+    thread = threading.Thread(target=loop, name="endleaf-load", daemon=True)
     thread.start()
     app = create_app(config, switch, monitor, supervisor)
     try:

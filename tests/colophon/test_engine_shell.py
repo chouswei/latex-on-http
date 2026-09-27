@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Engine checks that shell-escape is off.
 
@@ -59,11 +59,15 @@ def test_xelatex_write18_does_not_run(tmp_path):
 
 def test_image_sets_shell_escape_off():
     dockerfile = (
-        Path(__file__).resolve().parents[2] / "container" / "Dockerfile.colophon"
+        Path(__file__).resolve().parents[2] / "container" / "Dockerfile.endleaf"
     ).read_text(encoding="utf-8")
     assert "shell_escape = f" in dockerfile
     assert "openin_any = p" in dockerfile
     assert "openout_any = p" in dockerfile
+    assert "ARG ENDLEAF_GIT_COMMIT=$COLOPHON_GIT_COMMIT" in dockerfile
+    assert (
+        "deprecated build-arg COLOPHON_GIT_COMMIT; set ENDLEAF_GIT_COMMIT" in dockerfile
+    )
 
 
 @pytest.mark.skipif(_LUALATEX is None, reason="lualatex is not installed")
@@ -76,17 +80,17 @@ def test_lualatex_positive_control_prints_types_then_pcall(tmp_path):
         "\\documentclass{article}\n"
         "\\begin{document}\n"
         "\\directlua{\n"
-        '  texio.write_nl("COLOPHON_LUA_RAN")\n'
+        '  texio.write_nl("ENDLEAF_LUA_RAN")\n'
         "  local exec_fn = nil\n"
         "  if os ~= nil then exec_fn = os.execute end\n"
         "  local popen_fn = nil\n"
         "  if io ~= nil then popen_fn = io.popen end\n"
-        '  texio.write_nl("COLOPHON_LUA type_execute=" .. type(exec_fn))\n'
-        '  texio.write_nl("COLOPHON_LUA type_popen=" .. type(popen_fn))\n'
+        '  texio.write_nl("ENDLEAF_LUA type_execute=" .. type(exec_fn))\n'
+        '  texio.write_nl("ENDLEAF_LUA type_popen=" .. type(popen_fn))\n'
         f'  local ok1, r1 = pcall(exec_fn, "touch {proof}")\n'
-        '  texio.write_nl("COLOPHON_LUA pcall_execute=" .. tostring(ok1) .. ":" .. tostring(r1))\n'
+        '  texio.write_nl("ENDLEAF_LUA pcall_execute=" .. tostring(ok1) .. ":" .. tostring(r1))\n'
         '  local ok2, r2 = pcall(popen_fn, "echo IOPOPEN")\n'
-        '  texio.write_nl("COLOPHON_LUA pcall_popen=" .. tostring(ok2) .. ":" .. tostring(r2))\n'
+        '  texio.write_nl("ENDLEAF_LUA pcall_popen=" .. tostring(ok2) .. ":" .. tostring(r2))\n'
         "}\n"
         "\\end{document}\n",
         encoding="utf-8",
@@ -107,20 +111,20 @@ def test_lualatex_positive_control_prints_types_then_pcall(tmp_path):
         else ""
     )
     combined = completed.stdout.decode("utf-8", "replace") + log
-    if "COLOPHON_LUA_RAN" not in combined:
+    if "ENDLEAF_LUA_RAN" not in combined:
         refused = "format" in combined.lower() or "not found" in combined.lower()
         assert refused, combined[-800:]
         pytest.skip("lualatex is not available: " + combined.strip().splitlines()[-1])
-    ran_at = combined.find("COLOPHON_LUA_RAN")
+    ran_at = combined.find("ENDLEAF_LUA_RAN")
     for needle in (
-        "COLOPHON_LUA type_execute=",
-        "COLOPHON_LUA type_popen=",
-        "COLOPHON_LUA pcall_execute=",
-        "COLOPHON_LUA pcall_popen=",
+        "ENDLEAF_LUA type_execute=",
+        "ENDLEAF_LUA type_popen=",
+        "ENDLEAF_LUA pcall_execute=",
+        "ENDLEAF_LUA pcall_popen=",
     ):
         assert combined.find(needle) > ran_at
     assert (
         "IOPOPEN"
-        not in combined.split("COLOPHON_LUA pcall_popen=", 1)[-1].splitlines()[0]
+        not in combined.split("ENDLEAF_LUA pcall_popen=", 1)[-1].splitlines()[0]
     )
     assert not proof.exists()

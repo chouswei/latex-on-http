@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from colophon.preflight import PreflightProbe, evaluate, format_report, report_ok
@@ -9,7 +9,7 @@ def _probe(**overrides):
     base = dict(
         mounts="cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime 0 0\n",
         controllers="cpuset cpu io memory hugetlb pids\n",
-        group_names=("colophon",),
+        group_names=("endleaf",),
         accessible_sockets=(),
         listable_sockets=(),
     )
@@ -65,7 +65,7 @@ def test_unreadable_controllers_fail():
 
 
 def test_docker_group_fails():
-    checks = evaluate(_probe(group_names=("colophon", "docker")))
+    checks = evaluate(_probe(group_names=("endleaf", "docker")))
     assert report_ok(checks) is False
 
 

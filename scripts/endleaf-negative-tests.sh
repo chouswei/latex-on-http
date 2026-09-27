@@ -1,21 +1,40 @@
 #!/bin/sh
-# Live checks for a running Colophon worker. Devicor runs this on the Pi.
+# Live checks for a running Endleaf by Inkmirage worker. Devicor runs this on the Pi.
 #
-#   COLOPHON_URL=http://100.64.0.1:8080 \
-#   COLOPHON_WORKER_TOKEN=... \
-#   COLOPHON_IMAGE=localhost/colophon-render:local \
-#   scripts/colophon-negative-tests.sh
+#   ENDLEAF_URL=http://100.64.0.1:8080 \
+#   ENDLEAF_WORKER_TOKEN=... \
+#   ENDLEAF_IMAGE=localhost/endleaf-render:local \
+#   scripts/endleaf-negative-tests.sh
 #
-# COLOPHON_PODMAN defaults to podman.
+# ENDLEAF_PODMAN defaults to podman.
+# COLOPHON_URL, COLOPHON_WORKER_TOKEN, COLOPHON_IMAGE, and COLOPHON_PODMAN
+# are still read when the ENDLEAF_* name is unset. Each use logs one line.
 # The output-cap token is failCapHit (HTTP 413). The worker does not emit
 # failOutputCap.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-export COLOPHON_ROOT="$ROOT"
-: "${COLOPHON_URL:?set COLOPHON_URL}"
-: "${COLOPHON_WORKER_TOKEN:?set COLOPHON_WORKER_TOKEN}"
-: "${COLOPHON_IMAGE:?set COLOPHON_IMAGE}"
-export COLOPHON_PODMAN="${COLOPHON_PODMAN:-podman}"
+export ENDLEAF_ROOT="$ROOT"
+if [ -z "${ENDLEAF_URL:-}" ] && [ -n "${COLOPHON_URL:-}" ]; then
+  echo "deprecated environment variable COLOPHON_URL; set ENDLEAF_URL" >&2
+  ENDLEAF_URL=$COLOPHON_URL
+fi
+if [ -z "${ENDLEAF_WORKER_TOKEN:-}" ] && [ -n "${COLOPHON_WORKER_TOKEN:-}" ]; then
+  echo "deprecated environment variable COLOPHON_WORKER_TOKEN; set ENDLEAF_WORKER_TOKEN" >&2
+  ENDLEAF_WORKER_TOKEN=$COLOPHON_WORKER_TOKEN
+fi
+if [ -z "${ENDLEAF_IMAGE:-}" ] && [ -n "${COLOPHON_IMAGE:-}" ]; then
+  echo "deprecated environment variable COLOPHON_IMAGE; set ENDLEAF_IMAGE" >&2
+  ENDLEAF_IMAGE=$COLOPHON_IMAGE
+fi
+if [ -z "${ENDLEAF_PODMAN:-}" ] && [ -n "${COLOPHON_PODMAN:-}" ]; then
+  echo "deprecated environment variable COLOPHON_PODMAN; set ENDLEAF_PODMAN" >&2
+  ENDLEAF_PODMAN=$COLOPHON_PODMAN
+fi
+: "${ENDLEAF_URL:?set ENDLEAF_URL}"
+: "${ENDLEAF_WORKER_TOKEN:?set ENDLEAF_WORKER_TOKEN}"
+: "${ENDLEAF_IMAGE:?set ENDLEAF_IMAGE}"
+export ENDLEAF_URL ENDLEAF_WORKER_TOKEN ENDLEAF_IMAGE
+export ENDLEAF_PODMAN="${ENDLEAF_PODMAN:-podman}"
 exec python3 - "$ROOT" <<'PY'
 import json
 import os
@@ -29,10 +48,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(sys.argv[1])
-BASE = os.environ["COLOPHON_URL"].rstrip("/")
-TOKEN = os.environ["COLOPHON_WORKER_TOKEN"]
-IMAGE = os.environ["COLOPHON_IMAGE"]
-PODMAN = os.environ["COLOPHON_PODMAN"]
+BASE = os.environ["ENDLEAF_URL"].rstrip("/")
+TOKEN = os.environ["ENDLEAF_WORKER_TOKEN"]
+IMAGE = os.environ["ENDLEAF_IMAGE"]
+PODMAN = os.environ["ENDLEAF_PODMAN"]
 CAP = 20 * 1024 * 1024
 # XeLaTeX has no \pdfcompresslevel or \pdfobjcompresslevel. dvipdfmx
 # config z 0 is the equivalent: streams are stored uncompressed.
@@ -136,7 +155,7 @@ status, _headers, body, _elapsed = request("GET", "/version", timeout=30)
 if status != 200:
     fail(f"/version {status}")
 version = expect_json(status, _headers, body, _elapsed)
-digest = "c6676798e00bd9655bf3391f0c0f21dec100684d5c6783a6e0b2c3f8ae078c01"
+digest = "f2946ed8f9682cc0e0dffa468d29fdc25ae2feb85e7d9d1291414dc1cf2a310d"
 names = version.get("packageSet")
 if version.get("packageSetHash") != digest:
     fail(f"packageSetHash {version.get('packageSetHash')}")
@@ -146,7 +165,7 @@ for required in (
     "chemfig",
     "mhchem",
     "pgfgantt",
-    "colophon-floorplan",
+    "endleaf-floorplan",
 ):
     if required not in names:
         fail(f"packageSet missing {required}")
@@ -310,7 +329,7 @@ listed = podman("ps", "-a", "--format", "{{.Names}}")
 leftover = [
     line
     for line in listed.stdout.decode().splitlines()
-    if line.startswith("colophon-job-")
+    if line.startswith("endleaf-job-")
 ]
 if leftover:
     fail(f"leftover containers {leftover}")
@@ -336,17 +355,17 @@ with tempfile.TemporaryDirectory() as tmp:
         "\\documentclass{article}\n"
         "\\begin{document}\n"
         "\\directlua{\n"
-        "  texio.write_nl(\"COLOPHON_LUA_RAN\")\n"
+        "  texio.write_nl(\"ENDLEAF_LUA_RAN\")\n"
         "  local exec_fn = nil\n"
         "  if os ~= nil then exec_fn = os.execute end\n"
         "  local popen_fn = nil\n"
         "  if io ~= nil then popen_fn = io.popen end\n"
-        "  texio.write_nl(\"COLOPHON_LUA type_execute=\" .. type(exec_fn))\n"
-        "  texio.write_nl(\"COLOPHON_LUA type_popen=\" .. type(popen_fn))\n"
+        "  texio.write_nl(\"ENDLEAF_LUA type_execute=\" .. type(exec_fn))\n"
+        "  texio.write_nl(\"ENDLEAF_LUA type_popen=\" .. type(popen_fn))\n"
         "  local ok1, r1 = pcall(exec_fn, \"touch /tmp/x-lua\")\n"
-        "  texio.write_nl(\"COLOPHON_LUA pcall_execute=\" .. tostring(ok1) .. \":\" .. tostring(r1))\n"
+        "  texio.write_nl(\"ENDLEAF_LUA pcall_execute=\" .. tostring(ok1) .. \":\" .. tostring(r1))\n"
         "  local ok2, r2 = pcall(popen_fn, \"echo IOPOPEN\")\n"
-        "  texio.write_nl(\"COLOPHON_LUA pcall_popen=\" .. tostring(ok2) .. \":\" .. tostring(r2))\n"
+        "  texio.write_nl(\"ENDLEAF_LUA pcall_popen=\" .. tostring(ok2) .. \":\" .. tostring(r2))\n"
         "}\n"
         "\\end{document}\n",
         encoding="utf-8",
@@ -389,8 +408,8 @@ fi
 /usr/bin/lualatex -no-shell-escape -interaction=nonstopmode -cnf-line=openin_any=p lua.tex >/tmp/lua.out 2>&1 || true
 if grep -q 'Not reading' /tmp/lua.out /tmp/lua.log 2>/dev/null; then echo OPENIN_REFUSED engine=lualatex; exit 1; fi
 if [ -e /tmp/x-lua ]; then echo LUA_SIDE_EFFECT; exit 1; fi
-if grep -q COLOPHON_LUA_RAN /tmp/lua.log /tmp/lua.out /tmp/lua.aux 2>/dev/null; then
-  grep -h COLOPHON_LUA /tmp/lua.log /tmp/lua.out /tmp/lua.aux
+if grep -q ENDLEAF_LUA_RAN /tmp/lua.log /tmp/lua.out /tmp/lua.aux 2>/dev/null; then
+  grep -h ENDLEAF_LUA /tmp/lua.log /tmp/lua.out /tmp/lua.aux
   exit 0
 fi
 echo "LUALATEX_REFUSED lualatex is not available in the worker"
@@ -421,13 +440,13 @@ grep -m 6 -E '^!|format|not found|I can' /tmp/lua.log /tmp/lua.out || true
         fail(f"shell_escape\n{text}")
     if "WRITE18_ABSENT engine=xelatex" not in text or "WRITE18_EXISTS" in text:
         fail(f"write18\n{text}")
-    if "COLOPHON_LUA_RAN" in text:
-        ran_at = text.find("COLOPHON_LUA_RAN")
+    if "ENDLEAF_LUA_RAN" in text:
+        ran_at = text.find("ENDLEAF_LUA_RAN")
         for needle in (
-            "COLOPHON_LUA type_execute=",
-            "COLOPHON_LUA type_popen=",
-            "COLOPHON_LUA pcall_execute=",
-            "COLOPHON_LUA pcall_popen=",
+            "ENDLEAF_LUA type_execute=",
+            "ENDLEAF_LUA type_popen=",
+            "ENDLEAF_LUA pcall_execute=",
+            "ENDLEAF_LUA pcall_popen=",
         ):
             at = text.find(needle)
             if at < ran_at:
@@ -436,7 +455,7 @@ grep -m 6 -E '^!|format|not found|I can' /tmp/lua.log /tmp/lua.out || true
             fail(f"lua side effect\n{text}")
         print("lualatex positive control:")
         for line in text.splitlines():
-            if "COLOPHON_LUA" in line:
+            if "ENDLEAF_LUA" in line:
                 print(" ", line.strip())
     elif "LUALATEX_REFUSED" in text:
         print("lualatex is not available in the worker:")

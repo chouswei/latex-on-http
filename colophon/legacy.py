@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Map a legacy ``POST /builds/sync`` body onto one sandboxed job.
 
@@ -47,7 +47,7 @@ def parse_legacy_build(payload):
     kind = payload.get("inputKind", "tex")
     if kind not in INPUT_KINDS:
         raise JobRejected("inputKind")
-    # COLOPHON-R27. Legacy content is a body. The shell template owns the
+    # ENDLEAF-R27. Legacy content is a body. The shell template owns the
     # preamble. inputKind tex still runs XeLaTeX rather than Pandoc.
     job = parse_job(
         {

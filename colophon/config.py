@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Process configuration. Unreadable or invalid config refuses startup."""
 
@@ -14,6 +14,7 @@ from colophon.limits import (
     LimitError,
     rlimit_as_bytes,
 )
+from colophon.settings import setting
 
 
 class ConfigError(RuntimeError):
@@ -34,46 +35,48 @@ class WorkerConfig:
     rlimit_as_bytes: int = DEFAULT_RLIMIT_AS_BYTES
 
 
-def _required(environ, name):
-    value = environ.get(name)
-    if value is None or str(value).strip() == "":
-        raise ConfigError(f"{name} is unset")
-    return str(value).strip()
+def _require(env, suffix):
+    value, name = setting(env, suffix)
+    if value is None:
+        raise ConfigError(f"ENDLEAF_{suffix} is unset")
+    return value, name
 
 
 def load_config(environ=None):
     env = os.environ if environ is None else environ
-    bind_raw = _required(env, "COLOPHON_BIND_ADDRESS")
-    cidr_raw = _required(env, "COLOPHON_BIND_ALLOWED_CIDR")
+    bind_raw, bind_name = _require(env, "BIND_ADDRESS")
+    cidr_raw, cidr_name = _require(env, "BIND_ALLOWED_CIDR")
     try:
         bind_address = validate_bind_address(bind_raw, cidr_raw)
     except BindError as exc:
         if exc.reason in {"cidr_unset", "cidr_invalid"}:
-            name = "COLOPHON_BIND_ALLOWED_CIDR"
+            name = cidr_name
         else:
-            name = "COLOPHON_BIND_ADDRESS"
+            name = bind_name
         raise ConfigError(f"{name} refused ({exc.reason})") from exc
-    token = _required(env, "COLOPHON_WORKER_TOKEN")
+    token, token_name = _require(env, "WORKER_TOKEN")
     if any(ch.isspace() for ch in token):
-        raise ConfigError("COLOPHON_WORKER_TOKEN is unreadable")
-    switch = _required(env, "COLOPHON_KILL_SWITCH_FILE")
-    image = _required(env, "COLOPHON_IMAGE")
+        raise ConfigError(f"{token_name} is unreadable")
+    switch, _switch_name = _require(env, "KILL_SWITCH_FILE")
+    image, image_name = _require(env, "IMAGE")
     if "\n" in image or image.startswith("-"):
-        raise ConfigError("COLOPHON_IMAGE is unreadable")
-    podman = env.get("COLOPHON_PODMAN", "podman").strip() or "podman"
+        raise ConfigError(f"{image_name} is unreadable")
+    podman, podman_name = setting(env, "PODMAN", default="podman")
     if os.path.basename(podman) == "docker":
-        raise ConfigError("COLOPHON_PODMAN must be podman, not docker")
-    port_text = env.get("COLOPHON_PORT", "8080").strip()
-    retry_text = env.get("COLOPHON_RETRY_AFTER_SEC", str(RETRY_AFTER_SEC)).strip()
+        raise ConfigError(f"{podman_name} must be podman, not docker")
+    port_text, port_name = setting(env, "PORT", default="8080")
+    retry_text, retry_name = setting(
+        env, "RETRY_AFTER_SEC", default=str(RETRY_AFTER_SEC)
+    )
     try:
         port = int(port_text)
         retry_after = int(retry_text)
     except ValueError as exc:
         raise ConfigError("port or retry-after is unreadable") from exc
     if not (0 < port < 65536):
-        raise ConfigError("COLOPHON_PORT is unreadable")
+        raise ConfigError(f"{port_name} is unreadable")
     if retry_after <= 0:
-        raise ConfigError("COLOPHON_RETRY_AFTER_SEC is unreadable")
+        raise ConfigError(f"{retry_name} is unreadable")
     try:
         as_bytes = rlimit_as_bytes(env)
     except LimitError as exc:

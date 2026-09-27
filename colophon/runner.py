@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Run one job in a throwaway Podman container and classify the result."""
 
@@ -59,7 +59,7 @@ def enforce_output_cap(payload, cap=OUTPUT_CAP_BYTES):
 
 def _marker(stderr):
     for line in stderr.splitlines():
-        if line.startswith(b"COLOPHON_STATUS "):
+        if line.startswith(b"ENDLEAF_STATUS "):
             return line.split(None, 1)[1].strip().decode("ascii", "replace")
     return None
 
@@ -188,7 +188,7 @@ class Supervisor:
         if not self._busy.acquire(blocking=False):
             return Outcome(kind="rejectBusy")
         self._abort.clear()
-        name = f"colophon-job-{uuid.uuid4().hex[:12]}"
+        name = f"endleaf-job-{uuid.uuid4().hex[:12]}"
         with self._state:
             self._name = name
         try:

@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import pytest
@@ -15,11 +15,11 @@ _ULA = "fd7a:115c:a1e0::/48"
 
 def _env(**overrides):
     base = {
-        "COLOPHON_BIND_ADDRESS": "100.64.0.1",
-        "COLOPHON_BIND_ALLOWED_CIDR": _CGNAT,
-        "COLOPHON_WORKER_TOKEN": "test-token-value",
-        "COLOPHON_KILL_SWITCH_FILE": "/var/lib/colophon/kill-switch",
-        "COLOPHON_IMAGE": "colophon-render:local",
+        "ENDLEAF_BIND_ADDRESS": "100.64.0.1",
+        "ENDLEAF_BIND_ALLOWED_CIDR": _CGNAT,
+        "ENDLEAF_WORKER_TOKEN": "test-token-value",
+        "ENDLEAF_KILL_SWITCH_FILE": "/var/lib/endleaf/kill-switch",
+        "ENDLEAF_IMAGE": "endleaf-render:local",
     }
     base.update(overrides)
     return base
@@ -79,15 +79,15 @@ def test_address_inside_allowed_cidr_accepted(address, cidr):
 
 def test_config_refuses_unset_address():
     env = _env()
-    del env["COLOPHON_BIND_ADDRESS"]
-    with pytest.raises(ConfigError, match="COLOPHON_BIND_ADDRESS"):
+    del env["ENDLEAF_BIND_ADDRESS"]
+    with pytest.raises(ConfigError, match="ENDLEAF_BIND_ADDRESS"):
         load_config(env)
 
 
 def test_config_refuses_missing_cidr():
     env = _env()
-    del env["COLOPHON_BIND_ALLOWED_CIDR"]
-    with pytest.raises(ConfigError, match="COLOPHON_BIND_ALLOWED_CIDR"):
+    del env["ENDLEAF_BIND_ALLOWED_CIDR"]
+    with pytest.raises(ConfigError, match="ENDLEAF_BIND_ALLOWED_CIDR"):
         load_config(env)
 
 
@@ -95,8 +95,8 @@ def test_config_refuses_public_address_inside_cidr():
     with pytest.raises(ConfigError, match="global"):
         load_config(
             _env(
-                COLOPHON_BIND_ADDRESS="192.88.99.1",
-                COLOPHON_BIND_ALLOWED_CIDR="192.88.99.0/24",
+                ENDLEAF_BIND_ADDRESS="192.88.99.1",
+                ENDLEAF_BIND_ALLOWED_CIDR="192.88.99.0/24",
             )
         )
 
@@ -105,8 +105,8 @@ def test_config_refuses_address_outside_cidr():
     with pytest.raises(ConfigError, match="cidr"):
         load_config(
             _env(
-                COLOPHON_BIND_ADDRESS="100.64.0.1",
-                COLOPHON_BIND_ALLOWED_CIDR="192.0.2.0/24",
+                ENDLEAF_BIND_ADDRESS="100.64.0.1",
+                ENDLEAF_BIND_ALLOWED_CIDR="192.0.2.0/24",
             )
         )
 
@@ -115,8 +115,8 @@ def test_config_refuses_lan_inside_overbroad_cidr():
     with pytest.raises(ConfigError, match="lan"):
         load_config(
             _env(
-                COLOPHON_BIND_ADDRESS="10.1.2.3",
-                COLOPHON_BIND_ALLOWED_CIDR="0.0.0.0/0",
+                ENDLEAF_BIND_ADDRESS="10.1.2.3",
+                ENDLEAF_BIND_ALLOWED_CIDR="0.0.0.0/0",
             )
         )
 
@@ -129,34 +129,70 @@ def test_config_accepts_cgnat_example():
 
 
 def test_config_reads_rlimit_as_bytes():
-    config = load_config(_env(COLOPHON_RLIMIT_AS_BYTES="3221225472"))
+    config = load_config(_env(ENDLEAF_RLIMIT_AS_BYTES="3221225472"))
     assert config.rlimit_as_bytes == 3221225472
 
 
 def test_config_refuses_bad_rlimit_as_bytes():
-    with pytest.raises(ConfigError, match="COLOPHON_RLIMIT_AS_BYTES"):
-        load_config(_env(COLOPHON_RLIMIT_AS_BYTES="2GiB"))
-    with pytest.raises(ConfigError, match="COLOPHON_RLIMIT_AS_BYTES"):
-        load_config(_env(COLOPHON_RLIMIT_AS_BYTES="0"))
+    with pytest.raises(ConfigError, match="ENDLEAF_RLIMIT_AS_BYTES"):
+        load_config(_env(ENDLEAF_RLIMIT_AS_BYTES="2GiB"))
+    with pytest.raises(ConfigError, match="ENDLEAF_RLIMIT_AS_BYTES"):
+        load_config(_env(ENDLEAF_RLIMIT_AS_BYTES="0"))
 
 
 def test_config_refuses_unspecified_and_lan():
     with pytest.raises(ConfigError, match="unspecified"):
-        load_config(_env(COLOPHON_BIND_ADDRESS="0.0.0.0"))
+        load_config(_env(ENDLEAF_BIND_ADDRESS="0.0.0.0"))
     with pytest.raises(ConfigError, match="lan"):
         load_config(
             _env(
-                COLOPHON_BIND_ADDRESS="192.168.0.20",
-                COLOPHON_BIND_ALLOWED_CIDR="0.0.0.0/0",
+                ENDLEAF_BIND_ADDRESS="192.168.0.20",
+                ENDLEAF_BIND_ALLOWED_CIDR="0.0.0.0/0",
             )
         )
 
 
 def test_config_refuses_docker_runtime():
     with pytest.raises(ConfigError, match="podman"):
-        load_config(_env(COLOPHON_PODMAN="docker"))
+        load_config(_env(ENDLEAF_PODMAN="docker"))
 
 
 def test_config_refuses_blank_token():
-    with pytest.raises(ConfigError, match="COLOPHON_WORKER_TOKEN"):
-        load_config(_env(COLOPHON_WORKER_TOKEN=""))
+    with pytest.raises(ConfigError, match="ENDLEAF_WORKER_TOKEN"):
+        load_config(_env(ENDLEAF_WORKER_TOKEN=""))
+
+
+def test_old_env_names_still_load_and_log(caplog):
+    import logging
+
+    env = {
+        "COLOPHON_BIND_ADDRESS": "100.64.0.1",
+        "COLOPHON_BIND_ALLOWED_CIDR": _CGNAT,
+        "COLOPHON_WORKER_TOKEN": "test-token-value",
+        "COLOPHON_KILL_SWITCH_FILE": "/var/lib/endleaf/kill-switch",
+        "COLOPHON_IMAGE": "endleaf-render:local",
+        "COLOPHON_RLIMIT_AS_BYTES": "3221225472",
+    }
+    with caplog.at_level(logging.WARNING):
+        config = load_config(env)
+    assert config.bind_address == "100.64.0.1"
+    assert config.rlimit_as_bytes == 3221225472
+    for old, new in (
+        ("COLOPHON_BIND_ADDRESS", "ENDLEAF_BIND_ADDRESS"),
+        ("COLOPHON_BIND_ALLOWED_CIDR", "ENDLEAF_BIND_ALLOWED_CIDR"),
+        ("COLOPHON_WORKER_TOKEN", "ENDLEAF_WORKER_TOKEN"),
+        ("COLOPHON_KILL_SWITCH_FILE", "ENDLEAF_KILL_SWITCH_FILE"),
+        ("COLOPHON_IMAGE", "ENDLEAF_IMAGE"),
+        ("COLOPHON_RLIMIT_AS_BYTES", "ENDLEAF_RLIMIT_AS_BYTES"),
+    ):
+        assert f"deprecated environment variable {old}; set {new}" in caplog.text
+
+
+def test_new_env_name_wins_without_a_deprecation_line(caplog):
+    import logging
+
+    env = _env(COLOPHON_BIND_ADDRESS="10.1.2.3")
+    with caplog.at_level(logging.WARNING):
+        config = load_config(env)
+    assert config.bind_address == "100.64.0.1"
+    assert "deprecated environment variable COLOPHON_BIND_ADDRESS" not in caplog.text

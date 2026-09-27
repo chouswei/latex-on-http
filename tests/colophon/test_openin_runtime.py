@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """openin_any=p must still compile. TeX sees a relative name or a kpathsea name."""
 
@@ -22,7 +22,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _TEXINPUTS = os.pathsep.join(
     (
         str(_ROOT / "colophon/share/tex/latex/colophon-v1"),
-        str(_ROOT / "colophon/share/tex/latex/colophon-floorplan"),
+        str(_ROOT / "colophon/share/tex/latex/endleaf-floorplan"),
         str(_ROOT / "vendor/pidcircuittikz"),
         "",
     )
@@ -150,7 +150,7 @@ def test_xelatex_argv_rejects_absolute_and_parent_names():
 
 
 def test_dockerfile_compiles_by_relative_name():
-    text = (_ROOT / "container/Dockerfile.colophon").read_text(encoding="utf-8")
+    text = (_ROOT / "container/Dockerfile.endleaf").read_text(encoding="utf-8")
     assert "xelatex -interaction=nonstopmode -halt-on-error cjk.tex;" in text
     assert "xelatex -interaction=nonstopmode -halt-on-error packages-once.tex;" in text
     assert (
@@ -283,13 +283,13 @@ def test_openin_jobs_compile(tmp_path, monkeypatch, capsysbinary):
         code = render_to_stdout(payload)
         captured = capsysbinary.readouterr()
         err = captured.err.decode("utf-8", "replace")
-        assert "COLOPHON_STATUS invalid" not in err, name + "\n" + err[-2000:]
+        assert "ENDLEAF_STATUS invalid" not in err, name + "\n" + err[-2000:]
         assert code != 12, name
         assert code == expect, name + "\n" + err[-2000:]
         if expect != 0:
-            assert "COLOPHON_STATUS render_error" in err
+            assert "ENDLEAF_STATUS render_error" in err
             continue
-        assert "COLOPHON_STATUS ok" in err
+        assert "ENDLEAF_STATUS ok" in err
         data = captured.out
         if fmt == "pdf":
             assert data.startswith(b"%PDF"), name

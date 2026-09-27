@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
@@ -37,7 +37,7 @@ def test_first_tex_error_skips_warnings():
 
 
 def test_parse_stderr_exposes_a_reported_memory_mode():
-    stderr = b'COLOPHON_METERS {"memoryPeak":100,"pidsPeak":7,"memoryMode":"rlimit"}\n'
+    stderr = b'ENDLEAF_METERS {"memoryPeak":100,"pidsPeak":7,"memoryMode":"rlimit"}\n'
     meters, diagnostic = parse_stderr(stderr)
     assert diagnostic is None
     assert meters["memoryMode"] == "rlimit"
@@ -46,7 +46,7 @@ def test_parse_stderr_exposes_a_reported_memory_mode():
 
 
 def test_unknown_memory_mode_is_left_out():
-    stderr = b'COLOPHON_METERS {"memoryPeak":1,"pidsPeak":2,"memoryMode":"swap"}\n'
+    stderr = b'ENDLEAF_METERS {"memoryPeak":1,"pidsPeak":2,"memoryMode":"swap"}\n'
     meters, _diagnostic = parse_stderr(stderr)
     assert "memoryMode" not in meters
     assert "mode" not in job_record("ok", 0.1, 1, 2, memory_mode="swap")["memory"]
@@ -54,9 +54,9 @@ def test_unknown_memory_mode_is_left_out():
 
 def test_parse_stderr_reads_meters_and_the_first_diagnostic():
     stderr = (
-        b'COLOPHON_DIAG {"engine":"tikz","message":"fail at line 4","file":null,"line":null,"fence":0}\n'
-        b'COLOPHON_METERS {"memoryPeak":100,"pidsPeak":7}\n'
-        b"COLOPHON_DIAG {not the first}\n"
+        b'ENDLEAF_DIAG {"engine":"tikz","message":"fail at line 4","file":null,"line":null,"fence":0}\n'
+        b'ENDLEAF_METERS {"memoryPeak":100,"pidsPeak":7}\n'
+        b"ENDLEAF_DIAG {not the first}\n"
     )
     meters, diagnostic = parse_stderr(stderr)
     assert meters == {"memoryPeak": 100, "pidsPeak": 7}
@@ -66,12 +66,12 @@ def test_parse_stderr_reads_meters_and_the_first_diagnostic():
 
 
 def test_invalid_render_emits_meters(capsys, monkeypatch):
-    monkeypatch.setenv("COLOPHON_MEMORY_MODE", "rlimit")
+    monkeypatch.setenv("ENDLEAF_MEMORY_MODE", "rlimit")
     assert render_to_stdout(b"not-json") == 12
     err = capsys.readouterr().err
-    assert "COLOPHON_METERS " in err
+    assert "ENDLEAF_METERS " in err
     assert '"memoryMode":"rlimit"' in err
-    assert "COLOPHON_STATUS invalid" in err
+    assert "ENDLEAF_STATUS invalid" in err
 
 
 def test_refused_job_json_has_null_peaks(client, auth):
@@ -151,9 +151,11 @@ def test_success_keeps_the_artifact_and_puts_meters_in_a_header(
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
     assert response.status_code == 200
     assert response.data == b"%PDF-1.4"
-    assert response.headers["X-Colophon-Result"] == "ok"
-    record = json.loads(response.headers["X-Colophon-Job"])
+    assert response.headers["X-Endleaf-Result"] == "ok"
+    record = json.loads(response.headers["X-Endleaf-Job"])
     assert record == job_record("ok", 0.5, 100, 3)
+    assert response.headers["X-Colophon-Result"] == "ok"
+    assert response.headers["X-Colophon-Job"] == response.headers["X-Endleaf-Job"]
 
 
 def test_success_header_exposes_the_memory_mode(config, switch_path, monitor, auth):
@@ -178,5 +180,5 @@ def test_success_header_exposes_the_memory_mode(config, switch_path, monitor, au
         config, KillSwitch(switch_path), monitor, Supervisor(_Runner(), 10)
     )
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
-    record = json.loads(response.headers["X-Colophon-Job"])
+    record = json.loads(response.headers["X-Endleaf-Job"])
     assert record["memory"] == {"peak": 100, "mode": "cgroup"}

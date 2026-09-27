@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import shutil
@@ -98,7 +98,7 @@ def test_early_sigkill_is_the_memory_cap():
 
 def test_allocation_failure_is_the_memory_cap():
     samples = (
-        b"xelatex: ooops, not enough memory (2147483648)\nCOLOPHON_STATUS render_error\n",
+        b"xelatex: ooops, not enough memory (2147483648)\nENDLEAF_STATUS render_error\n",
         b"fatal: memory exhausted (xmalloc of 1048576 bytes).\n",
         b"xelatex: Cannot allocate memory\n",
         b"xdvipdfmx:fatal: Out of memory - asked for 1048576 bytes\n",
@@ -124,7 +124,7 @@ def test_ordinary_tex_error_stays_a_render_error():
 
 
 def test_allocation_phrase_on_success_is_not_a_cap():
-    assert _classify(0, b"COLOPHON_STATUS ok\nwords of memory out of 5000000\n") == "ok"
+    assert _classify(0, b"ENDLEAF_STATUS ok\nwords of memory out of 5000000\n") == "ok"
 
 
 def test_wall_clock_kill_beats_an_allocation_phrase():
@@ -174,7 +174,7 @@ def test_timeout_is_not_a_render_error():
             elapsed=2,
             capped=False,
             abort=False,
-            stderr=b"COLOPHON_STATUS render_error\n",
+            stderr=b"ENDLEAF_STATUS render_error\n",
         )
         == "rejectRenderError"
     )
@@ -182,7 +182,7 @@ def test_timeout_is_not_a_render_error():
 
 def test_output_cap_script_is_three_thousand_uncompressed_pages():
     script = (
-        Path(__file__).resolve().parents[2] / "scripts" / "colophon-negative-tests.sh"
+        Path(__file__).resolve().parents[2] / "scripts" / "endleaf-negative-tests.sh"
     ).read_text(encoding="utf-8")
     assert "PAGE_COUNT = 3000" in script
     assert "dvipdfmx:config z 0" in script

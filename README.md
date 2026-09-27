@@ -1,11 +1,11 @@
 # LaTeX-On-HTTP
 
-This repository is the Colophon render worker, an AGPL-3.0 fork of
+This repository is the Endleaf by Inkmirage render worker (formerly Colophon), an AGPL-3.0 fork of
 YtoTech/latex-on-http. Modifications are described in [NOTICE](NOTICE). The
-upstream HTTP API notes follow the Colophon section. Sandbox rules win where
+upstream HTTP API notes follow the Endleaf section. Sandbox rules win where
 they disagree with the upstream service.
 
-## Colophon render worker
+## Endleaf by Inkmirage render worker
 
 The worker turns Markdown (with TikZ) or a TeX body into PDF, HTML, or
 DOCX. Fenced Mermaid and D2 are refused before compilation
@@ -17,13 +17,13 @@ deploy itself. Isolation comes from the per-job sandbox.
 ### Image
 
 Build on an arm64 host, or any machine that can produce an arm64 image.
-`COLOPHON_GIT_COMMIT` is the commit or tag baked into the image label and
+`ENDLEAF_GIT_COMMIT` is the commit or tag baked into the image label and
 into `GET /version`:
 
 ```sh
 podman build --platform linux/arm64 \
-  --build-arg COLOPHON_GIT_COMMIT="$(git rev-parse HEAD)" \
-  -f container/Dockerfile.colophon -t colophon-render:local .
+  --build-arg ENDLEAF_GIT_COMMIT="$(git rev-parse HEAD)" \
+  -f container/Dockerfile.endleaf -t endleaf-render:local .
 ```
 
 The image is multi-arch (`linux/arm64` and `linux/amd64`). It bakes a trimmed
@@ -31,7 +31,7 @@ TeX Live, Pandoc 3.6.4, and pandoc-ext/diagram with the TikZ engine only.
 Chromium, Node, mermaid-cli, and d2 are not installed. Package managers are
 not used at runtime. PIDcircuitTikZ is vendored because it is not a CTAN
 package; CircuiTikZ is the CTAN package `circuitikz`.
-`colophon-floorplan.sty` adds the floor-plan TikZ styles. See [NOTICE](NOTICE).
+`endleaf-floorplan.sty` adds the floor-plan TikZ styles. See [NOTICE](NOTICE).
 
 GitHub Actions workflow `arm64 CI, not Pi proof` builds the arm64 image on
 `ubuntu-24.04-arm` and runs the LaTeX fixture suite under the same caps.
@@ -52,7 +52,7 @@ They are not a sold kind. The tikz-feynman refusal stays.
 Fenced diagrams in HTML and DOCX are images. Inline `siunitx` and `mhchem`
 notation is typeset in PDF only. For HTML and DOCX the worker keeps that
 notation as source text and adds a `notationPdfOnly` warning to
-`X-Colophon-Job`. The result class stays `ok`.
+`X-Endleaf-Job`. The result class stays `ok`.
 
 ### Dedicated rootless user
 
@@ -113,9 +113,9 @@ sudo -u colophon -H bash -lc 'cd /opt/colophon && uv run python -m colophon.pref
 ### Configuration
 
 The process refuses to start unless every required variable is set.
-`COLOPHON_BIND_ADDRESS` is the single address the gateway uses to reach this
+`ENDLEAF_BIND_ADDRESS` is the single address the gateway uses to reach this
 process. Replace the placeholder `WORKER_BIND_ADDR`. It must fall inside
-`COLOPHON_BIND_ALLOWED_CIDR`. An unset address, an unset or invalid CIDR,
+`ENDLEAF_BIND_ALLOWED_CIDR`. An unset address, an unset or invalid CIDR,
 `0.0.0.0`, `::`, a hostname, loopback, link-local, multicast, an RFC1918
 LAN address, and any address Python's `ipaddress` marks `is_global` are
 refused, even when the CIDR is wide enough to include them. A unique-local
@@ -127,18 +127,25 @@ range, not a deployed host.
 
 ```sh
 # /home/colophon/.config/colophon/worker.env  (mode 0600)
-COLOPHON_BIND_ADDRESS=100.64.0.1
-COLOPHON_BIND_ALLOWED_CIDR=100.64.0.0/10
-COLOPHON_WORKER_TOKEN=WORKER_TOKEN
-COLOPHON_KILL_SWITCH_FILE=/home/colophon/.config/colophon/kill-switch
-COLOPHON_IMAGE=colophon-render:local
-COLOPHON_PORT=8080
-COLOPHON_GIT_COMMIT=unknown
+ENDLEAF_BIND_ADDRESS=100.64.0.1
+ENDLEAF_BIND_ALLOWED_CIDR=100.64.0.0/10
+ENDLEAF_WORKER_TOKEN=WORKER_TOKEN
+ENDLEAF_KILL_SWITCH_FILE=/home/colophon/.config/colophon/kill-switch
+ENDLEAF_IMAGE=endleaf-render:local
+ENDLEAF_PORT=8080
+ENDLEAF_GIT_COMMIT=unknown
 # Optional. Per-job RLIMIT_AS ceiling in bytes. Default 2147483648 (2048 MiB).
-# COLOPHON_RLIMIT_AS_BYTES=2147483648
+# ENDLEAF_RLIMIT_AS_BYTES=2147483648
 ```
 
-Set `COLOPHON_GIT_COMMIT` to the same commit or tag passed to the image
+`COLOPHON_*` is still read when the matching `ENDLEAF_*` name is unset or
+blank. Each use logs `deprecated environment variable COLOPHON_…; set ENDLEAF_…`.
+That includes `ENDLEAF_MEMORY_MODE` inside the sandbox and the image
+build-arg `COLOPHON_GIT_COMMIT`. Rebuild the image before restarting the
+worker: the sandbox command is `endleaf-sandbox-render` and the floor-plan
+package is `endleaf-floorplan`.
+
+Set `ENDLEAF_GIT_COMMIT` to the same commit or tag passed to the image
 build. `GET /version` returns that value and a link to this repository.
 
 `printf 'clear\n' > /home/colophon/.config/colophon/kill-switch`
@@ -159,15 +166,15 @@ Load above 3.0, or MemAvailable below 4096 MiB, sheds the job.
 
 The memory ceiling is always an `RLIMIT_AS` of soft and hard equal to the
 same value. The default is `2147483648:2147483648` (2048 MiB), from
-`COLOPHON_RLIMIT_AS_BYTES`. That limit is virtual address space, not
+`ENDLEAF_RLIMIT_AS_BYTES`. That limit is virtual address space, not
 resident set size.
 
 Podman 4.4 and newer receive `--ulimit as=<soft>:<hard>`. Podman 4.3
 (the Pi's rootless 4.3.1) rejects that flag: its go-units build leaves
 `as` disabled. The worker reads `podman version` and, below 4.4, does not
 pass `--ulimit as=` and does not replace `/usr/bin/podman`. It passes the
-global flag `--hooks-dir` and `--annotation io.colophon.rlimit.as=<bytes>`.
-A Colophon precreate hook reads that annotation and writes
+global flag `--hooks-dir` and `--annotation io.endleaf.rlimit.as=<bytes>`.
+An Endleaf precreate hook reads that annotation and writes
 `process.rlimits` entry `RLIMIT_AS` into the OCI spec. crun 1.8 applies
 that rlimit when it creates the container. A missing annotation fails the
 hook, so the job does not start without the cap. A failed version probe
@@ -182,7 +189,7 @@ a warning. Podman then cannot fail the start, or silently drop the cap,
 because of `--memory`. The address-space ceiling remains. If `cpu` is
 missing, the worker refuses to start and a job launch does not run Podman.
 
-`X-Colophon-Job` carries `memory.mode` when the sandbox reports it:
+`X-Endleaf-Job` carries `memory.mode` when the sandbox reports it:
 `cgroup` when `--memory` was applied, `rlimit` when the ceiling is only
 `RLIMIT_AS`. Without the memory controller, `memory.peak` stays null; there
 is no cgroup peak counter. `RLIMIT_AS` does not report a peak.
@@ -250,7 +257,7 @@ the bearer token is missing or wrong. `Cache-Control` is `no-store`.
 | `POST /v1/jobs/abort` | Kills the running container only. `200` `{"aborted":true}`. Idle is `404` `{"aborted":false,"error":"idle"}`. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. Success JSON is `readable` and `engaged`. |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. Success and error bodies match `POST /v1/jobs`. |
-| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `colophon-floorplan`), `packageSetHash` (sha256 of those names joined by newlines, no trailing newline), and `limits`. The package list is written at image build. The request does not run a shell. |
+| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `endleaf-floorplan`), `packageSetHash` (sha256 of those names joined by newlines, no trailing newline), and `limits`. The package list is written at image build. The request does not run a shell. |
 
 `GET /v1/host-load` JSON keys:
 
@@ -268,7 +275,9 @@ On `503`, `loadAvg1m` and `memAvailableMiB` are `null`, `readable` is `false`,
 and `stale` is `true`. `reportedAt` is still the time of that failed sample.
 
 `POST /v1/jobs` success is HTTP `200`. The body is the artifact bytes, not
-JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
+JSON. `X-Endleaf-Result` is `ok`. `X-Endleaf-Job` is compact JSON.
+`X-Colophon-Result` and `X-Colophon-Job` carry the same values: the live
+gate still reads `X-Colophon-Job`.
 
 | Key | JSON type | Meaning |
 | --- | --- | --- |
@@ -277,7 +286,7 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 | `memory.peak` | integer or `null` | cgroup peak, when the sandbox reported one. |
 | `memory.mode` | string | `cgroup` or `rlimit`, only when the sandbox reported it. |
 | `pids.peak` | integer or `null` | cgroup pid peak. |
-| `warnings` | array of object | Present only when non-empty. Each object is `code`, `packages`, `message`. `code` `notationPdfOnly` means inline siunitx or mhchem was kept as source text for HTML or DOCX. `packages` lists `siunitx` and `mhchem` in order. The gate reads this array from `X-Colophon-Job`. |
+| `warnings` | array of object | Present only when non-empty. Each object is `code`, `packages`, `message`. `code` `notationPdfOnly` means inline siunitx or mhchem was kept as source text for HTML or DOCX. `packages` lists `siunitx` and `mhchem` in order. The gate reads this array from `X-Colophon-Job` (also sent as `X-Endleaf-Job`). |
 
 `POST /v1/jobs` errors are JSON. The object always has `error`, `result`,
 `wallSec`, `memory` (`peak`, and `mode` only when reported), and `pids`
@@ -325,7 +334,7 @@ before TeX reads it. Owned preambles use the kpathsea name
 
 ### Job input
 
-COLOPHON-R27. `POST /v1/jobs` accepts a JSON object with these fields:
+ENDLEAF-R27. `POST /v1/jobs` accepts a JSON object with these fields:
 
 | Field | Required | Accepted value |
 | --- | --- | --- |
@@ -350,7 +359,7 @@ and `\input{colophon-v1-preamble.tex}`. Those packages are the allowlist.
 A ```` ```tikz ```` fence uses that same font block plus the allowlist, so
 zh-TW labels in the fence are in the PDF image embedded in HTML and DOCX.
 For a TeX `templateId` and `outputFormat` `pdf`, the worker builds the
-document as that preamble plus `body`, and sets `\ColophonLane` to the lane
+document as that preamble plus `body`, and sets `\EndleafLane` to the lane
 name. `document-shell` is Markdown and uses the lane Pandoc template, which
 is the same class and the same allowlist. `POST /builds/sync` still accepts
 legacy `inputKind`; its content is a `body` on `templateId` `document-shell`.
@@ -391,9 +400,9 @@ uv run pytest -m podman -o addopts=    # needs rootless podman; skips without th
 
 Engine checks for `\write18` and Lua `os.execute` / `io.popen` run under
 pytest when `xelatex` or `lualatex` is on `PATH`, and are skipped otherwise.
-`scripts/colophon-negative-tests.sh` is the live check for a running worker
+`scripts/endleaf-negative-tests.sh` is the live check for a running worker
 (timeout, shell-escape, tmpfs, the 20 MiB output cap, and one smoke render
-per package family). It needs `COLOPHON_URL` and `COLOPHON_WORKER_TOKEN`.
+per package family). It needs `ENDLEAF_URL` and `ENDLEAF_WORKER_TOKEN` (`COLOPHON_URL` and `COLOPHON_WORKER_TOKEN` still work and log a deprecation line).
 
 ---
 

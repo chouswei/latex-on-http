@@ -1,5 +1,5 @@
 # Copyright (C) 2017-2019 Yoan Tournade (upstream LaTeX-on-HTTP)
-# Copyright (C) 2026 Inkmirage (Colophon render worker modifications)
+# Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Revision baked at build time, for GET /version."""
 
@@ -10,6 +10,7 @@ from pathlib import Path
 
 from colophon import __version__
 from colophon.limits import limits_payload
+from colophon.settings import setting
 
 SOURCE_REPOSITORY = "https://github.com/chouswei/latex-on-http"
 _SHA = re.compile(r"^[0-9a-fA-F]{7,40}$")
@@ -27,7 +28,7 @@ def _read_baked_file():
 
 def revision():
     """Return the build commit or tag, or ``unknown`` when it was not baked."""
-    raw = os.environ.get("COLOPHON_GIT_COMMIT", "").strip()
+    raw, _name = setting(os.environ, "GIT_COMMIT", default="")
     if not raw:
         raw = _read_baked_file()
     if not raw or raw == "unknown":
