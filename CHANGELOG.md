@@ -12,6 +12,10 @@
   added or removed. `openin_any` stays `p`.
 * Settings are `ENDLEAF_*`. `COLOPHON_*` is still read when the new name is
   unset, and each use logs a deprecation line.
+* Floor-plan internals are `\elfloorplan@…`. LaTeX rejects a `\newcommand`
+  name that starts with `\end`, so `\endleaffloorplan@` could not load.
+  The package and file stay `endleaf-floorplan`, and `packageSetHash`
+  stays `f2946ed8f9682cc0e0dffa468d29fdc25ae2feb85e7d9d1291414dc1cf2a310d`.
 
 ## 2026-09-26
 
