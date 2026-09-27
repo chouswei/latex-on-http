@@ -35,8 +35,11 @@ def xelatex_argv(tex_path):
         "-file-line-error",
         # Debian sets openout_any=p, which refuses the aux file when the
         # job path is absolute. The read-only root still confines writes
-        # to the /tmp tmpfs.
+        # to the /tmp tmpfs. openin_any stays paranoid: absolute paths and
+        # parent directories cannot be read. The image texmf sets the same
+        # openin_any, including for fenced TikZ compiles.
         "-cnf-line=openout_any=a",
+        "-cnf-line=openin_any=p",
         "-output-directory=/tmp",
         tex_path,
     ]
@@ -89,6 +92,7 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
             "--pdf-engine-opt=-halt-on-error",
             "--pdf-engine-opt=-file-line-error",
             "--pdf-engine-opt=-cnf-line=openout_any=a",
+            "--pdf-engine-opt=-cnf-line=openin_any=p",
             "--template",
             _template(job.lane, "pandoc.latex"),
             "-o",

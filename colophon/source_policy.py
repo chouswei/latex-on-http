@@ -66,11 +66,74 @@ _FEYNMAN_AUTO = re.compile(
     r"\\feynmandiagram\b|\\diagram(?!\*)",
     re.IGNORECASE,
 )
+# \@@input is the primitive. \include does not match \includegraphics.
+# A letter would continue the command (\includegraphics, \inputiffileexists).
+# A digit does not: \openin4 is the primitive stream form.
+_FILE_READ = re.compile(
+    r"\\(?P<cmd>@@input|input|include|openin)(?![A-Za-z@])",
+    re.IGNORECASE,
+)
+_TIKZ_FENCE = re.compile(
+    r"(?m)^[ ]{0,3}(?:`{3,}|~{3,})[ \t]*(?:tikz\b|\.tikz\b|\{\.?tikz\b)"
+)
+
+
+def _argument_path(source, start, command):
+    """Filename after ``\\input``, ``\\include``, or ``\\openin``."""
+    index = start
+    length = len(source)
+    while index < length and source[index] in " \t\r\n":
+        index += 1
+    if command.lower() == "openin":
+        if index < length and source[index] == "\\":
+            index += 1
+            while index < length and (source[index].isalpha() or source[index] == "@"):
+                index += 1
+        else:
+            while index < length and source[index].isdigit():
+                index += 1
+        while index < length and source[index] in " \t\r\n":
+            index += 1
+        if index < length and source[index] == "=":
+            index += 1
+            while index < length and source[index] in " \t\r\n":
+                index += 1
+    if index >= length:
+        return ""
+    if source[index] == "{":
+        depth = 1
+        index += 1
+        begin = index
+        while index < length and depth:
+            if source[index] == "{":
+                depth += 1
+            elif source[index] == "}":
+                depth -= 1
+            index += 1
+        return source[begin : index - 1 if depth == 0 else index]
+    if source[index] == '"':
+        end = source.find('"', index + 1)
+        if end == -1:
+            return source[index + 1 :]
+        return source[index + 1 : end]
+    end = index
+    while end < length and source[end] not in " \t\r\n%":
+        end += 1
+    return source[index:end]
+
+
+def _path_escapes(name):
+    """True for an absolute path or any ``..`` segment."""
+    text = name.strip()
+    if text.startswith("/") or text.startswith("\\"):
+        return True
+    return any(part == ".." for part in text.replace("\\", "/").split("/"))
 
 
 def reject_forbidden_source(source):
     """Raise ``JobRejected`` when the source asks for a forbidden tool."""
     from colophon.enums import JobRejected
+    from colophon.limits import MAX_FENCES_PER_JOB
 
     if not isinstance(source, str):
         raise JobRejected("body")
@@ -98,3 +161,8 @@ def reject_forbidden_source(source):
         raise JobRejected("svg")
     if _FEYNMAN_AUTO.search(source):
         raise JobRejected("feynman-auto")
+    for match in _FILE_READ.finditer(source):
+        if _path_escapes(_argument_path(source, match.end(), match.group("cmd"))):
+            raise JobRejected("openin")
+    if len(_TIKZ_FENCE.findall(source)) > MAX_FENCES_PER_JOB:
+        raise JobRejected("fences")

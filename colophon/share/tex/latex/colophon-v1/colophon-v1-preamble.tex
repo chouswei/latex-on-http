@@ -25,10 +25,17 @@
 \usepackage{colophon-floorplan}
 \usetikzlibrary{circuits.pid.ISO14617}
 % PIDcircuitTikZ replaces TikZ's /tikz/at coordinate key and /tikz/pos.
-% Chemfig places atoms with those keys, so put the TikZ definitions back.
-% PID symbols do not need the replacement keys. Flow decorations keep the
-% default \flowpos set while the library was loading.
+% Chemfig places atoms with /tikz/at, so that key is restored.
+% /tikz/pos stays shared: the number is TikZ's path time and PID's
+% \flowpos, so a flow arrow can sit at pos= and chemfig bonds still place.
 \makeatletter
 \tikzoption{at}{\tikz@scan@one@point\tikz@set@at#1}%
-\tikzoption{pos}{\edef\tikz@time{#1}\ifx\tikz@time\pgfutil@empty\else\pgfmathsetmacro\tikz@time{\tikz@time}\fi}%
+\tikzoption{pos}{%
+  \edef\tikz@time{#1}%
+  \ifx\tikz@time\pgfutil@empty
+  \else
+    \pgfmathsetmacro\tikz@time{\tikz@time}%
+    \let\flowpos\tikz@time
+  \fi
+}%
 \makeatother

@@ -15,6 +15,9 @@ diagram:
     tikz:
       execpath: /usr/local/bin/xelatex-nonescape
       additional-packages: |
+        \usepackage{fontspec}
+        \usepackage{xeCJK}
+        \setCJKmainfont{Noto Sans CJK TC}
         \input{colophon-v1-preamble.tex}
 ---
 ]], "markdown")

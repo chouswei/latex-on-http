@@ -37,6 +37,11 @@ TIMEOUT_ELAPSED_FLOOR_SEC = WALL_SEC - 1
 SANDBOX_UID = 10001
 SANDBOX_GID = 10001
 INPUT_CAP_BYTES = 16 * 1024 * 1024
+# TikZ fences in one job. The wall-clock cap is the runaway-loop bound:
+# an unbounded \loop or a huge \foreach is failTimeout at WALL_SEC, not a
+# separate preflight. Gate-owned quotas (jobs per day, jobs per minute,
+# a smaller input cap) are not in this list.
+MAX_FENCES_PER_JOB = 5
 STDERR_KEEP_BYTES = 16 * 1024
 
 SHARE_ROOT = "/usr/local/share/colophon"
@@ -82,6 +87,26 @@ def allocation_failure(stderr):
     for warning in _ALLOCATION_WARNINGS:
         folded = folded.replace(warning, "")
     return any(marker in folded for marker in _ALLOCATION_MARKERS)
+
+
+def limits_payload():
+    """Caps a gate can read from ``GET /version``.
+
+    Names match the worker budget. ``maxFencesPerJob`` is the TikZ fence
+    cap. Runaway TeX loops are not a separate field: they hit ``wallSec``
+    and the job is ``failTimeout``.
+    """
+    return {
+        "cpu": 1,
+        "memMiB": MEMORY_MIB,
+        "wallSec": WALL_SEC,
+        "outputMiB": OUTPUT_MIB,
+        "pidsMax": PIDS_LIMIT,
+        "tmpfsMiB": TMPFS_MIB,
+        "inputMiB": INPUT_CAP_BYTES // (1024 * 1024),
+        "maxFencesPerJob": MAX_FENCES_PER_JOB,
+        "retryAfterSec": RETRY_AFTER_SEC,
+    }
 
 
 def rlimit_as_bytes(environ=None):

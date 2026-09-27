@@ -250,7 +250,7 @@ the bearer token is missing or wrong. `Cache-Control` is `no-store`.
 | `POST /v1/jobs/abort` | Kills the running container only. `200` `{"aborted":true}`. Idle is `404` `{"aborted":false,"error":"idle"}`. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. Success JSON is `readable` and `engaged`. |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. Success and error bodies match `POST /v1/jobs`. |
-| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `colophon-floorplan`), and `packageSetHash` (sha256 of those names joined by newlines, no trailing newline). The list is written at image build. The request does not run a shell. |
+| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `colophon-floorplan`), `packageSetHash` (sha256 of those names joined by newlines, no trailing newline), and `limits`. The package list is written at image build. The request does not run a shell. |
 
 `GET /v1/host-load` JSON keys:
 
@@ -277,7 +277,7 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 | `memory.peak` | integer or `null` | cgroup peak, when the sandbox reported one. |
 | `memory.mode` | string | `cgroup` or `rlimit`, only when the sandbox reported it. |
 | `pids.peak` | integer or `null` | cgroup pid peak. |
-| `warnings` | array of string | Present only for `notationPdfOnly`. |
+| `warnings` | array of object | Present only when non-empty. Each object is `code`, `packages`, `message`. `code` `notationPdfOnly` means inline siunitx or mhchem was kept as source text for HTML or DOCX. `packages` lists `siunitx` and `mhchem` in order. The gate reads this array from `X-Colophon-Job`. |
 
 `POST /v1/jobs` errors are JSON. The object always has `error`, `result`,
 `wallSec`, `memory` (`peak`, and `mode` only when reported), and `pids`
@@ -289,7 +289,7 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 | `rejectBusy` | 429, `Retry-After` | `refused` | none when the worker is already busy |
 | `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the `GET /v1/host-load` object; `busy` is `false`) |
 | `rejectKillSwitch` | 403 | `refused` | `readable`, `engaged` |
-| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `templateId`, `body`, `compiler`, `documentclass`, `preamble`, `directlua`, `write18`, `mermaid`, `d2`, and the other source-policy reasons) |
+| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `templateId`, `body`, `compiler`, `documentclass`, `preamble`, `directlua`, `write18`, `openin`, `fences`, `mermaid`, `d2`, and the other source-policy reasons) |
 | `rejectSpawnFail` | 500 | `refused` | none |
 | `rejectRenderError` | 422 | `renderError` | `diagnostic` when the sandbox reported one: `engine`, `message`, `file`, `line`, `fence` |
 | `failTimeout` | 408 | `failTimeout` | none |
@@ -297,6 +297,28 @@ JSON. `X-Colophon-Result` is `ok`. `X-Colophon-Job` is compact JSON:
 
 A request body over 16 MiB is `rejectInvalidInput` with `field` `body`
 (HTTP 400).
+
+`GET /version` field `limits` is the worker budget the gate can serve:
+
+| Key | Value |
+| --- | --- |
+| `cpu` | `1` |
+| `memMiB` | `2048` (`RLIMIT_AS` budget) |
+| `wallSec` | `60` |
+| `outputMiB` | `20` |
+| `pidsMax` | `256` |
+| `tmpfsMiB` | `512` |
+| `inputMiB` | `16` |
+| `maxFencesPerJob` | `5` |
+| `retryAfterSec` | `10` |
+
+More than `maxFencesPerJob` TikZ fences is `field` `fences`. An unbounded
+`\loop` is not a separate refusal: it hits `wallSec` and the result is
+`failTimeout`. `\input`, `\include`, `\@@input`, and `\openin` with an
+absolute path or a `..` segment are `field` `openin`. The image sets
+`openin_any = p` and `openout_any = p`. A job still passes
+`openout_any=a` so the absolute `/tmp` aux file can be written; reads stay
+paranoid.
 
 ### Job input
 
@@ -322,6 +344,8 @@ Each `templateId` is a server-owned asset under
 `colophon/share/templates/owned/<templateId>/`. The preamble is
 `\documentclass{article}` with no options, fontspec, xeCJK, Noto Sans CJK TC,
 and `\input{colophon-v1-preamble.tex}`. Those packages are the allowlist.
+A ```` ```tikz ```` fence uses that same font block plus the allowlist, so
+zh-TW labels in the fence are in the PDF image embedded in HTML and DOCX.
 For a TeX `templateId` and `outputFormat` `pdf`, the worker builds the
 document as that preamble plus `body`, and sets `\ColophonLane` to the lane
 name. `document-shell` is Markdown and uses the lane Pandoc template, which

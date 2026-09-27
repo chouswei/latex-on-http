@@ -62,6 +62,8 @@ def test_image_sets_shell_escape_off():
         Path(__file__).resolve().parents[2] / "container" / "Dockerfile.colophon"
     ).read_text(encoding="utf-8")
     assert "shell_escape = f" in dockerfile
+    assert "openin_any = p" in dockerfile
+    assert "openout_any = p" in dockerfile
 
 
 @pytest.mark.skipif(_LUALATEX is None, reason="lualatex is not installed")

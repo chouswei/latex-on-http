@@ -93,6 +93,21 @@ def test_preambles_use_only_the_allowlist():
     _assert_allowlist(shared)
 
 
+def test_gantt_example_does_not_end_the_last_bar_with_a_row_break():
+    body = example_body("gantt", _ROOT)
+    assert r"\ganttbar[name=build]{建置 Build}{6}{11}" in body
+    assert r"\ganttbar[name=build]{建置 Build}{6}{11} \\" not in body
+
+
+def test_floorplan_example_places_the_scale_bar_once():
+    body = example_body("floorplan", _ROOT)
+    assert "/floorplan/plan-scale=1000" in body
+    assert r"\draw[floorplan scale bar]" not in body
+    assert r"\draw[floorplan north arrow]" not in body
+    assert r"\tikzset{floorplan scale bar}" in body
+    assert r"\tikzset{floorplan north arrow}" in body
+
+
 def test_example_bodies_are_not_preambles():
     for template_id in TEMPLATE_IDS:
         body = example_body(template_id, _ROOT)

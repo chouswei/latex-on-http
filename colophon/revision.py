@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 from colophon import __version__
+from colophon.limits import limits_payload
 
 SOURCE_REPOSITORY = "https://github.com/chouswei/latex-on-http"
 _SHA = re.compile(r"^[0-9a-fA-F]{7,40}$")
@@ -77,4 +78,5 @@ def version_payload():
         "source": source_url(commit),
         "packageSet": names,
         "packageSetHash": package_set_hash(names),
+        "limits": limits_payload(),
     }

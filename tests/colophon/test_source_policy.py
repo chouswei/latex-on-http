@@ -85,6 +85,52 @@ def test_negative_fixtures_are_refused():
         assert caught.value.reason == reason
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "\\input{/etc/hostname}",
+        "\\input{ /etc/hostname }",
+        "\\input /etc/hostname",
+        "\\include{/etc/passwd}",
+        "\\openin\\foo=/etc/hostname",
+        "\\openin4=../secret.tex",
+        "\\@@input{../hidden.tex}",
+        "\\input{foo/../../etc/passwd}",
+        '\\input"/etc/hostname"',
+    ],
+)
+def test_absolute_or_parent_paths_are_refused(source):
+    with pytest.raises(JobRejected) as caught:
+        parse_job(_job(source))
+    assert caught.value.reason == "openin"
+
+
+def test_input_of_a_relative_name_is_allowed():
+    parse_job(_job("\\input{colophon-v1-preamble.tex}"))
+    parse_job(_job("\\includegraphics{figure}"))
+
+
+def test_hostname_input_is_refused_over_http(client, auth, runner):
+    response = client.post(
+        "/v1/jobs",
+        json=_job("\\input{/etc/hostname}"),
+        headers=auth,
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"] == "rejectInvalidInput"
+    assert body["field"] == "openin"
+    assert runner.calls == []
+
+
+def test_six_tikz_fences_are_refused():
+    fence = "```tikz\n\\begin{tikzpicture}\\end{tikzpicture}\n```\n"
+    with pytest.raises(JobRejected) as caught:
+        parse_job(_job(fence * 6, input_kind="markdown"))
+    assert caught.value.reason == "fences"
+    parse_job(_job(fence * 5, input_kind="markdown"))
+
+
 def test_prose_about_shell_escape_is_allowed():
     parse_job(_job("do not enable shell-escape in this note.", input_kind="markdown"))
     parse_job(_job("Use -no-shell-escape only.", input_kind="markdown"))

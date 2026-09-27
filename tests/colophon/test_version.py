@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from colophon.limits import limits_payload
 from colophon.revision import package_set, package_set_hash, source_url, version_payload
 
 PACKAGE_SET_SOURCE = (
@@ -90,6 +91,22 @@ def test_version_package_set_is_sorted_and_hashed(client, auth, monkeypatch):
         if line.strip()
     ]
     assert names == source
+    assert body["limits"] == limits_payload()
+
+
+def test_version_limits_name_the_worker_caps():
+    limits = limits_payload()
+    assert limits == {
+        "cpu": 1,
+        "memMiB": 2048,
+        "wallSec": 60,
+        "outputMiB": 20,
+        "pidsMax": 256,
+        "tmpfsMiB": 512,
+        "inputMiB": 16,
+        "maxFencesPerJob": 5,
+        "retryAfterSec": 10,
+    }
 
 
 def test_baked_package_set_file_is_what_version_reads(tmp_path, monkeypatch):

@@ -46,6 +46,22 @@
   `busy` means a job holds the worker, not that the load average is high.
   `stale: true` is a shed. `readable: false` is HTTP 503. There is no
   `/load` path. `POST /v1/jobs/abort` kills the running container.
+* Fenced TikZ diagrams load fontspec and xeCJK with Noto Sans CJK TC, the
+  same fonts as the document path, so zh-TW labels in a fence are in the
+  PDF image used for PDF, HTML, and DOCX. `\input`, `\include`, and
+  `\openin` of an absolute path or `..` are `rejectInvalidInput` field
+  `openin`. The image sets `openin_any = p` and `openout_any = p`.
+  Runaway loops stay on the 60 s wall cap (`failTimeout`). More than five
+  TikZ fences is field `fences`. `GET /version` publishes `limits`
+  (`cpu`, `memMiB`, `wallSec`, `outputMiB`, `pidsMax`, `tmpfsMiB`,
+  `inputMiB`, `maxFencesPerJob`, `retryAfterSec`). Inline siunitx and
+  mhchem still return `warnings` on `X-Colophon-Job`: objects with
+  `code` `notationPdfOnly`, `packages`, and `message`. P&ID `pos` sets
+  both TikZ's path time and `\flowpos`. Floor-plan lengths use the
+  coordinate numbers, so a 3 m wall reads 3.00 m. Scale bar and north
+  arrow are pics as well as styles. Owned examples match the playbook
+  review replacements, including a Gantt chart with no `\\` after the
+  last bar.
 * COLOPHON-R27. A job sends `templateId` and `body`. The worker owns
   the preamble and still refuses a caller `\documentclass` or raw
   preamble. An unknown `templateId` is `rejectInvalidInput` field

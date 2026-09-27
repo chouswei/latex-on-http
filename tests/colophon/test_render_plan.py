@@ -25,6 +25,7 @@ def test_xelatex_shell_escape_is_off():
     flat = _flat(plan)
     assert "-no-shell-escape" in flat
     assert "-cnf-line=openout_any=a" in flat
+    assert "-cnf-line=openin_any=p" in flat
     assert "--pdf-engine xelatex" in flat
     assert "/usr/local/bin/xelatex-nonescape" not in flat
     assert "-shell-escape" not in flat.replace("-no-shell-escape", "")
@@ -68,3 +69,4 @@ def test_tex_pdf_uses_xelatex_not_pandoc():
     assert "pandoc" not in flat
     assert "-no-shell-escape" in flat
     assert "-cnf-line=openout_any=a" in flat
+    assert "-cnf-line=openin_any=p" in flat

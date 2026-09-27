@@ -78,7 +78,7 @@ COPY container/bake_package_set.py /tmp/colophon-bake-package-set.py
 RUN set -eu; \
     apt-get update -qq; \
     apt-get install -y --no-install-recommends poppler-utils; \
-    printf 'shell_escape = f\n' > /etc/texmf/texmf.d/00colophon.cnf; \
+    printf 'shell_escape = f\nopenin_any = p\nopenout_any = p\n' > /etc/texmf/texmf.d/00colophon.cnf; \
     update-texmf; \
     mktexlsr; \
     fc-cache -f; \
