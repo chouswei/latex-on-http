@@ -3,10 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Compile the sold-candidate kinds, plus a short smoke set.
 
-The required set is the document shell and six LaTeX diagram kinds: P&ID,
-circuits, plots, chemistry, Gantt, and floor plans. Mermaid and D2 are
-not rendered. Each remaining job reports job meters. Floor-plan PDFs
-must show the same labels at scale=1 and scale=0.5.
+The required set is the document shell and seven LaTeX diagram kinds: P&ID,
+circuits, plots, chemistry, Gantt, floor plans, and SysML. Mermaid and D2
+are not rendered. Each remaining job reports job meters. Floor-plan PDFs
+must show the same labels at scale=1 and scale=0.5. The SysML TeX fixture
+must show the zh-TW label.
 
 tikz-cd, forest, automata, mindmap, tikz-3dplot, tikz-feynman,
 tikz-timing, and bytefield stay installed. Their smoke compiles are not
@@ -39,6 +40,8 @@ REQUIRED = (
     "pgfplots.tex",
     "pidcircuit.md",
     "pidcircuit.tex",
+    "sysml.md",
+    "sysml.tex",
 )
 
 SMOKE = (
@@ -122,6 +125,8 @@ def _template_id(path):
         return "plots"
     if path.stem in ("floorplan", "floorplan-scale"):
         return "floorplan"
+    if path.stem == "sysml":
+        return "sysml"
     if path.stem in ("chemistry", "circuits", "gantt", "pidcircuit"):
         return path.stem
     # Unsold smoke files use a TeX template whose preamble inputs the
@@ -147,6 +152,10 @@ def _compile(path, *, image, podman):
         sys.exit(f"{path.name} did not report cgroup meters")
     if path.stem.startswith("floorplan"):
         _assert_floorplan(path.name, stdout)
+    if path.name == "sysml.tex":
+        text = _pdf_text(stdout)
+        if "泵浦" not in text:
+            sys.exit(f"{path.name} PDF text missing 泵浦: {text!r}")
     print(path.name, "ok", len(stdout))
 
 

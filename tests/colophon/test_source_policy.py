@@ -181,7 +181,7 @@ def test_compile_fixtures_exist_for_the_image_build():
 
 
 def test_required_kind_fixtures_are_the_sold_candidate_set():
-    """Document shell plus P&ID, circuits, plots, chemistry, Gantt, and floor plans."""
+    """Document shell plus P&ID, circuits, plots, chemistry, Gantt, floor plans, and SysML."""
     kinds = FIXTURES / "kinds"
     names = sorted(path.name for path in kinds.iterdir())
     assert names == [
@@ -200,6 +200,8 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
         "pgfplots.tex",
         "pidcircuit.md",
         "pidcircuit.tex",
+        "sysml.md",
+        "sysml.tex",
     ]
     shell = (kinds / "document-shell.md").read_text(encoding="utf-8")
     assert "```" not in shell
@@ -212,6 +214,7 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
         "chemistry",
         "gantt",
         "floorplan",
+        "sysml",
     ):
         tex = (kinds / f"{name}.tex").read_text(encoding="utf-8")
         markdown = (kinds / f"{name}.md").read_text(encoding="utf-8")
@@ -277,6 +280,7 @@ def test_shared_preamble_is_the_only_package_list():
         "tikz-dimline",
         "tikzscale",
         "endleaf-floorplan",
+        "sysml-tikz",
         "circuits.pid.ISO14617",
     ):
         assert name in preamble

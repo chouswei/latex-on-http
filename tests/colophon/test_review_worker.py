@@ -19,6 +19,7 @@ _TEXINPUTS = os.pathsep.join(
     (
         str(_ROOT / "colophon/share/tex/latex/colophon-v1"),
         str(_ROOT / "colophon/share/tex/latex/endleaf-floorplan"),
+        str(_ROOT / "colophon/share/tex/latex/sysml-tikz"),
         str(_ROOT / "vendor/pidcircuittikz"),
         "",
     )

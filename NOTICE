@@ -82,7 +82,7 @@ compile service.
   the Pandoc template, and TikZ diagram blocks input it. It loads
   `circuitikz`, `siunitx`, `pgfplots`, `chemfig`, `mhchem`, `tikz-3dplot`,
   `tikz-feynman`, `tikz-cd`, `forest`, `tikz-timing`, `bytefield`,
-  `pgfgantt`, `tikz-dimline`, `tikzscale`, `endleaf-floorplan`, the TikZ
+  `pgfgantt`, `tikz-dimline`, `tikzscale`, `endleaf-floorplan`, `sysml-tikz`, the TikZ
   libraries `shapes`, `arrows.meta`, `positioning`, `calc`, `automata`,
   and `mindmap`, and `\usetikzlibrary{circuits.pid.ISO14617}`. A fence
   option cannot replace that list. The PID library replaces TikZ's `at`
@@ -96,6 +96,14 @@ compile service.
   `\floorplanPolygonArea`). The dimension label uses coordinate anchors, so
   `scale=` and tikzscale do not change it. Labels use `siunitx`. The style
   file is pure TeX.
+- `sysml-tikz.sty` is installed in the local texmf tree the same way.
+  It is the Endleaf file `prototypes/sysml-layout/sysml-tikz.sty` at
+  commit `7462a3188850852c47ca2c0cb5c43143ba6a0b27`, under the LaTeX
+  Project Public License 1.3c. Its only `\RequirePackage` is `tikz`.
+  The TikZ libraries `fit`, `backgrounds`, `decorations.markings`,
+  `shapes.geometric`, and `shapes.multipart` come from `pgf`. A document
+  loads it with `\usepackage{sysml-tikz}`. The shared preamble does that,
+  so the document-shell allowlist includes the package name.
 - A failed render returns a result class (`ok`, `failTimeout`,
   `failCapHit`, `renderError`, or `refused`), wall time, `memory.peak` and
   `pids.peak` from the job cgroup, and on a render error the first TeX
@@ -106,8 +114,8 @@ compile service.
   `X-Endleaf-Result` stays `ok`. Without the memory controller,
   `memory.peak` is null.
 - Sold-candidate kinds are P&ID, circuits, plots (pgfplots, including a
-  small 3D sample), chemistry, Gantt, and floor plans, plus the document
-  shell. Mermaid and D2 are not kinds. A kind is not claimed sold here.
+  small 3D sample), chemistry, Gantt, floor plans, and SysML, plus the
+  document shell. Mermaid and D2 are not kinds. A kind is not claimed sold here.
   `tikz-cd`, `forest`,
   `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`, `tikz-timing`, and
   `bytefield` stay in the preamble and are smoke-compiled only. The
@@ -118,7 +126,7 @@ compile service.
   `notationPdfOnly` on `X-Endleaf-Job`. The result class stays `ok`.
 - `GET /version` includes `packageSet` and `packageSetHash`. The set is the
   sorted TeX package names in `colophon/package_set.txt`, including
-  `endleaf-floorplan`. The image build writes that list to `PACKAGE_SET`
+  `endleaf-floorplan` and `sysml-tikz`. The image build writes that list to `PACKAGE_SET`
   after checking each `kpsewhich` name. The hash is the sha256 of the names
   joined by newlines, with no trailing newline. The request reads the baked
   file and does not run a shell.

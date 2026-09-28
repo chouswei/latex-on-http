@@ -1,0 +1,18 @@
+% Reference caller body for templateId sysml. The worker owns the preamble.
+\begin{sysmlfigure}[view={pump}, revision={label}, overrides={none}, depth={1}]
+\begin{sysmlcanvas}
+\sysmldef{Pump}{0}{0}{96}{44}
+\sysmllabel[keyword]{48}{2}{\sysmlguillemets{block}}
+\sysmllabel[name]{48}{7}{泵浦}
+\sysmlpart{Pump.impeller}{4}{16}{36}{22}
+\sysmllabel[keyword]{22}{18}{\sysmlguillemets{part}}
+\sysmllabel[name]{22}{23}{葉輪}
+\sysmlport{Pump.impeller.inlet}{4}{27}{WEST}{6}{20}{入口}{in}
+\sysmlpart{Pump.volute}{56}{16}{36}{22}
+\sysmllabel[keyword]{74}{18}{\sysmlguillemets{part}}
+\sysmllabel[name]{74}{23}{蝸殼}
+\sysmlport{Pump.volute.outlet}{92}{27}{EAST}{76}{20}{出口}{out}
+\sysmlport{Pump.volute.return}{74}{38}{SOUTH}{76}{32}{回流}{inout}
+\sysmlconnection{Pump.link}{(41.6,27) -- (54.4,27)}
+\end{sysmlcanvas}
+\end{sysmlfigure}
