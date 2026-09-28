@@ -154,8 +154,8 @@ def _compile(path, *, image, podman):
         _assert_floorplan(path.name, stdout)
     if path.name == "sysml.tex":
         text = _pdf_text(stdout)
-        if "泵浦" not in text:
-            sys.exit(f"{path.name} PDF text missing 泵浦: {text!r}")
+        if "幫浦" not in text:
+            sys.exit(f"{path.name} PDF text missing 幫浦: {text!r}")
     print(path.name, "ok", len(stdout))
 
 

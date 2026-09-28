@@ -31,9 +31,12 @@ _COMMANDS = (
     "sysmlpart",
     "sysmlport",
     "sysmlconnection",
+    "sysmlflow",
+    "sysmlbinding",
     "sysmllabel",
     "sysmlguillemets",
 )
+_FIXTURE_COMMANDS = tuple(name for name in _COMMANDS if name != "sysmldef")
 _ENVS = ("sysmlfigure", "sysmlcanvas")
 
 
@@ -48,10 +51,8 @@ def test_allowlist_accepts_sysml_tikz():
 
 
 # Byte-identical to Endleaf prototypes/sysml-layout/sysml-tikz.sty
-# at 06149a8dbd99e92a66cc380255717f1b3f2ded5f.
-_ENDLEAF_STY_SHA256 = (
-    "a0978d8dd9cb711356c2f9c19992af8a05581722ae179ef5881272fb32f726d9"
-)
+# at 37c4e28fe1150f6963526b3d54bc30ed5af9281e.
+_ENDLEAF_STY_SHA256 = "da80c8d3ba9efcfac0fb4bba9c4e87caf885deb50fc8061842f307943cc337e0"
 
 
 def test_vendored_style_matches_endleaf_and_requires_only_tikz():
@@ -60,8 +61,14 @@ def test_vendored_style_matches_endleaf_and_requires_only_tikz():
     text = data.decode("utf-8")
     assert "\\ProvidesPackage{sysml-tikz}" in text
     assert "\\newcommand{\\sysmlconnection}[3][]" in text
-    assert "sysml connection head end" in text
+    assert "\\newcommand{\\sysmlflow}[3][]" in text
+    assert "\\newcommand{\\sysmlbinding}[3][]" in text
+    assert "A connection is a plain solid line" in text
     assert "sysml connection/.style={draw, line width=0.45pt}" in text
+    assert (
+        "sysml flow end/.style={draw, line width=0.45pt, "
+        "-{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}}"
+    ) in text
     requires = re.findall(r"\\RequirePackage(?:\[[^\]]*\])?\{([^}]+)\}", text)
     assert requires == ["tikz"]
     for name in _COMMANDS:
@@ -75,19 +82,22 @@ def test_sysml_kind_fixture_uses_sty_macros():
     markdown = (_FIXTURE.with_suffix(".md")).read_text(encoding="utf-8")
     assert "```tikz" in markdown
     assert text.strip() in markdown
-    for name in _COMMANDS:
+    for name in _FIXTURE_COMMANDS:
         assert "\\" + name in text
     for name in _ENVS:
         assert "\\begin{" + name + "}" in text
-    assert text.count("\\sysmlpart") == 2
-    assert "\\sysmldef" in text
-    assert "\\sysmlconnection[from=Pump.impeller.discharge, to=Pump.volute.intake]" in text
-    assert "\\sysmlconnection[from=Pump.impeller.bleed, to=Pump.volute.return]" in text
-    assert "\\sysmlconnection{Pump.link}" in text
+    assert text.count("\\sysmlpart") == 3
+    assert "\\sysmlconnection[from=PdMon.pump.outlet, to=PdMon.motor.inlet]" in text
+    assert (
+        "\\sysmlflow[from=PdMon.motor.outlet, to=PdMon.ctrl.inlet, item=液位]" in text
+    )
+    assert "\\sysmlbinding[from=PdMon.pump.bind, to=PdMon.motor.bind]" in text
     assert "{in}" in text
     assert "{out}" in text
     assert "{inout}" in text
-    assert "泵浦" in text
+    assert "幫浦" in text
+    assert "连接" not in text
+    assert "绑定" not in text
     assert "\\documentclass" not in text
     assert "\\usepackage" not in text
 
@@ -159,4 +169,4 @@ def test_sysml_kind_fixture_compiles(tmp_path):
             text=True,
         )
         assert extracted.returncode == 0
-        assert "泵浦" in extracted.stdout
+        assert "幫浦" in extracted.stdout

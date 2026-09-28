@@ -2,6 +2,15 @@
 
 ## 2026-09-28
 
+* `sysml-tikz.sty` is re-vendored from Endleaf
+  `prototypes/sysml-layout/sysml-tikz.sty` at
+  `37c4e28fe1150f6963526b3d54bc30ed5af9281e`
+  (sha256 `da80c8d3ba9efcfac0fb4bba9c4e87caf885deb50fc8061842f307943cc337e0`).
+  `\sysmlconnection[from=..., to=...]` is a plain solid line.
+  `\sysmlflow` draws a filled triangle. `\sysmlbinding` draws a solid
+  line with `=` and no arrowhead. `packageSetHash` stays
+  `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`.
+
 * `sysml-tikz.sty` is installed in the image texmf tree. Documents load
   it with `\usepackage{sysml-tikz}`. The file is Endleaf
   `prototypes/sysml-layout/sysml-tikz.sty` at
