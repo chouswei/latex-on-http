@@ -5,10 +5,15 @@
 * `sysml-tikz.sty` is installed in the image texmf tree. Documents load
   it with `\usepackage{sysml-tikz}`. The file is Endleaf
   `prototypes/sysml-layout/sysml-tikz.sty` at
-  `7462a3188850852c47ca2c0cb5c43143ba6a0b27`. It requires only `tikz`.
+  `06149a8dbd99e92a66cc380255717f1b3f2ded5f`
+  (sha256 `a0978d8dd9cb711356c2f9c19992af8a05581722ae179ef5881272fb32f726d9`).
+  It requires only `tikz`. `\sysmlport` records direction by id.
+  `\sysmlconnection[from=..., to=...]` draws an open arrowhead only for
+  out-to-in, on the in-port end. A two-argument call has no arrowhead.
   The shared preamble and the document-shell allowlist include
   `sysml-tikz`. `templateId` `sysml` is the TeX kind. `packageSetHash`
-  is `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`.
+  is `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`
+  (package names only, so this re-vendor does not change it).
 
 ## 2026-09-27-endleaf
 

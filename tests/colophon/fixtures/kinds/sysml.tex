@@ -7,11 +7,16 @@
 \sysmllabel[keyword]{22}{18}{\sysmlguillemets{part}}
 \sysmllabel[name]{22}{23}{葉輪}
 \sysmlport{Pump.impeller.inlet}{4}{27}{WEST}{6}{20}{入口}{in}
+\sysmlport{Pump.impeller.discharge}{40}{27}{EAST}{28}{30}{送出}{out}
+\sysmlport{Pump.impeller.bleed}{22}{38}{SOUTH}{8}{32}{旁通}{inout}
 \sysmlpart{Pump.volute}{56}{16}{36}{22}
 \sysmllabel[keyword]{74}{18}{\sysmlguillemets{part}}
 \sysmllabel[name]{74}{23}{蝸殼}
+\sysmlport{Pump.volute.intake}{56}{27}{WEST}{58}{30}{吸入}{in}
 \sysmlport{Pump.volute.outlet}{92}{27}{EAST}{76}{20}{出口}{out}
 \sysmlport{Pump.volute.return}{74}{38}{SOUTH}{76}{32}{回流}{inout}
-\sysmlconnection{Pump.link}{(41.6,27) -- (54.4,27)}
+\sysmlconnection[from=Pump.impeller.discharge, to=Pump.volute.intake]{Pump.flow}{(41.6,27) -- (54.4,27)}
+\sysmlconnection[from=Pump.impeller.bleed, to=Pump.volute.return]{Pump.bleed}{(22,39.6) -- (74,39.6)}
+\sysmlconnection{Pump.link}{(41.6,18) -- (54.4,18)}
 \end{sysmlcanvas}
 \end{sysmlfigure}
