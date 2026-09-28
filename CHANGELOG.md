@@ -2,6 +2,10 @@
 
 ## 2026-09-28
 
+* Ubuntu 24.04's podman 4.9.3 rejects `--ulimit as=` (`invalid ulimit
+  type: as`). The worker probes the binary with no image and, on that
+  reply, injects `RLIMIT_AS` with the precreate hook. Podman 4.3 keeps
+  the hook path without the probe.
 * `sysml-tikz.sty` is installed in the image texmf tree. Documents load
   it with `\usepackage{sysml-tikz}`. The file is Endleaf
   `prototypes/sysml-layout/sysml-tikz.sty` at

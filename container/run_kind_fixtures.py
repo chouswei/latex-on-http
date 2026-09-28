@@ -67,14 +67,13 @@ def _render(payload, *, image, podman):
         from colophon.podman_args import (
             build_podman_run_args,
             ensure_rlimit_hook_dir,
-            podman_supports_ulimit_as,
+            podman_accepts_ulimit_as,
             probe_podman_version,
         )
 
         version = probe_podman_version(podman)
-        hooks_dir = None
-        if not podman_supports_ulimit_as(version):
-            hooks_dir = ensure_rlimit_hook_dir()
+        use_ulimit = podman_accepts_ulimit_as(podman, version)
+        hooks_dir = None if use_ulimit else ensure_rlimit_hook_dir()
         try:
             args = build_podman_run_args(
                 podman=podman,
@@ -82,6 +81,7 @@ def _render(payload, *, image, podman):
                 name=f"endleaf-kind-{uuid.uuid4().hex[:12]}",
                 podman_version=version,
                 hooks_dir=hooks_dir,
+                use_ulimit=use_ulimit,
             )
         except CpuControllerMissing as exc:
             sys.exit(f"refusing to start: {exc}")

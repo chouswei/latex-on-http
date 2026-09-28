@@ -208,6 +208,47 @@ def test_podman_version_selects_the_rlimit_form():
     assert podman_supports_ulimit_as((5, 0, 0)) is True
 
 
+def test_distro_podman_49_that_rejects_as_uses_the_hook(tmp_path):
+    from colophon.podman_args import podman_accepts_ulimit_as
+
+    binary = tmp_path / "podman"
+    binary.write_text(
+        "#!/bin/sh\n"
+        'echo \'Error: ulimit option "as=1:1" requires name=SOFT:HARD, '
+        "failed to be parsed: invalid ulimit type: as' >&2\n"
+        "exit 125\n",
+        encoding="utf-8",
+    )
+    binary.chmod(0o755)
+    assert podman_accepts_ulimit_as(str(binary), (4, 9, 3)) is False
+    hooks = tmp_path / "hooks"
+    args = _args(podman_version=(4, 9, 3), hooks_dir=hooks, use_ulimit=False)
+    assert args[:4] == ["podman", "--hooks-dir", str(hooks), "run"]
+    assert "--ulimit" not in args
+    assert f"io.endleaf.rlimit.as={DEFAULT_RLIMIT_AS_BYTES}" in args
+
+
+def test_podman_49_that_parses_as_keeps_the_flag(tmp_path):
+    from colophon.podman_args import podman_accepts_ulimit_as
+
+    binary = tmp_path / "podman"
+    binary.write_text(
+        "#!/bin/sh\necho 'Error: an image name must be specified' >&2\nexit 125\n",
+        encoding="utf-8",
+    )
+    binary.chmod(0o755)
+    assert podman_accepts_ulimit_as(str(binary), (4, 9, 3)) is True
+
+
+def test_podman_43_does_not_probe_the_binary(tmp_path):
+    from colophon.podman_args import podman_accepts_ulimit_as
+
+    binary = tmp_path / "podman"
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    binary.chmod(0o755)
+    assert podman_accepts_ulimit_as(str(binary), (4, 3, 1)) is False
+
+
 def test_probe_reads_podman_43(tmp_path):
     from colophon.podman_args import probe_podman_version
 
