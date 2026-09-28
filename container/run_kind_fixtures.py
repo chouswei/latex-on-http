@@ -60,40 +60,65 @@ def _repo_root():
     return Path(__file__).resolve().parents[1]
 
 
-def _render(payload, *, image, podman):
+def _podman_caps(podman, image):
+    from colophon.podman_args import (
+        ensure_rlimit_hook_dir,
+        podman_accepts_ulimit_as,
+        probe_podman_version,
+    )
+
+    version = probe_podman_version(podman)
+    use_ulimit = podman_accepts_ulimit_as(podman, version, image)
+    return {
+        "version": version,
+        "use_ulimit": use_ulimit,
+        "hooks_dir": None if use_ulimit else ensure_rlimit_hook_dir(),
+    }
+
+
+def _render(payload, *, image, podman, caps):
     raw = json.dumps(payload).encode("utf-8")
     if image:
         from colophon.cgroup_caps import CpuControllerMissing
         from colophon.podman_args import (
+            ULIMIT_AS_REJECTED,
             build_podman_run_args,
             ensure_rlimit_hook_dir,
-            podman_supports_ulimit_as,
-            probe_podman_version,
         )
 
-        version = probe_podman_version(podman)
-        hooks_dir = None
-        if not podman_supports_ulimit_as(version):
-            hooks_dir = ensure_rlimit_hook_dir()
-        try:
-            args = build_podman_run_args(
-                podman=podman,
-                image=image,
-                name=f"endleaf-kind-{uuid.uuid4().hex[:12]}",
-                podman_version=version,
-                hooks_dir=hooks_dir,
+        def once():
+            try:
+                args = build_podman_run_args(
+                    podman=podman,
+                    image=image,
+                    name=f"endleaf-kind-{uuid.uuid4().hex[:12]}",
+                    podman_version=caps["version"],
+                    hooks_dir=caps["hooks_dir"],
+                    use_ulimit=caps["use_ulimit"],
+                )
+            except CpuControllerMissing as exc:
+                sys.exit(f"refusing to start: {exc}")
+            return subprocess.run(
+                args,
+                input=raw,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
             )
-        except CpuControllerMissing as exc:
-            sys.exit(f"refusing to start: {exc}")
+
+        completed = once()
+        if caps["use_ulimit"] and ULIMIT_AS_REJECTED.encode() in completed.stderr:
+            caps["use_ulimit"] = False
+            caps["hooks_dir"] = ensure_rlimit_hook_dir()
+            completed = once()
     else:
-        args = [sys.executable, "-m", "colophon.sandbox_render"]
-    completed = subprocess.run(
-        args,
-        input=raw,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
+        completed = subprocess.run(
+            [sys.executable, "-m", "colophon.sandbox_render"],
+            input=raw,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
     return completed.returncode, completed.stdout, completed.stderr
 
 
@@ -134,7 +159,7 @@ def _template_id(path):
     return "gantt"
 
 
-def _compile(path, *, image, podman):
+def _compile(path, *, image, podman, caps):
     code, stdout, stderr = _render(
         {
             "body": path.read_text(encoding="utf-8"),
@@ -144,6 +169,7 @@ def _compile(path, *, image, podman):
         },
         image=image,
         podman=podman,
+        caps=caps,
     )
     err = stderr.decode("utf-8", "replace")
     if code != 0 or not stdout.startswith(b"%PDF") or "ENDLEAF_STATUS ok" not in err:
@@ -175,10 +201,11 @@ def main():
     if tuple(path.name for path in smoke) != SMOKE:
         sys.exit(f"smoke set mismatch: {[path.name for path in smoke]}")
     image = args.image or None
+    caps = _podman_caps(args.podman, image) if image else None
     for path in files:
-        _compile(path, image=image, podman=args.podman)
+        _compile(path, image=image, podman=args.podman, caps=caps)
     for path in smoke:
-        _compile(path, image=image, podman=args.podman)
+        _compile(path, image=image, podman=args.podman, caps=caps)
 
 
 if __name__ == "__main__":

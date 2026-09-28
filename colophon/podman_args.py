@@ -22,10 +22,13 @@ from colophon.limits import (
 logger = logging.getLogger(__name__)
 
 # go-units, which Podman uses to parse ``--ulimit``, leaves ``as`` disabled
-# through 4.3. Podman 4.4 is the first release that accepts it. Older
-# Podman gets an OCI precreate hook that writes ``RLIMIT_AS`` into the spec
-# crun already understands. The hook does not replace ``/usr/bin/podman``.
+# through 4.3. Upstream Podman 4.4 is the first release that accepts it.
+# A distro build can still link a go-units without ``as``: Ubuntu 24.04's
+# podman 4.9.3 rejects the flag. That binary gets the same OCI precreate
+# hook as 4.3. The hook writes ``RLIMIT_AS`` into the spec crun already
+# understands. The hook does not replace ``/usr/bin/podman``.
 ULIMIT_AS_MIN = (4, 4)
+ULIMIT_AS_REJECTED = "invalid ulimit type: as"
 RLIMIT_ANNOTATION = "io.endleaf.rlimit.as"
 _VERSION = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
@@ -59,8 +62,75 @@ def parse_podman_version(text):
 
 
 def podman_supports_ulimit_as(version):
-    """True when this Podman accepts ``--ulimit as=``."""
+    """True when this upstream version line accepts ``--ulimit as=``.
+
+    Distro packages at or above 4.4 can still reject the flag. Call
+    ``podman_accepts_ulimit_as`` before passing it.
+    """
     return (version[0], version[1]) >= ULIMIT_AS_MIN
+
+
+_ULIMIT_PROBE_NAME = "endleaf-ulimit-probe"
+
+
+def probe_ulimit_as(podman, image):
+    """Return whether this binary parses ``--ulimit as=`` for ``image``.
+
+    Podman stores the flag as text and parses it only while creating a
+    container. A command with no image never reaches that check, so the
+    probe is ``podman create`` of the job image. A binary whose go-units
+    leaves ``as`` disabled prints ``invalid ulimit type: as``. The probe
+    container is removed either way and is not started.
+    """
+    if not image:
+        return False
+    name = _ULIMIT_PROBE_NAME
+    try:
+        completed = subprocess.run(
+            [
+                podman,
+                "create",
+                "--name",
+                name,
+                "--ulimit",
+                "as=1:1",
+                "--network=none",
+                image,
+            ],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        completed = None
+    try:
+        subprocess.run(
+            [podman, "rm", "-f", name],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    if completed is None:
+        return False
+    text = completed.stderr.decode("utf-8", "replace") + completed.stdout.decode(
+        "utf-8", "replace"
+    )
+    if ULIMIT_AS_REJECTED in text:
+        return False
+    return completed.returncode == 0
+
+
+def podman_accepts_ulimit_as(podman, version, image):
+    """True when this binary should receive ``--ulimit as=``."""
+    if not podman_supports_ulimit_as(version):
+        return False
+    return probe_ulimit_as(podman, image)
 
 
 def probe_podman_version(podman):
@@ -140,15 +210,17 @@ def build_podman_run_args(
     as_bytes=None,
     podman_version=(4, 4, 0),
     hooks_dir=None,
+    use_ulimit=None,
 ):
     """Return the argv for one sandboxed job.
 
     The container has no network, a read-only root, one 512 MiB tmpfs, a
     non-root user, one CPU, a 256-pid cap, a 60 s wall clock, and an
-    ``RLIMIT_AS`` ceiling (default 2048 MiB). Podman 4.4 and newer take
-    ``--ulimit as=<soft>:<hard>``. Podman 4.3 does not: go-units rejects
-    ``as``. That version gets ``--hooks-dir`` (a global flag, before
-    ``run``) and ``--annotation io.endleaf.rlimit.as=<bytes>``. The
+    ``RLIMIT_AS`` ceiling (default 2048 MiB). ``use_ulimit`` selects
+    ``--ulimit as=<soft>:<hard>``. When it is omitted, the version line
+    decides: 4.4 and newer take the flag. Podman 4.3, and a newer binary
+    whose go-units rejects ``as``, get ``--hooks-dir`` (a global flag,
+    before ``run``) and ``--annotation io.endleaf.rlimit.as=<bytes>``. The
     precreate hook writes the OCI ``RLIMIT_AS`` crun applies. ``--memory``
     and ``--memory-swap`` are passed only when the memory controller is
     available. Without it, Podman would fail the start or ignore the cap, so
@@ -172,7 +244,10 @@ def build_podman_run_args(
             "and applying RLIMIT_AS %s bytes",
             ceiling,
         )
-    use_ulimit = podman_supports_ulimit_as(podman_version)
+    if use_ulimit is None:
+        use_ulimit = podman_supports_ulimit_as(podman_version)
+    else:
+        use_ulimit = bool(use_ulimit)
     if not use_ulimit and hooks_dir is None:
         hooks_dir = ensure_rlimit_hook_dir()
     args = [podman]

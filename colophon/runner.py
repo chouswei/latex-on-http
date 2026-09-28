@@ -26,7 +26,7 @@ from colophon.podman_args import (
     build_podman_rm_args,
     build_podman_run_args,
     ensure_rlimit_hook_dir,
-    podman_supports_ulimit_as,
+    podman_accepts_ulimit_as,
     probe_podman_version,
 )
 
@@ -239,8 +239,9 @@ def _podman_rm(podman, name):
 def make_podman_runner(config, switch):
     """Return a runner bound to this worker's image, token-free sandbox, and switch."""
     podman_version = probe_podman_version(config.podman)
+    use_ulimit = podman_accepts_ulimit_as(config.podman, podman_version, config.image)
     hooks_dir = None
-    if not podman_supports_ulimit_as(podman_version):
+    if not use_ulimit:
         hooks_dir = ensure_rlimit_hook_dir()
         logger.warning(
             "podman %s rejects --ulimit as=; injecting RLIMIT_AS with a precreate hook",
@@ -277,6 +278,7 @@ def make_podman_runner(config, switch):
                 as_bytes=config.rlimit_as_bytes,
                 podman_version=podman_version,
                 hooks_dir=hooks_dir,
+                use_ulimit=use_ulimit,
             )
         except CpuControllerMissing:
             logger.error(
