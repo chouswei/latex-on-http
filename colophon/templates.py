@@ -14,7 +14,7 @@ from pathlib import Path
 
 from colophon.limits import SHARE_ROOT
 
-# Gate playbook order. document-shell is Markdown. The other six are TeX.
+# Gate playbook order. document-shell is Markdown. The other seven are TeX.
 TEMPLATE_IDS = (
     "document-shell",
     "pidcircuit",
@@ -23,6 +23,7 @@ TEMPLATE_IDS = (
     "chemistry",
     "gantt",
     "floorplan",
+    "sysml",
 )
 
 # article, the base fonts, and the names in colophon-v1-preamble.tex.
@@ -52,6 +53,7 @@ ALLOWED_PACKAGES = frozenset(
         "tikz-dimline",
         "tikzscale",
         "endleaf-floorplan",
+        "sysml-tikz",
     }
 )
 ALLOWED_LIBRARIES = frozenset(
@@ -83,6 +85,7 @@ TEMPLATES = {
     "chemistry": TemplateAsset("chemistry", "tex", "example.tex"),
     "gantt": TemplateAsset("gantt", "tex", "example.tex"),
     "floorplan": TemplateAsset("floorplan", "tex", "example.tex"),
+    "sysml": TemplateAsset("sysml", "tex", "example.tex"),
 }
 
 

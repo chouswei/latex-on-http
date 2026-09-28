@@ -35,6 +35,9 @@ _TEXINPUTS = os.pathsep.join(
             Path(__file__).resolve().parents[2]
             / "colophon/share/tex/latex/endleaf-floorplan"
         ),
+        str(
+            Path(__file__).resolve().parents[2] / "colophon/share/tex/latex/sysml-tikz"
+        ),
         str(Path(__file__).resolve().parents[2] / "vendor/pidcircuittikz"),
         "",
     )

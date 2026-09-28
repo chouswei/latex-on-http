@@ -15,8 +15,8 @@ PACKAGE_SET_SOURCE = (
 )
 
 # Widened set from commits 19de0c2 and 5e07aef: circuitikz through pgfgantt,
-# plus endleaf-floorplan. The digest is sha256 of these names joined by
-# newlines, with no trailing newline.
+# plus endleaf-floorplan and sysml-tikz. The digest is sha256 of these
+# names joined by newlines, with no trailing newline.
 WIDENED_PACKAGE_SET = [
     "bytefield",
     "chemfig",
@@ -28,6 +28,7 @@ WIDENED_PACKAGE_SET = [
     "pgfgantt",
     "pgfplots",
     "siunitx",
+    "sysml-tikz",
     "tikz-3dplot",
     "tikz-cd",
     "tikz-dimline",
@@ -36,7 +37,7 @@ WIDENED_PACKAGE_SET = [
     "tikzscale",
 ]
 WIDENED_PACKAGE_SET_HASH = (
-    "f2946ed8f9682cc0e0dffa468d29fdc25ae2feb85e7d9d1291414dc1cf2a310d"
+    "73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98"
 )
 
 
@@ -93,6 +94,7 @@ def test_version_package_set_is_sorted_and_hashed(client, auth, monkeypatch):
     body = response.get_json()
     names = package_set()
     assert "endleaf-floorplan" in names
+    assert "sysml-tikz" in names
     assert names == sorted(names)
     assert body["packageSet"] == names
     digest = hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()

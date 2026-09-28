@@ -31,7 +31,8 @@ TeX Live, Pandoc 3.6.4, and pandoc-ext/diagram with the TikZ engine only.
 Chromium, Node, mermaid-cli, and d2 are not installed. Package managers are
 not used at runtime. PIDcircuitTikZ is vendored because it is not a CTAN
 package; CircuiTikZ is the CTAN package `circuitikz`.
-`endleaf-floorplan.sty` adds the floor-plan TikZ styles. See [NOTICE](NOTICE).
+`endleaf-floorplan.sty` adds the floor-plan TikZ styles. `sysml-tikz.sty`
+adds the SysML interconnection styles. See [NOTICE](NOTICE).
 
 GitHub Actions workflow `arm64 CI, not Pi proof` builds the arm64 image on
 `ubuntu-24.04-arm` and runs the LaTeX fixture suite under the same caps.
@@ -43,7 +44,7 @@ option cannot replace that list. `packages-once.tex` only checks that the
 packages are installed.
 
 The required fixture set is the document shell plus P&ID, circuits, plots
-(a small 3D sample), chemistry, Gantt, and floor plans. Mermaid and D2
+(a small 3D sample), chemistry, Gantt, floor plans, and SysML. Mermaid and D2
 have no fixtures and do not report job meters.
 `tikz-cd`, `forest`, `automata`, `mindmap`, `tikz-3dplot`, `tikz-feynman`,
 `tikz-timing`, and `bytefield` stay installed and have a smoke compile.
@@ -257,7 +258,7 @@ the bearer token is missing or wrong. `Cache-Control` is `no-store`.
 | `POST /v1/jobs/abort` | Kills the running container only. `200` `{"aborted":true}`. Idle is `404` `{"aborted":false,"error":"idle"}`. |
 | `POST /v1/switch` | `{"engaged": true}` or `false`. A failed write fails closed. Success JSON is `readable` and `engaged`. |
 | `POST /builds/sync` | Upstream-shaped body with one inline resource. `compiler` must be `xelatex`. URL fetches are rejected. `lane` is required. Success and error bodies match `POST /v1/jobs`. |
-| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `endleaf-floorplan`), `packageSetHash` (sha256 of those names joined by newlines, no trailing newline), and `limits`. The package list is written at image build. The request does not run a shell. |
+| `GET /version` | `version`, `commit`, `source`, `packageSet` (sorted TeX package names, including `endleaf-floorplan` and `sysml-tikz`), `packageSetHash` (sha256 of those names joined by newlines, no trailing newline), and `limits`. The package list is written at image build. The request does not run a shell. |
 
 `GET /v1/host-load` JSON keys:
 
@@ -340,7 +341,7 @@ ENDLEAF-R27. `POST /v1/jobs` accepts a JSON object with these fields:
 | --- | --- | --- |
 | `lane` | yes | `InstruMeasure`, `Weft`, or `Investor` |
 | `outputFormat` | yes | `pdf`, `html`, or `docx` |
-| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, or `floorplan` |
+| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, `floorplan`, or `sysml` |
 | `body` | yes | A non-empty string. The document body only. |
 | `compiler` | no | Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
 

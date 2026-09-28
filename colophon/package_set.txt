@@ -8,6 +8,7 @@ pgf
 pgfgantt
 pgfplots
 siunitx
+sysml-tikz
 tikz-3dplot
 tikz-cd
 tikz-dimline

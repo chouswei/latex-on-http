@@ -1,0 +1,292 @@
+% Vendored from Endleaf prototypes/sysml-layout/sysml-tikz.sty
+% at commit 7462a3188850852c47ca2c0cb5c43143ba6a0b27.
+%%
+%% This is file `sysml-tikz.sty',
+%% prototype drawing styles for a SysML v2 interconnection view.
+%%
+%% Copyright (C) 2026 Colophon
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3c
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%    https://www.latex-project.org/lppl.txt
+%% and version 1.3c or later is part of all distributions of LaTeX
+%% version 2008 or later.
+%%
+%% This work has the LPPL maintenance status `author-maintained'.
+%%
+%% This file draws at coordinates it is given. It does not place
+%% parts, route connections, or scale type below 7 pt.
+%%
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{sysml-tikz}[2026/09/27 v0.1 SysML interconnection drawing]
+
+\RequirePackage{tikz}
+\usetikzlibrary{positioning,calc,fit,backgrounds,arrows.meta,decorations.markings,shapes.geometric,shapes.multipart}
+
+%% /sysml/padding is the single containment-padding key.
+%% 6 mm is the prototype value shared with the ELK generator.
+%% SYSMLTIKZ-R12-FIT does not decide the amount.
+\newif\ifsysmlnamesonedges
+\sysmlnamesonedgesfalse
+\newif\ifsysmlconnectionslist
+\sysmlconnectionslistfalse
+\newif\ifsysmlfitwarn
+\sysmlfitwarnfalse
+\newif\ifsysmlcollapsenote
+\sysmlcollapsenotefalse
+\newcommand{\sysml@body}{7}
+\newcommand{\sysml@name}{9}
+
+\pgfkeys{
+  /sysml/.is family,
+  /sysml,
+  padding/.initial=6mm,
+  text minimum/.initial=7pt,
+  names on edges/.is if=sysmlnamesonedges,
+  connections/.is choice,
+  connections/list/.code={\sysmlconnectionslisttrue},
+  connections/omit/.code={\sysmlconnectionslistfalse},
+  fit warning/.is if=sysmlfitwarn,
+  collapse note/.is if=sysmlcollapsenote,
+  body size/.code={%
+    \renewcommand{\sysml@body}{#1}%
+    \pgfmathtruncatemacro{\sysml@name}{min(10,\sysml@body+2)}%
+  },
+  body size/.initial=7,
+  depth cut/.initial={},
+  view/.initial={},
+  revision/.initial={},
+  overrides/.initial={},
+  depth/.initial={},
+  legend/.initial={},
+}
+
+\newcommand{\sysmlset}[1]{\pgfkeys{/sysml,#1}}
+
+%% Guillemets stay in the default class so xeCJK does not treat them
+%% as CJK punctuation. The document must load xeCJK before
+%% \begin{document} when labels need it.
+\AtBeginDocument{%
+  \@ifpackageloaded{xeCJK}{%
+    \xeCJKDeclareCharClass{Default}{"00AB,"00BB}%
+  }{}%
+}
+\newcommand{\sysmlguillemets}[1]{«#1»}
+
+%% Never select a size below /sysml/text minimum.
+\newcommand{\sysml@font}[1]{%
+  \pgfmathsetlength{\@tempdima}{#1pt}%
+  \pgfkeysgetvalue{/sysml/text minimum}{\sysml@min}%
+  \pgfmathsetlength{\@tempdimb}{\sysml@min}%
+  \ifdim\@tempdima<\@tempdimb
+    \fontsize{\sysml@min}{\sysml@min}\selectfont
+  \else
+    \fontsize{#1pt}{#1pt}\selectfont
+  \fi
+}
+
+\tikzset{
+  sysml usage/.style={draw, rounded corners=1.4mm, line width=0.4pt},
+  sysml frame/.style={draw, rounded corners=0.4mm, line width=0.5pt},
+  sysml def/.style={draw, line width=0.4pt},
+  sysml ref/.style={draw, rounded corners=1.4mm, dashed, line width=0.4pt},
+  sysml port/.style={draw, rounded corners=0.3mm, fill=white, line width=0.35pt},
+  sysml connection/.style={draw, line width=0.45pt, -{Triangle[open,length=3.2mm,width=2.6mm]}},
+  sysml connection undirected/.style={draw, line width=0.35pt},
+  sysml keyword/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north},
+  sysml name/.style={font=\sysml@font{\sysml@name}, inner sep=0pt, anchor=north},
+  sysml note/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north},
+  sysml type/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north},
+  sysml badge/.style={draw, rounded corners=0.4mm, line width=0.3pt, font=\sysml@font{\sysml@body}, inner sep=0.45mm, anchor=south east},
+  sysml port label/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north west},
+  sysml edge/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north west},
+  sysml legend/.style={font=\sysml@font{\sysml@body}},
+}
+
+\newcommand{\sysmlpart}[5]{%
+  \draw[sysml usage] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+}
+\newcommand{\sysmlframe}[5]{%
+  \draw[sysml frame] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+}
+\newcommand{\sysmldef}[5]{%
+  \draw[sysml def] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+}
+\newcommand{\sysmlref}[5]{%
+  \draw[sysml ref] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+}
+
+\newcommand{\sysmllabel}[4][]{%
+  \node[sysml #1] at (#2,#3) {#4};%
+}
+
+%% Direction glyph inside the square. Tips sit 1.15 mm from the centre.
+%% The square extends 1.6 mm, so the margin to each face is 0.45 mm.
+%% A connection stops on that face; its arrowhead stays outside the square.
+%% #1 side, #2 direction (in|out|inout|empty), #3 cx, #4 cy.
+%% y grows downward. `in` points into the part, `out` points out of it.
+%% Empty direction draws nothing.
+\newcommand{\sysml@portdir}[4]{%
+  \def\sysml@side{#1}%
+  \def\sysml@dir{#2}%
+  \def\sysml@in{in}%
+  \def\sysml@out{out}%
+  \def\sysml@inout{inout}%
+  \def\sysml@east{EAST}\def\sysml@west{WEST}%
+  \def\sysml@north{NORTH}\def\sysml@south{SOUTH}%
+  \ifx\sysml@side\sysml@north
+    \ifx\sysml@dir\sysml@in
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(0,-1.15)$) -- ($(#3,#4)+(0,1.15)$);%
+    \else\ifx\sysml@dir\sysml@out
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(0,1.15)$) -- ($(#3,#4)+(0,-1.15)$);%
+    \else\ifx\sysml@dir\sysml@inout
+      \draw[line width=0.2pt,{Triangle[length=0.7mm,width=0.5mm]}-{Triangle[length=0.7mm,width=0.5mm]}] ($(#3,#4)+(0,-1.15)$) -- ($(#3,#4)+(0,1.15)$);%
+    \fi\fi\fi
+  \else\ifx\sysml@side\sysml@south
+    \ifx\sysml@dir\sysml@in
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(0,1.15)$) -- ($(#3,#4)+(0,-1.15)$);%
+    \else\ifx\sysml@dir\sysml@out
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(0,-1.15)$) -- ($(#3,#4)+(0,1.15)$);%
+    \else\ifx\sysml@dir\sysml@inout
+      \draw[line width=0.2pt,{Triangle[length=0.7mm,width=0.5mm]}-{Triangle[length=0.7mm,width=0.5mm]}] ($(#3,#4)+(0,-1.15)$) -- ($(#3,#4)+(0,1.15)$);%
+    \fi\fi\fi
+  \else\ifx\sysml@side\sysml@west
+    \ifx\sysml@dir\sysml@in
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(-1.15,0)$) -- ($(#3,#4)+(1.15,0)$);%
+    \else\ifx\sysml@dir\sysml@out
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(1.15,0)$) -- ($(#3,#4)+(-1.15,0)$);%
+    \else\ifx\sysml@dir\sysml@inout
+      \draw[line width=0.2pt,{Triangle[length=0.7mm,width=0.5mm]}-{Triangle[length=0.7mm,width=0.5mm]}] ($(#3,#4)+(-1.15,0)$) -- ($(#3,#4)+(1.15,0)$);%
+    \fi\fi\fi
+  \else\ifx\sysml@side\sysml@east
+    \ifx\sysml@dir\sysml@in
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(1.15,0)$) -- ($(#3,#4)+(-1.15,0)$);%
+    \else\ifx\sysml@dir\sysml@out
+      \draw[line width=0.2pt,-{Triangle[length=0.8mm,width=0.55mm]}] ($(#3,#4)+(-1.15,0)$) -- ($(#3,#4)+(1.15,0)$);%
+    \else\ifx\sysml@dir\sysml@inout
+      \draw[line width=0.2pt,{Triangle[length=0.7mm,width=0.5mm]}-{Triangle[length=0.7mm,width=0.5mm]}] ($(#3,#4)+(-1.15,0)$) -- ($(#3,#4)+(1.15,0)$);%
+    \fi\fi\fi
+  \fi\fi\fi\fi
+}
+
+%% #1 dotted name, #2 cx, #3 cy, #4 side, #5 lx, #6 ly, #7 label, #8 in|out|inout
+\newcommand{\sysmlport}[8]{%
+  \draw[sysml port] ($(#2,#3)+(-1.6,-1.6)$) rectangle ($(#2,#3)+(1.6,1.6)$);%
+  \sysml@portdir{#4}{#8}{#2}{#3}%
+  \node[sysml port label] at (#5,#6) {#7};%
+}
+
+\newcommand{\sysmlconnection}[2]{%
+  \draw[sysml connection] #2;%
+}
+
+%% Collapse count, bottom-right inside the owner. Not a header line.
+\newcommand{\sysmlbadge}[3]{%
+  \node[sysml badge] at (#1,#2) {#3};%
+}
+
+\newcommand{\sysmlconnectionlegend}[1]{%
+  \par\noindent{\fontsize{7}{9}\selectfont Connections: #1\par}%
+}
+
+\newcommand{\sysmlnotation}{%
+  \par\noindent{\fontsize{7}{9}\selectfont n hidden = collapsed parts (not SysML notation)\par}%
+}
+
+\newcommand{\sysmlstamp}{%
+  \par\noindent{\fontsize{7}{9}\selectfont
+    View \texttt{\pgfkeysvalueof{/sysml/view}}\quad
+    rev \texttt{\pgfkeysvalueof{/sysml/revision}}\quad
+    overrides \texttt{\pgfkeysvalueof{/sysml/overrides}}\quad
+    depth \texttt{\pgfkeysvalueof{/sysml/depth}}\par}%
+}
+
+\newcommand{\sysml@depthcutmessage}{%
+  \begingroup
+  \pgfkeysgetvalue{/sysml/depth cut}{\sysml@cut}%
+  \ifx\sysml@cut\@empty
+    Suggested depth cut: lower the document depth.%
+  \else
+    Suggested depth cut: \sysml@cut.%
+  \fi
+  \endgroup
+}
+
+\newsavebox{\sysmlpicbox}
+\newsavebox{\sysmlcapbox}
+
+\newcommand{\sysml@caption}{%
+  \ifsysmlconnectionslist
+    \pgfkeysgetvalue{/sysml/legend}{\sysml@leg}%
+    \ifx\sysml@leg\@empty\else
+      {\fontsize{7}{9}\selectfont Connections: \sysml@leg\par}%
+    \fi
+  \fi
+  {\fontsize{7}{9}\selectfont
+    View \texttt{\pgfkeysvalueof{/sysml/view}}\quad
+    rev \texttt{\pgfkeysvalueof{/sysml/revision}}\quad
+    overrides \texttt{\pgfkeysvalueof{/sysml/overrides}}\quad
+    depth \texttt{\pgfkeysvalueof{/sysml/depth}}\quad
+    type \texttt{\sysml@body}\,pt\par}%
+}
+
+\newcommand{\sysml@warntext}{%
+  \par\noindent{\fontsize{7}{9}\selectfont
+    Warning: this view does not fit the page at \sysml@body\,pt.
+    The drawing was not scaled down.
+    \sysml@depthcutmessage
+    Each expanded part continues on its own page.\par}%
+}
+
+\newcommand{\sysml@footnote}{%
+  \ifsysmlcollapsenote
+    \par\vspace{2mm}%
+    {\fontsize{7}{9}\selectfont n hidden = collapsed parts (not SysML notation)\par}%
+  \fi
+}
+
+%% Caption is a wrapped paragraph inside the text block, then a 3 mm
+%% gap, then the drawing. A picture with y down has a large TeX depth;
+%% raising it by that depth keeps the following footnote below the frame.
+%% Nothing is clipped. A fit warning is printed only when the generator
+%% asks for one, which is the drill-down overview.
+\newcommand{\sysml@typeset}{%
+  \ifsysmlfitwarn
+    \pgfkeysgetvalue{/sysml/depth cut}{\sysml@cut}%
+    \ifx\sysml@cut\@empty
+      \typeout{SYSMLDEPTHCUT lower the document depth}%
+    \else
+      \typeout{SYSMLDEPTHCUT \sysml@cut}%
+    \fi
+    \PackageWarning{sysml-tikz}{View does not fit the page at \sysml@body pt. Text was not shrunk. \sysml@depthcutmessage}%
+  \fi
+  \setbox\sysmlcapbox=\vbox{%
+    \hsize=\textwidth
+    \raggedright
+    \noindent\sysml@caption
+    \ifsysmlfitwarn\sysml@warntext\fi
+  }%
+  \noindent\usebox{\sysmlcapbox}\par
+  \vspace{3mm}%
+  \noindent\makebox[\textwidth][c]{\raisebox{\dp\sysmlpicbox}{\usebox{\sysmlpicbox}}}\par
+  \sysml@footnote
+}
+
+%% Body is a sysmlcanvas (or other horizontal material) plus nothing else.
+%% lrbox is begun with \begin so it restores \@currenvir before the body.
+\newenvironment{sysmlfigure}[1][]{%
+  \sysmlset{#1}%
+  \begin{lrbox}{\sysmlpicbox}%
+}{%
+  \end{lrbox}%
+  \sysml@typeset
+}
+
+%% ELK y-down millimetre coordinates. No placement.
+\newenvironment{sysmlcanvas}{%
+  \tikzpicture[x=1mm,y=-1mm]%
+}{%
+  \endtikzpicture
+}
