@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """sysml-tikz is on the document-shell allowlist and the kind fixture compiles."""
 
+import hashlib
 import os
 import re
 import shutil
@@ -46,11 +47,21 @@ def test_allowlist_accepts_sysml_tikz():
     assert "\\input{colophon-v1-preamble.tex}" in shell
 
 
-def test_vendored_style_records_source_and_requires_only_tikz():
-    text = _STY.read_text(encoding="utf-8")
-    assert "prototypes/sysml-layout/sysml-tikz.sty" in text
-    assert "7462a3188850852c47ca2c0cb5c43143ba6a0b27" in text
+# Byte-identical to Endleaf prototypes/sysml-layout/sysml-tikz.sty
+# at 06149a8dbd99e92a66cc380255717f1b3f2ded5f.
+_ENDLEAF_STY_SHA256 = (
+    "a0978d8dd9cb711356c2f9c19992af8a05581722ae179ef5881272fb32f726d9"
+)
+
+
+def test_vendored_style_matches_endleaf_and_requires_only_tikz():
+    data = _STY.read_bytes()
+    assert hashlib.sha256(data).hexdigest() == _ENDLEAF_STY_SHA256
+    text = data.decode("utf-8")
     assert "\\ProvidesPackage{sysml-tikz}" in text
+    assert "\\newcommand{\\sysmlconnection}[3][]" in text
+    assert "sysml connection head end" in text
+    assert "sysml connection/.style={draw, line width=0.45pt}" in text
     requires = re.findall(r"\\RequirePackage(?:\[[^\]]*\])?\{([^}]+)\}", text)
     assert requires == ["tikz"]
     for name in _COMMANDS:
@@ -70,7 +81,9 @@ def test_sysml_kind_fixture_uses_sty_macros():
         assert "\\begin{" + name + "}" in text
     assert text.count("\\sysmlpart") == 2
     assert "\\sysmldef" in text
-    assert "\\sysmlconnection" in text
+    assert "\\sysmlconnection[from=Pump.impeller.discharge, to=Pump.volute.intake]" in text
+    assert "\\sysmlconnection[from=Pump.impeller.bleed, to=Pump.volute.return]" in text
+    assert "\\sysmlconnection{Pump.link}" in text
     assert "{in}" in text
     assert "{out}" in text
     assert "{inout}" in text

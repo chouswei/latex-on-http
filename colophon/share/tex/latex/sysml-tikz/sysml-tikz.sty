@@ -1,5 +1,3 @@
-% Vendored from Endleaf prototypes/sysml-layout/sysml-tikz.sty
-% at commit 7462a3188850852c47ca2c0cb5c43143ba6a0b27.
 %%
 %% This is file `sysml-tikz.sty',
 %% prototype drawing styles for a SysML v2 interconnection view.
@@ -62,6 +60,13 @@
   depth/.initial={},
   legend/.initial={},
 }
+\pgfkeys{
+  /sysml/connection/.is family,
+  /sysml/connection,
+  from/.initial={},
+  to/.initial={},
+}
+\newif\ifsysml@gotend
 
 \newcommand{\sysmlset}[1]{\pgfkeys{/sysml,#1}}
 
@@ -93,7 +98,9 @@
   sysml def/.style={draw, line width=0.4pt},
   sysml ref/.style={draw, rounded corners=1.4mm, dashed, line width=0.4pt},
   sysml port/.style={draw, rounded corners=0.3mm, fill=white, line width=0.35pt},
-  sysml connection/.style={draw, line width=0.45pt, -{Triangle[open,length=3.2mm,width=2.6mm]}},
+  sysml connection/.style={draw, line width=0.45pt},
+  sysml connection head end/.style={draw, line width=0.45pt, -{Triangle[open,length=3.2mm,width=2.6mm]}},
+  sysml connection head start/.style={draw, line width=0.45pt, {Triangle[open,length=3.2mm,width=2.6mm]}-},
   sysml connection undirected/.style={draw, line width=0.35pt},
   sysml keyword/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north},
   sysml name/.style={font=\sysml@font{\sysml@name}, inner sep=0pt, anchor=north},
@@ -172,14 +179,133 @@
 }
 
 %% #1 dotted name, #2 cx, #3 cy, #4 side, #5 lx, #6 ly, #7 label, #8 in|out|inout
+%% The id records the direction and the outer-edge point. A later
+%% \sysmlconnection looks those up. This does not place the port.
 \newcommand{\sysmlport}[8]{%
+  \sysml@rememberport{#1}{#2}{#3}{#4}{#8}%
   \draw[sysml port] ($(#2,#3)+(-1.6,-1.6)$) rectangle ($(#2,#3)+(1.6,1.6)$);%
   \sysml@portdir{#4}{#8}{#2}{#3}%
   \node[sysml port label] at (#5,#6) {#7};%
 }
 
-\newcommand{\sysmlconnection}[2]{%
-  \draw[sysml connection] #2;%
+%% Outer edge is 1.6 mm out from the centre, on the named side.
+%% y grows downward, so NORTH is the smaller y.
+\newcommand{\sysml@rememberport}[5]{%
+  \def\sysml@id{#1}%
+  \def\sysml@side{#4}%
+  \def\sysml@dx{0}\def\sysml@dy{0}%
+  \def\sysml@east{EAST}\def\sysml@west{WEST}%
+  \def\sysml@north{NORTH}\def\sysml@south{SOUTH}%
+  \ifx\sysml@side\sysml@east\def\sysml@dx{1.6}\fi
+  \ifx\sysml@side\sysml@west\def\sysml@dx{-1.6}\fi
+  \ifx\sysml@side\sysml@north\def\sysml@dy{-1.6}\fi
+  \ifx\sysml@side\sysml@south\def\sysml@dy{1.6}\fi
+  \pgfpointadd{\pgfpointxy{#2}{#3}}{\pgfpointxy{\sysml@dx}{\sysml@dy}}%
+  \expandafter\xdef\csname sysml@pex@\sysml@id\endcsname{\the\pgf@x}%
+  \expandafter\xdef\csname sysml@pey@\sysml@id\endcsname{\the\pgf@y}%
+  \expandafter\gdef\csname sysml@pdir@\sysml@id\endcsname{#5}%
+}
+
+\newcommand{\sysml@lookupdir}[2]{%
+  \edef\sysml@dirkey{sysml@pdir@#1}%
+  \ifcsname\sysml@dirkey\endcsname
+    \expandafter\let\expandafter#2\csname\sysml@dirkey\endcsname
+  \else
+    \let#2\@empty
+  \fi
+}
+
+%% Canvas millimetres, same \pgfpointxy the port edge uses.
+\newcommand{\sysml@setpt}[4]{%
+  \pgfpointxy{#1}{#2}%
+  \edef#3{\the\pgf@x}%
+  \edef#4{\the\pgf@y}%
+}
+\newdimen\sysml@da
+\newdimen\sysml@db
+\newcommand{\sysml@absdiff}[3]{%
+  \sysml@da=#1\relax
+  \sysml@db=#2\relax
+  \advance\sysml@da by -\sysml@db
+  \ifdim\sysml@da<0pt
+    \sysml@da=-\sysml@da
+  \fi
+  \edef#3{\the\sysml@da}%
+}
+\newcommand{\sysml@mandist}[5]{%
+  \sysml@absdiff{#1}{#3}\sysml@adx
+  \sysml@absdiff{#2}{#4}\sysml@ady
+  \sysml@da=\sysml@adx\relax
+  \advance\sysml@da by \sysml@ady\relax
+  \edef#5{\the\sysml@da}%
+}
+\def\sysml@findparen#1(#2\sysml@endscan{%
+  \sysml@scanone(#2\sysml@endscan
+}
+\def\sysml@stopmark{\sysml@stopmark}
+\def\sysml@scanone(#1,#2)#3\sysml@endscan{%
+  \def\sysml@nx{#1}%
+  \ifx\sysml@nx\sysml@stopmark
+  \else
+    \sysml@setpt{#1}{#2}\sysml@xhere\sysml@yhere
+    \ifsysml@gotend
+    \else
+      \let\sysml@xstart\sysml@xhere
+      \let\sysml@ystart\sysml@yhere
+      \sysml@gotendtrue
+    \fi
+    \let\sysml@xend\sysml@xhere
+    \let\sysml@yend\sysml@yhere
+    \sysml@findparen#3\sysml@endscan
+  \fi
+}
+\newcommand{\sysml@capturepath}[1]{%
+  \gdef\sysml@xstart{0pt}%
+  \gdef\sysml@ystart{0pt}%
+  \gdef\sysml@xend{0pt}%
+  \gdef\sysml@yend{0pt}%
+  \global\sysml@gotendfalse
+  \sysml@findparen#1(\sysml@stopmark,\sysml@stopmark)\sysml@endscan
+}
+
+%% Open head only for out then in. The tip sits on the in-port end
+%% of the path, including when that end is the first coordinate.
+\newcommand{\sysml@headforin}[1]{%
+  \sysml@capturepath{#1}%
+  \ifsysml@gotend
+    \edef\sysml@xkey{sysml@pex@\sysml@toid}%
+    \edef\sysml@ykey{sysml@pey@\sysml@toid}%
+    \ifcsname\sysml@xkey\endcsname
+      \expandafter\let\expandafter\sysml@inex\csname\sysml@xkey\endcsname
+      \expandafter\let\expandafter\sysml@iney\csname\sysml@ykey\endcsname
+      \sysml@mandist\sysml@xstart\sysml@ystart\sysml@inex\sysml@iney\sysml@dstart
+      \sysml@mandist\sysml@xend\sysml@yend\sysml@inex\sysml@iney\sysml@dend
+      \ifdim\sysml@dstart<\sysml@dend
+        \def\sysml@drawstyle{sysml connection head start}%
+      \else
+        \def\sysml@drawstyle{sysml connection head end}%
+      \fi
+    \fi
+  \fi
+}
+
+%% #1 optional from= and to= port ids. #2 name. #3 path.
+%% Two arguments, with no from or to, stay a plain connection.
+\newcommand{\sysmlconnection}[3][]{%
+  \pgfkeys{/sysml/connection, from={}, to={}, #1}%
+  \def\sysml@drawstyle{sysml connection}%
+  \pgfkeysgetvalue{/sysml/connection/from}{\sysml@fromid}%
+  \pgfkeysgetvalue{/sysml/connection/to}{\sysml@toid}%
+  \sysml@lookupdir{\sysml@fromid}{\sysml@fromdir}%
+  \sysml@lookupdir{\sysml@toid}{\sysml@todir}%
+  \def\sysml@outword{out}%
+  \def\sysml@inword{in}%
+  \ifx\sysml@fromdir\sysml@outword
+    \ifx\sysml@todir\sysml@inword
+      \sysml@headforin{#3}%
+    \fi
+  \fi
+  \expandafter\draw\expandafter[\sysml@drawstyle] #3;%
 }
 
 %% Collapse count, bottom-right inside the owner. Not a header line.
