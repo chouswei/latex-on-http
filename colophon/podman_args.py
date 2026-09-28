@@ -70,36 +70,67 @@ def podman_supports_ulimit_as(version):
     return (version[0], version[1]) >= ULIMIT_AS_MIN
 
 
-def probe_ulimit_as(podman):
-    """Return whether this binary parses ``--ulimit as=``.
+_ULIMIT_PROBE_NAME = "endleaf-ulimit-probe"
 
-    The command names no image, so flag parsing is the only step. A binary
-    that accepts ``as`` stops because the image name is missing. A binary
-    whose go-units leaves ``as`` disabled prints ``invalid ulimit type: as``
-    and must use the precreate hook.
+
+def probe_ulimit_as(podman, image):
+    """Return whether this binary parses ``--ulimit as=`` for ``image``.
+
+    Podman stores the flag as text and parses it only while creating a
+    container. A command with no image never reaches that check, so the
+    probe is ``podman create`` of the job image. A binary whose go-units
+    leaves ``as`` disabled prints ``invalid ulimit type: as``. The probe
+    container is removed either way and is not started.
     """
+    if not image:
+        return False
+    name = _ULIMIT_PROBE_NAME
     try:
         completed = subprocess.run(
-            [podman, "run", "--ulimit", "as=1:1"],
+            [
+                podman,
+                "create",
+                "--name",
+                name,
+                "--ulimit",
+                "as=1:1",
+                "--network=none",
+                image,
+            ],
             check=False,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=5,
+            timeout=30,
         )
     except (OSError, subprocess.TimeoutExpired):
+        completed = None
+    try:
+        subprocess.run(
+            [podman, "rm", "-f", name],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    if completed is None:
         return False
     text = completed.stderr.decode("utf-8", "replace") + completed.stdout.decode(
         "utf-8", "replace"
     )
-    return ULIMIT_AS_REJECTED not in text
+    if ULIMIT_AS_REJECTED in text:
+        return False
+    return completed.returncode == 0
 
 
-def podman_accepts_ulimit_as(podman, version):
+def podman_accepts_ulimit_as(podman, version, image):
     """True when this binary should receive ``--ulimit as=``."""
     if not podman_supports_ulimit_as(version):
         return False
-    return probe_ulimit_as(podman)
+    return probe_ulimit_as(podman, image)
 
 
 def probe_podman_version(podman):

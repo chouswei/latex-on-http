@@ -174,9 +174,10 @@ Upstream Podman 4.4 and newer receive `--ulimit as=<soft>:<hard>` when
 that binary's go-units accepts `as`. Podman 4.3 (the Pi's rootless 4.3.1)
 rejects the flag, and so does Ubuntu 24.04's podman 4.9.3: its packaged
 go-units still leaves `as` disabled (`invalid ulimit type: as`). The
-worker reads `podman version` and, at 4.4 or newer, runs `podman run
---ulimit as=1:1` with no image. Below 4.4, or when that probe rejects
-`as`, the worker does not pass `--ulimit as=` and does not replace
+worker reads `podman version` and, at 4.4 or newer, runs `podman create`
+of the job image with `--ulimit as=1:1`, then removes that container.
+Podman parses the flag only while creating a container. Below 4.4, or when
+that probe rejects `as`, the worker does not pass `--ulimit as=` and does not replace
 `/usr/bin/podman`. It passes the global flag `--hooks-dir` and
 `--annotation io.endleaf.rlimit.as=<bytes>`.
 An Endleaf precreate hook reads that annotation and writes

@@ -220,7 +220,9 @@ def test_distro_podman_49_that_rejects_as_uses_the_hook(tmp_path):
         encoding="utf-8",
     )
     binary.chmod(0o755)
-    assert podman_accepts_ulimit_as(str(binary), (4, 9, 3)) is False
+    assert (
+        podman_accepts_ulimit_as(str(binary), (4, 9, 3), "endleaf-render:ci") is False
+    )
     hooks = tmp_path / "hooks"
     args = _args(podman_version=(4, 9, 3), hooks_dir=hooks, use_ulimit=False)
     assert args[:4] == ["podman", "--hooks-dir", str(hooks), "run"]
@@ -232,12 +234,9 @@ def test_podman_49_that_parses_as_keeps_the_flag(tmp_path):
     from colophon.podman_args import podman_accepts_ulimit_as
 
     binary = tmp_path / "podman"
-    binary.write_text(
-        "#!/bin/sh\necho 'Error: an image name must be specified' >&2\nexit 125\n",
-        encoding="utf-8",
-    )
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     binary.chmod(0o755)
-    assert podman_accepts_ulimit_as(str(binary), (4, 9, 3)) is True
+    assert podman_accepts_ulimit_as(str(binary), (4, 9, 3), "endleaf-render:ci") is True
 
 
 def test_podman_43_does_not_probe_the_binary(tmp_path):
@@ -246,7 +245,9 @@ def test_podman_43_does_not_probe_the_binary(tmp_path):
     binary = tmp_path / "podman"
     binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     binary.chmod(0o755)
-    assert podman_accepts_ulimit_as(str(binary), (4, 3, 1)) is False
+    assert (
+        podman_accepts_ulimit_as(str(binary), (4, 3, 1), "endleaf-render:ci") is False
+    )
 
 
 def test_probe_reads_podman_43(tmp_path):

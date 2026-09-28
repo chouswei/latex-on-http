@@ -239,7 +239,7 @@ def _podman_rm(podman, name):
 def make_podman_runner(config, switch):
     """Return a runner bound to this worker's image, token-free sandbox, and switch."""
     podman_version = probe_podman_version(config.podman)
-    use_ulimit = podman_accepts_ulimit_as(config.podman, podman_version)
+    use_ulimit = podman_accepts_ulimit_as(config.podman, podman_version, config.image)
     hooks_dir = None
     if not use_ulimit:
         hooks_dir = ensure_rlimit_hook_dir()
