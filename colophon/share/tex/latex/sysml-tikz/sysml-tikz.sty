@@ -18,7 +18,7 @@
 %% parts, route connections, or scale type below 7 pt.
 %%
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{sysml-tikz}[2026/09/27 v0.1 SysML interconnection drawing]
+\ProvidesPackage{sysml-tikz}[2026/09/28 v0.2 SysML interconnection drawing]
 
 \RequirePackage{tikz}
 \usetikzlibrary{positioning,calc,fit,backgrounds,arrows.meta,decorations.markings,shapes.geometric,shapes.multipart}
@@ -60,13 +60,32 @@
   depth/.initial={},
   legend/.initial={},
 }
+\newif\ifsysml@gotend
+\newif\ifsysml@conjugated
+\newif\ifsysml@directed
+\newif\ifsysml@showkeyword
+\newif\ifsysml@alongpath
+\newif\ifsysml@pointatto
+\newif\ifsysml@usefwd
 \pgfkeys{
   /sysml/connection/.is family,
   /sysml/connection,
   from/.initial={},
   to/.initial={},
+  directed/.is if=sysml@directed,
+  directed/.default=true,
+  flow/.initial={},
+  item/.initial={},
+  at/.initial=end,
+  keyword/.is if=sysml@showkeyword,
+  keyword/.default=true,
 }
-\newif\ifsysml@gotend
+\pgfkeys{
+  /sysml/port/.is family,
+  /sysml/port,
+  conjugated/.is if=sysml@conjugated,
+  conjugated/.default=true,
+}
 
 \newcommand{\sysmlset}[1]{\pgfkeys{/sysml,#1}}
 
@@ -79,6 +98,11 @@
   }{}%
 }
 \newcommand{\sysmlguillemets}[1]{«#1»}
+%% An active tilde in a port label marks a conjugated port.
+\begingroup
+\catcode`\~=\active
+\gdef\sysml@acttilde{~}
+\endgroup
 
 %% Never select a size below /sysml/text minimum.
 \newcommand{\sysml@font}[1]{%
@@ -99,8 +123,19 @@
   sysml ref/.style={draw, rounded corners=1.4mm, dashed, line width=0.4pt},
   sysml port/.style={draw, rounded corners=0.3mm, fill=white, line width=0.35pt},
   sysml connection/.style={draw, line width=0.45pt},
-  sysml connection head end/.style={draw, line width=0.45pt, -{Triangle[open,length=3.2mm,width=2.6mm]}},
-  sysml connection head start/.style={draw, line width=0.45pt, {Triangle[open,length=3.2mm,width=2.6mm]}-},
+  sysml directed end/.style={draw, line width=0.45pt, -{Straight Barb[length=3.2mm,width=2.2mm,sep=0pt]}},
+  sysml directed start/.style={draw, line width=0.45pt, {Straight Barb[length=3.2mm,width=2.2mm,sep=0pt]}-},
+  sysml flow end/.style={draw, line width=0.45pt, -{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}},
+  sysml flow start/.style={draw, line width=0.45pt, {Triangle[length=3.2mm,width=2.6mm,sep=0pt]}-},
+  sysml succession end/.style={draw, dashed, line width=0.45pt, -{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}},
+  sysml succession start/.style={draw, dashed, line width=0.45pt, {Triangle[length=3.2mm,width=2.6mm,sep=0pt]}-},
+  sysml message end/.style={draw, line width=0.45pt, -{Triangle[open,length=3.2mm,width=2.6mm,sep=0pt]}},
+  sysml message start/.style={draw, line width=0.45pt, {Triangle[open,length=3.2mm,width=2.6mm,sep=0pt]}-},
+  sysml allocate end/.style={draw, line width=0.45pt, -{Straight Barb[length=3.2mm,width=2.2mm,sep=0pt]}},
+  sysml allocate start/.style={draw, line width=0.45pt, {Straight Barb[length=3.2mm,width=2.2mm,sep=0pt]}-},
+  sysml flow mark forward/.style={postaction={decorate, decoration={markings, mark=at position 0.5 with {\arrow{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}}}}},
+  sysml flow mark reverse/.style={postaction={decorate, decoration={markings, mark=at position 0.5 with {\arrowreversed{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}}}}},
+  sysml edge label/.style={fill=white, inner sep=1.1pt, outer sep=0pt, font=\sysml@font{\sysml@body}},
   sysml connection undirected/.style={draw, line width=0.35pt},
   sysml keyword/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north},
   sysml name/.style={font=\sysml@font{\sysml@name}, inner sep=0pt, anchor=north},
@@ -131,13 +166,15 @@
 
 %% Direction glyph inside the square. Tips sit 1.15 mm from the centre.
 %% The square extends 1.6 mm, so the margin to each face is 0.45 mm.
-%% A connection stops on that face; its arrowhead stays outside the square.
+%% A line stops on that face. An arrowhead tip touches the face and the head stays outside the square.
 %% #1 side, #2 direction (in|out|inout|empty), #3 cx, #4 cy.
 %% y grows downward. `in` points into the part, `out` points out of it.
 %% Empty direction draws nothing.
+%% Expand #2. Callers pass the effective direction as a macro, and
+%% \ifx does not expand, so a plain \def would match no glyph.
 \newcommand{\sysml@portdir}[4]{%
-  \def\sysml@side{#1}%
-  \def\sysml@dir{#2}%
+  \edef\sysml@side{#1}%
+  \edef\sysml@dir{#2}%
   \def\sysml@in{in}%
   \def\sysml@out{out}%
   \def\sysml@inout{inout}%
@@ -178,14 +215,57 @@
   \fi\fi\fi\fi
 }
 
-%% #1 dotted name, #2 cx, #3 cy, #4 side, #5 lx, #6 ly, #7 label, #8 in|out|inout
-%% The id records the direction and the outer-edge point. A later
-%% \sysmlconnection looks those up. This does not place the port.
-\newcommand{\sysmlport}[8]{%
-  \sysml@rememberport{#1}{#2}{#3}{#4}{#8}%
-  \draw[sysml port] ($(#2,#3)+(-1.6,-1.6)$) rectangle ($(#2,#3)+(1.6,1.6)$);%
-  \sysml@portdir{#4}{#8}{#2}{#3}%
-  \node[sysml port label] at (#5,#6) {#7};%
+%% Optional keys, then id, centre, side, label point, label, direction.
+%% conjugated, or a leading tilde in the label, flips in and out and
+%% shows a tilde. The recorded direction is the effective one.
+\newcommand{\sysmlport}[9][]{%
+  \pgfkeys{/sysml/port, conjugated=false, #1}%
+  \sysml@absorbtilde{#8}%
+  \sysml@effectivedir{#9}%
+  \sysml@rememberport{#2}{#3}{#4}{#5}{\sysml@effdir}%
+  \draw[sysml port] ($(#3,#4)+(-1.6,-1.6)$) rectangle ($(#3,#4)+(1.6,1.6)$);%
+  \sysml@portdir{#5}{\sysml@effdir}{#3}{#4}%
+  \node[sysml port label] at (#6,#7) {\sysml@shownlabel};%
+}
+\newcommand{\sysml@absorbtilde}[1]{%
+  \gdef\sysml@rest{}%
+  \if\relax\detokenize{#1}\relax
+  \else
+    \sysml@splittilde#1\sysml@nil
+  \fi
+}
+\def\sysml@splittilde#1#2\sysml@nil{%
+  \def\sysml@one{#1}%
+  \ifx\sysml@one\sysml@acttilde
+    \global\sysml@conjugatedtrue
+    \gdef\sysml@rest{#2}%
+  \else
+    \expandafter\ifx\sysml@one\textasciitilde
+      \global\sysml@conjugatedtrue
+      \gdef\sysml@rest{#2}%
+    \else
+      \gdef\sysml@rest{#1#2}%
+    \fi
+  \fi
+}
+\newcommand{\sysml@shownlabel}{%
+  \ifsysml@conjugated
+    \textasciitilde\sysml@rest
+  \else
+    \sysml@rest
+  \fi
+}
+\newcommand{\sysml@effectivedir}[1]{%
+  \def\sysml@effdir{#1}%
+  \def\sysml@inword{in}%
+  \def\sysml@outword{out}%
+  \ifsysml@conjugated
+    \ifx\sysml@effdir\sysml@inword
+      \def\sysml@effdir{out}%
+    \else\ifx\sysml@effdir\sysml@outword
+      \def\sysml@effdir{in}%
+    \fi\fi
+  \fi
 }
 
 %% Outer edge is 1.6 mm out from the centre, on the named side.
@@ -203,7 +283,7 @@
   \pgfpointadd{\pgfpointxy{#2}{#3}}{\pgfpointxy{\sysml@dx}{\sysml@dy}}%
   \expandafter\xdef\csname sysml@pex@\sysml@id\endcsname{\the\pgf@x}%
   \expandafter\xdef\csname sysml@pey@\sysml@id\endcsname{\the\pgf@y}%
-  \expandafter\gdef\csname sysml@pdir@\sysml@id\endcsname{#5}%
+  \expandafter\xdef\csname sysml@pdir@\sysml@id\endcsname{#5}%
 }
 
 \newcommand{\sysml@lookupdir}[2]{%
@@ -268,44 +348,185 @@
   \sysml@findparen#1(\sysml@stopmark,\sysml@stopmark)\sysml@endscan
 }
 
-%% Open head only for out then in. The tip sits on the in-port end
-%% of the path, including when that end is the first coordinate.
-\newcommand{\sysml@headforin}[1]{%
+%% The tip of a line arrow sits on the path end the caller placed on
+%% the port face. The head extends back along the path, outside the square.
+%% Which end is the `to` port is the nearer recorded outer-edge point.
+\newcommand{\sysml@loadends}{%
+  \pgfkeysgetvalue{/sysml/connection/from}{\sysml@fromid}%
+  \pgfkeysgetvalue{/sysml/connection/to}{\sysml@toid}%
+}
+\newcommand{\sysml@warnends}{%
+  \sysml@lookupdir{\sysml@fromid}{\sysml@fromdir}%
+  \sysml@lookupdir{\sysml@toid}{\sysml@todir}%
+  \def\sysml@inword{in}%
+  \def\sysml@outword{out}%
+  \def\sysml@inoutword{inout}%
+  \ifx\sysml@fromdir\@empty\else
+    \ifx\sysml@todir\@empty\else
+      \ifx\sysml@fromdir\sysml@inoutword\else
+        \ifx\sysml@todir\sysml@inoutword\else
+          \ifx\sysml@fromdir\sysml@todir
+            \PackageWarning{sysml-tikz}{Port directions \sysml@fromdir\space and \sysml@todir\space do not meet (out must meet in; inout meets any). The line arrowhead is not changed}%
+          \fi
+        \fi
+      \fi
+    \fi
+  \fi
+}
+\newcommand{\sysml@pathendisto}[1]{%
+  \sysml@alongpathtrue
   \sysml@capturepath{#1}%
   \ifsysml@gotend
     \edef\sysml@xkey{sysml@pex@\sysml@toid}%
     \edef\sysml@ykey{sysml@pey@\sysml@toid}%
     \ifcsname\sysml@xkey\endcsname
-      \expandafter\let\expandafter\sysml@inex\csname\sysml@xkey\endcsname
-      \expandafter\let\expandafter\sysml@iney\csname\sysml@ykey\endcsname
-      \sysml@mandist\sysml@xstart\sysml@ystart\sysml@inex\sysml@iney\sysml@dstart
-      \sysml@mandist\sysml@xend\sysml@yend\sysml@inex\sysml@iney\sysml@dend
+      \expandafter\let\expandafter\sysml@tx\csname\sysml@xkey\endcsname
+      \expandafter\let\expandafter\sysml@ty\csname\sysml@ykey\endcsname
+      \sysml@mandist\sysml@xstart\sysml@ystart\sysml@tx\sysml@ty\sysml@dstart
+      \sysml@mandist\sysml@xend\sysml@yend\sysml@tx\sysml@ty\sysml@dend
       \ifdim\sysml@dstart<\sysml@dend
-        \def\sysml@drawstyle{sysml connection head start}%
-      \else
-        \def\sysml@drawstyle{sysml connection head end}%
+        \sysml@alongpathfalse
       \fi
     \fi
   \fi
 }
-
-%% #1 optional from= and to= port ids. #2 name. #3 path.
-%% Two arguments, with no from or to, stay a plain connection.
-\newcommand{\sysmlconnection}[3][]{%
-  \pgfkeys{/sysml/connection, from={}, to={}, #1}%
-  \def\sysml@drawstyle{sysml connection}%
-  \pgfkeysgetvalue{/sysml/connection/from}{\sysml@fromid}%
-  \pgfkeysgetvalue{/sysml/connection/to}{\sysml@toid}%
-  \sysml@lookupdir{\sysml@fromid}{\sysml@fromdir}%
-  \sysml@lookupdir{\sysml@toid}{\sysml@todir}%
-  \def\sysml@outword{out}%
-  \def\sysml@inword{in}%
-  \ifx\sysml@fromdir\sysml@outword
-    \ifx\sysml@todir\sysml@inword
-      \sysml@headforin{#3}%
-    \fi
+\newcommand{\sysml@setpointatto}{%
+  \pgfkeysgetvalue{/sysml/connection/flow}{\sysml@flow}%
+  \edef\sysml@flowtest{\sysml@flow}%
+  \def\sysml@revword{reverse}%
+  \ifx\sysml@flowtest\sysml@revword
+    \sysml@pointattofalse
+  \else
+    \sysml@pointattotrue
   \fi
-  \expandafter\draw\expandafter[\sysml@drawstyle] #3;%
+}
+\newcommand{\sysml@choosearrow}{%
+  \ifsysml@alongpath
+    \ifsysml@pointatto\sysml@usefwdtrue\else\sysml@usefwdfalse\fi
+  \else
+    \ifsysml@pointatto\sysml@usefwdfalse\else\sysml@usefwdtrue\fi
+  \fi
+}
+\newcommand{\sysml@markstyle}{%
+  \ifsysml@usefwd
+    \def\sysml@markname{sysml flow mark forward}%
+  \else
+    \def\sysml@markname{sysml flow mark reverse}%
+  \fi
+}
+\newcommand{\sysml@headstyle}[1]{%
+  \ifsysml@alongpath
+    \edef\sysml@drawstyle{#1 end}%
+  \else
+    \edef\sysml@drawstyle{#1 start}%
+  \fi
+}
+\newcommand{\sysml@drawitem}[3]{%
+  \pgfkeysgetvalue{/sysml/connection/item}{\sysml@item}%
+  \ifx\sysml@item\@empty
+    \draw[#1] #2;%
+  \else
+    \draw[#1] #2 node[sysml edge label, pos=#3] {\sysml@item};%
+  \fi
+}
+\newcommand{\sysml@drawfixed}[4]{%
+  \draw[#1] #2 node[sysml edge label, pos=#3] {#4};%
+}
+\newcommand{\sysml@resetline}[1]{%
+  \pgfkeys{/sysml/connection, from={}, to={}, directed=false, flow={}, item={}, at=end, keyword=false, #1}%
+  \sysml@loadends
+  \sysml@warnends
+}
+
+%% #1 keys. #2 name, not drawn (names stay off the edge). #3 path.
+%% A connection is a plain solid line. directed draws an open stick
+%% at the to end. flow=forward|reverse draws a filled mid-line triangle.
+\newcommand{\sysmlconnection}[3][]{%
+  \sysml@resetline{#1}%
+  \def\sysml@edgename{#2}%
+  \pgfkeysgetvalue{/sysml/connection/flow}{\sysml@flow}%
+  \ifx\sysml@flow\@empty
+    \ifsysml@directed
+      \sysml@pathendisto{#3}%
+      \sysml@headstyle{sysml directed}%
+    \else
+      \def\sysml@drawstyle{sysml connection}%
+    \fi
+    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+  \else
+    \sysml@pathendisto{#3}%
+    \sysml@setpointatto
+    \sysml@choosearrow
+    \sysml@markstyle
+    \ifsysml@directed
+      \sysml@headstyle{sysml directed}%
+      \edef\sysml@drawstyle{\sysml@drawstyle, \sysml@markname}%
+    \else
+      \edef\sysml@drawstyle{sysml connection, \sysml@markname}%
+    \fi
+    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.18}%
+  \fi
+}
+%% Solid filled triangle from from toward to. at=mid keeps it on the line.
+\newcommand{\sysmlflow}[3][]{%
+  \sysml@resetline{#1}%
+  \def\sysml@edgename{#2}%
+  \sysml@pointattotrue
+  \pgfkeysgetvalue{/sysml/connection/at}{\sysml@at}%
+  \edef\sysml@attest{\sysml@at}%
+  \def\sysml@midword{mid}%
+  \sysml@pathendisto{#3}%
+  \ifx\sysml@attest\sysml@midword
+    \sysml@choosearrow
+    \sysml@markstyle
+    \edef\sysml@drawstyle{sysml connection, \sysml@markname}%
+    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.18}%
+  \else
+    \sysml@headstyle{sysml flow}%
+    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+  \fi
+}
+%% Dashed line, filled triangle at the to end.
+\newcommand{\sysmlsuccessionflow}[3][]{%
+  \sysml@resetline{#1}%
+  \def\sysml@edgename{#2}%
+  \sysml@pathendisto{#3}%
+  \sysml@headstyle{sysml succession}%
+  \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+}
+%% Solid line, hollow triangle at the to end.
+\newcommand{\sysmlmessage}[3][]{%
+  \sysml@resetline{#1}%
+  \def\sysml@edgename{#2}%
+  \sysml@pathendisto{#3}%
+  \sysml@headstyle{sysml message}%
+  \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+}
+%% Solid line, equals sign at the midpoint, no arrowhead.
+\newcommand{\sysmlbinding}[3][]{%
+  \sysml@resetline{#1}%
+  \def\sysml@edgename{#2}%
+  \draw[sysml connection] #3 node[sysml edge label, pos=0.5] {=};%
+}
+%% Solid line, optional «interface», no arrowhead.
+\newcommand{\sysmlinterface}[3][]{%
+  \pgfkeys{/sysml/connection, from={}, to={}, directed=false, flow={}, item={}, at=end, keyword=true, #1}%
+  \def\sysml@edgename{#2}%
+  \sysml@loadends
+  \sysml@warnends
+  \ifsysml@showkeyword
+    \draw[sysml connection] #3 node[sysml edge label, pos=0.5] {\sysmlguillemets{interface}};%
+  \else
+    \draw[sysml connection] #3;%
+  \fi
+}
+%% Solid line, open stick at the to end (same head as directed), «allocate».
+\newcommand{\sysmlallocation}[3][]{%
+  \sysml@resetline{#1}%
+  \def\sysml@edgename{#2}%
+  \sysml@pathendisto{#3}%
+  \sysml@headstyle{sysml allocate}%
+  \expandafter\sysml@drawfixed\expandafter{\sysml@drawstyle}{#3}{0.5}{\sysmlguillemets{allocate}}%
 }
 
 %% Collapse count, bottom-right inside the owner. Not a header line.
