@@ -1,0 +1,83 @@
+% Reference caller body for templateId fulldoc. The worker owns the preamble.
+% A4 article. The caller does not send a class or a package line.
+\title{Pump monitor\\幫浦監測}
+\author{InkMirage (Taiwan)}
+\maketitle
+
+\section{Layout}
+\label{sec:layout}
+
+The monitor joins a pump and a motor. See Figure~\ref{fig:sysml}, Figure~\ref{fig:tikz} and Figure~\ref{fig:ckt}. 配置見圖~\ref{fig:sysml}。
+
+\section{Readings}
+\label{sec:readings}
+
+\subsection{Band}
+\label{sec:band}
+
+\begin{itemize}
+\item The level stays inside the band in Table~\ref{tab:band}.
+\item 液位維持在表~\ref{tab:band} 的範圍內。
+\end{itemize}
+
+\begin{table}[ht]
+\caption{Level band\label{tab:band}}
+\centering
+\begin{tabular}{ll}
+\hline
+Name & Value \\
+\hline
+Low 低 & 20 \\
+High 高 & 80 \\
+\hline
+\end{tabular}
+\end{table}
+
+Section~\ref{sec:layout} names the figures. 小節~\ref{sec:band} 說明範圍。
+
+\begin{figure}[ht]
+\centering
+\begin{sysmlfigure}[view={zh-TW}, revision={label}, overrides={none}, depth={1}, body size={10}]
+\begin{sysmlcanvas}
+\sysmlpart{PdMon.pump}{8}{8}{18}{18}
+\sysmllabel[keyword]{17}{10}{\sysmlguillemets{part}}
+\sysmllabel[name]{17}{14.8}{幫浦}
+\sysmllabel[type]{17}{19.7}{Pump}
+\sysmlport{PdMon.pump.outlet}{26}{17}{EAST}{29.6}{11.8}{出口}{out}
+\sysmlpart{PdMon.motor}{58}{8}{18}{18}
+\sysmllabel[keyword]{67}{10}{\sysmlguillemets{part}}
+\sysmllabel[name]{67}{14.8}{馬達}
+\sysmllabel[type]{67}{19.7}{Motor}
+\sysmlport{PdMon.motor.inlet}{58}{17}{WEST}{47.4}{11.8}{入口}{in}
+\sysmlconnection[from=PdMon.pump.outlet, to=PdMon.motor.inlet]{PdMon.link}{(27.6,17) -- (56.4,17)}
+\sysmlport{PdMon.motor.outlet}{76}{17}{EAST}{79}{11.8}{出口}{out}
+\sysmlpart{PdMon.ctrl}{110}{8}{22}{18}
+\sysmllabel[keyword]{121}{10}{\sysmlguillemets{part}}
+\sysmllabel[name]{121}{14.8}{控制器}
+\sysmllabel[type]{121}{19.7}{Controller}
+\sysmlport{PdMon.ctrl.inlet}{110}{17}{WEST}{98}{11.8}{入口}{in}
+\sysmlflow[from=PdMon.motor.outlet, to=PdMon.ctrl.inlet, item=液位]{PdMon.flow}{(77.6,17) -- (108.4,17)}
+\sysmlport{PdMon.pump.bind}{17}{26}{SOUTH}{4}{29}{參數}{inout}
+\sysmlport{PdMon.motor.bind}{67}{26}{SOUTH}{78}{29}{參數}{inout}
+\sysmlbinding[from=PdMon.pump.bind, to=PdMon.motor.bind]{PdMon.bind}{(17,27.6) -- (17,36) -- (67,36) -- (67,27.6)}
+\end{sysmlcanvas}
+\end{sysmlfigure}
+\caption{Pump, motor and controller.\label{fig:sysml}}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\draw (0,0) rectangle (4,1.5);
+\node at (2,0.75) {註記 note};
+\end{tikzpicture}
+\caption{Plain TikZ note.\label{fig:tikz}}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}
+\draw (0,0) to[R, l=$R_1$] (3,0);
+\end{circuitikz}
+\caption{Series resistor.\label{fig:ckt}}
+\end{figure}

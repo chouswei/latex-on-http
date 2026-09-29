@@ -4,7 +4,8 @@
 """Compile the sold-candidate kinds, plus a short smoke set.
 
 The required set is the document shell and seven LaTeX diagram kinds: P&ID,
-circuits, plots, chemistry, Gantt, floor plans, and SysML. Mermaid and D2
+circuits, plots, chemistry, Gantt, floor plans, and SysML, plus the fulldoc
+body. Mermaid and D2
 are not rendered. Each remaining job reports job meters. Floor-plan PDFs
 must show the same labels at scale=1 and scale=0.5. The SysML TeX fixture
 must show the zh-TW label.
@@ -34,6 +35,7 @@ REQUIRED = (
     "floorplan-scale.tex",
     "floorplan.md",
     "floorplan.tex",
+    "fulldoc.tex",
     "gantt.md",
     "gantt.tex",
     "pgfplots.md",
@@ -111,6 +113,96 @@ def _pdf_text(pdf):
     return text.replace("m²", "m2").replace("m^2", "m2")
 
 
+_CREDIT = {
+    "Creator": "Endleaf by InkMirage (endleaf.inkmirage.xyz)",
+    "Producer": "Endleaf by InkMirage; XeTeX",
+    "Keywords": "Endleaf",
+}
+
+
+def _pdf_fields(pdf):
+    completed = subprocess.run(
+        ["pdfinfo", "-"],
+        input=pdf,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        sys.exit(completed.stderr.decode("utf-8", "replace") or "pdfinfo failed")
+    fields = {}
+    for line in completed.stdout.decode("utf-8", "replace").splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        fields[key.strip()] = value.strip()
+    return fields
+
+
+def _assert_credit(name, pdf):
+    fields = _pdf_fields(pdf)
+    for key, expected in _CREDIT.items():
+        if fields.get(key) != expected:
+            sys.exit(f"{name} {key} is {fields.get(key)!r}, expected {expected!r}")
+    if "Subject" in fields:
+        sys.exit(f"{name} set Subject {fields['Subject']!r}")
+
+
+def _pdf_pages(pdf):
+    completed = subprocess.run(
+        ["pdfinfo", "-"],
+        input=pdf,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        sys.exit(completed.stderr.decode("utf-8", "replace") or "pdfinfo failed")
+    for line in completed.stdout.decode("utf-8", "replace").splitlines():
+        if line.startswith("Pages:"):
+            return int(line.split()[1])
+    sys.exit("pdfinfo did not report Pages")
+
+
+def _assert_fonts_embedded(name, pdf):
+    path = Path("/tmp") / f"endleaf-fonts-{name}.pdf"
+    path.write_bytes(pdf)
+    try:
+        completed = subprocess.run(
+            ["pdffonts", str(path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    finally:
+        path.unlink(missing_ok=True)
+    if completed.returncode != 0:
+        sys.exit(completed.stderr.decode("utf-8", "replace") or "pdffonts failed")
+    lines = completed.stdout.decode("utf-8", "replace").splitlines()
+    if len(lines) < 3 or "emb" not in lines[0]:
+        sys.exit(f"{name} pdffonts output is unreadable: {lines!r}")
+    rows = lines[2:]
+    if not rows:
+        sys.exit(f"{name} PDF has no fonts")
+    for row in rows:
+        # name and type vary in width. emb sub uni sit before the object id.
+        if row.split()[-5] != "yes":
+            sys.exit(f"{name} font is not embedded: {row}")
+
+
+def _assert_fulldoc(name, pdf, err):
+    if "ENDLEAF_OVERFULL 0" not in err:
+        sys.exit(f"{name} expected no Overfull hbox\n{err[-2000:]}")
+    pages = _pdf_pages(pdf)
+    if pages < 1 or pages > 16:
+        sys.exit(f"{name} page count {pages} is outside 1..16")
+    text = _pdf_text(pdf)
+    for needle in ("幫浦", "參數", "配置"):
+        if needle not in text:
+            sys.exit(f"{name} PDF text missing {needle}: {text!r}")
+    _assert_fonts_embedded(name, pdf)
+
+
 def _assert_floorplan(name, pdf):
     text = _pdf_text(pdf)
     missing = [needle for needle in FLOORPLAN_NEEDLES if needle not in text]
@@ -127,6 +219,8 @@ def _template_id(path):
         return "floorplan"
     if path.stem == "sysml":
         return "sysml"
+    if path.stem == "fulldoc":
+        return "fulldoc"
     if path.stem in ("chemistry", "circuits", "gantt", "pidcircuit"):
         return path.stem
     # Unsold smoke files use a TeX template whose preamble inputs the
@@ -150,12 +244,15 @@ def _compile(path, *, image, podman):
         sys.exit(f"{path.name} failed rc={code}\n{err[-4000:]}")
     if "ENDLEAF_METERS " not in err:
         sys.exit(f"{path.name} did not report cgroup meters")
+    _assert_credit(path.name, stdout)
     if path.stem.startswith("floorplan"):
         _assert_floorplan(path.name, stdout)
     if path.name == "sysml.tex":
         text = _pdf_text(stdout)
         if "幫浦" not in text:
             sys.exit(f"{path.name} PDF text missing 幫浦: {text!r}")
+    if path.name == "fulldoc.tex":
+        _assert_fulldoc(path.name, stdout, err)
     print(path.name, "ok", len(stdout))
 
 

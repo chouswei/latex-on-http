@@ -1,0 +1,234 @@
+% ENDLEAF-R39-KEEP and ENDLEAF-R39-WIDTH.
+% Kernel boxes only. This file is not a package, so packageSetHash
+% does not change.
+% A sysmlcanvas is scaled uniformly, text included, down to the 7 pt
+% floor. Only a remainder past that floor shrinks the coordinate unit.
+% A picture that still does not fit is an error. Plain tikzpictures are
+% not scaled; a wide one logs ENDLEAF_WIDE_PICTURE.
+\NeedsTeXFormat{LaTeX2e}
+\makeatletter
+\newbox\elfit@picbox
+\newbox\elfit@plainbox
+\newdimen\elfit@availht
+\newdimen\elfit@nath
+\newcount\elfit@fittry
+\newif\ifelfit@needshrink
+\newif\ifelfit@coordshrink
+\def\elfit@uniform{1}
+\def\elfit@unit{1}
+\def\elfit@shown{}
+\let\elfit@tikzpicture\tikzpicture
+\let\elfit@endtikzpicture\endtikzpicture
+\let\elfit@figure\figure
+\let\elfit@endfigure\endfigure
+\let\elfit@table\table
+\let\elfit@endtable\endtable
+
+% The caption prints the fitted type size. \sysml@body stays the size
+% the picture asked for, so a later canvas does not inherit a fit.
+\let\elfit@caption\sysml@caption
+\renewcommand{\sysml@caption}{%
+  \begingroup
+    \ifx\elfit@shown\@empty\else
+      \edef\sysml@body{\elfit@shown}%
+    \fi
+    \elfit@caption
+  \endgroup
+}
+
+% Room for the sysml header, the 3 mm gap, and \topskip, so the header
+% and the canvas together sit inside \textheight.
+\def\elfit@reserve{%
+  \setbox\elfit@picbox=\vbox{%
+    \hsize=\textwidth
+    \raggedright
+    \noindent\sysml@caption
+  }%
+  \elfit@availht=\textheight
+  \advance\elfit@availht by -\ht\elfit@picbox
+  \advance\elfit@availht by -\dp\elfit@picbox
+  \advance\elfit@availht by -3mm
+  \advance\elfit@availht by -\topskip
+  \advance\elfit@availht by -2pt
+}
+
+\long\def\elfit@measure#1{%
+  \setbox\elfit@picbox=\hbox{%
+    \elfit@tikzpicture[%
+      x=\elfit@unit mm,%
+      y=-\elfit@unit mm,%
+      scale=\elfit@uniform,%
+      transform shape%
+    ]%
+    \global\sysml@obscount=0\relax
+    \ifsysml@marktrace
+      \pgfpointtransformed{\pgfpointorigin}%
+      \typeout{SYSMLORIGIN x=\the\pgf@x\space y=\the\pgf@y}%
+    \fi
+    #1%
+    \elfit@endtikzpicture
+  }%
+}
+
+\def\elfit@decide{%
+  \pgfmathsetmacro{\elfit@sfloor}{min(1,7/max(\elfit@bodyreq,7))}%
+  \ifdim\wd\elfit@picbox<1pt
+    \def\elfit@sneedw{1}%
+  \else
+    \pgfmathsetmacro{\elfit@sneedw}{\strip@pt\linewidth/\strip@pt\wd\elfit@picbox}%
+  \fi
+  \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
+  \ifdim\elfit@nath<1pt
+    \def\elfit@sneedh{1}%
+  \else
+    \pgfmathsetmacro{\elfit@sneedh}{\strip@pt\elfit@availht/\strip@pt\elfit@nath}%
+  \fi
+  \pgfmathsetmacro{\elfit@sneed}{min(1,\elfit@sneedw,\elfit@sneedh)}%
+  \pgfmathsetmacro{\elfit@below}{\elfit@sneed+0.0001<\elfit@sfloor ? 1 : 0}%
+  \ifdim\elfit@below pt>0.5pt
+    \let\elfit@uniform\elfit@sfloor
+    \pgfmathsetmacro{\elfit@unit}{\elfit@sneed/\elfit@sfloor}%
+    \elfit@coordshrinktrue
+  \else
+    \let\elfit@uniform\elfit@sneed
+    \def\elfit@unit{1}%
+    \elfit@coordshrinkfalse
+  \fi
+}
+
+\def\elfit@flagover{%
+  \elfit@needshrinkfalse
+  \ifdim\wd\elfit@picbox>\linewidth
+    \elfit@needshrinktrue
+  \fi
+  \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
+  \ifdim\elfit@nath>\elfit@availht
+    \elfit@needshrinktrue
+  \fi
+}
+
+\def\elfit@shrink{%
+  \def\elfit@rw{1}%
+  \def\elfit@rh{1}%
+  \ifdim\wd\elfit@picbox>\linewidth
+    \pgfmathsetmacro{\elfit@rw}{\strip@pt\linewidth/\strip@pt\wd\elfit@picbox}%
+  \fi
+  \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
+  \ifdim\elfit@nath>\elfit@availht
+    \pgfmathsetmacro{\elfit@rh}{\strip@pt\elfit@availht/\strip@pt\elfit@nath}%
+  \fi
+  \pgfmathsetmacro{\elfit@cut}{min(\elfit@rw,\elfit@rh)*0.998}%
+  \ifelfit@coordshrink
+    \pgfmathsetmacro{\elfit@unit}{\elfit@unit*\elfit@cut}%
+  \else
+    \pgfmathsetmacro{\elfit@uniform}{\elfit@uniform*\elfit@cut}%
+    \pgfmathsetmacro{\elfit@below}{\elfit@uniform<\elfit@sfloor ? 1 : 0}%
+    \ifdim\elfit@below pt>0.5pt
+      \pgfmathsetmacro{\elfit@unit}{\elfit@uniform/\elfit@sfloor}%
+      \let\elfit@uniform\elfit@sfloor
+      \elfit@coordshrinktrue
+    \fi
+  \fi
+}
+
+\def\elfit@publishtype{%
+  \pgfmathsetmacro{\elfit@typept}{\elfit@bodyreq*\elfit@uniform}%
+  \pgfmathtruncatemacro{\elfit@shownint}{round(\elfit@typept*10)}%
+  \pgfmathtruncatemacro{\elfit@w}{\elfit@shownint/10}%
+  \pgfmathtruncatemacro{\elfit@f}{\elfit@shownint-10*\elfit@w}%
+  \ifnum\elfit@f=0
+    \xdef\elfit@shown{\elfit@w}%
+  \else
+    \xdef\elfit@shown{\elfit@w.\elfit@f}%
+  \fi
+}
+
+\long\def\elfit@fitcanvas#1{%
+  \edef\elfit@bodyreq{\sysml@body}%
+  \gdef\elfit@shown{}%
+  \def\elfit@uniform{1}%
+  \def\elfit@unit{1}%
+  \ifsysml@marktrace \def\elfit@marksave{1}\else \def\elfit@marksave{0}\fi
+  \sysml@marktracefalse
+  \elfit@reserve
+  \elfit@measure{#1}%
+  \elfit@decide
+  \elfit@fittry=0
+  \elfit@measure{#1}%
+  \elfit@flagover
+  \@whilesw\ifelfit@needshrink\fi{%
+    \ifnum\elfit@fittry>5
+      \PackageError{endleaf}{picture does not fit the line at 7pt or above. Text was not shrunk}{Do not shrink type below 7pt.}%
+      \elfit@needshrinkfalse
+    \else
+      \elfit@shrink
+      \advance\elfit@fittry by 1
+      \elfit@measure{#1}%
+      \elfit@flagover
+    \fi
+  }%
+  \ifnum\elfit@marksave=1 \sysml@marktracetrue\fi
+  \typeout{ENDLEAF_FIT_SHIP}%
+  \elfit@measure{#1}%
+  \elfit@publishtype
+  \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
+  \typeout{ENDLEAF_FIT shipped=\the\wd\elfit@picbox\space line=\the\linewidth\space high=\the\elfit@nath\space avail=\the\elfit@availht\space uniform=\elfit@uniform\space unit=\elfit@unit\space type=\elfit@shown}%
+  \leavevmode\box\elfit@picbox
+}
+
+\RenewDocumentEnvironment{sysmlcanvas}{+b}{%
+  \elfit@fitcanvas{#1}%
+}{}
+
+% Do not collect the float body. \@float has already begun, so the
+% minipage opens in internal vertical mode. A # in the body stays a #.
+\def\figure{\@ifnextchar[\elfit@figopt{\elfit@figopt[\fps@figure]}}
+\def\elfit@figopt[#1]{%
+  \elfit@figure[#1]%
+  \noindent\minipage{\linewidth}%
+}
+% \let keeps the source scan clean: a defined name must not start
+% with end. The expansion is the same: close the minipage, then the float.
+\def\elfit@closefigure{%
+  \endminipage
+  \elfit@endfigure
+}
+\let\endfigure\elfit@closefigure
+\def\table{\@ifnextchar[\elfit@tabopt{\elfit@tabopt[\fps@table]}}
+\def\elfit@tabopt[#1]{%
+  \elfit@table[#1]%
+  \noindent\minipage{\linewidth}%
+}
+\def\elfit@closetable{%
+  \endminipage
+  \elfit@endtable
+}
+\let\endtable\elfit@closetable
+
+% A bare sysmlfigure is not a float. The hooks wrap the header and
+% the canvas without collecting the body.
+\AddToHook{env/sysmlfigure/before}{%
+  \gdef\elfit@shown{}%
+  \noindent\begin{minipage}{\linewidth}%
+}
+\AddToHook{env/sysmlfigure/after}{\end{minipage}}
+
+% Plain pictures are not fitted. circuitikz is \let to \tikzpicture
+% after that name is defined, so point it at this wrapper.
+\def\tikzpicture{\@ifnextchar[{\elfit@tikzon}{\elfit@tikzon[]}}
+\def\elfit@tikzon[#1]{%
+  \setbox\elfit@plainbox=\hbox\bgroup
+    \elfit@tikzpicture[#1]%
+}
+\def\elfit@closetizpicture{%
+    \elfit@endtikzpicture
+  \egroup
+  \ifdim\wd\elfit@plainbox>\linewidth
+    \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\linewidth}%
+  \fi
+  \leavevmode\box\elfit@plainbox
+}
+\let\endtikzpicture\elfit@closetizpicture
+\let\circuitikz\tikzpicture
+\let\endcircuitikz\endtikzpicture
+\makeatother

@@ -1,0 +1,11 @@
+% A literal hash and a \foreach in a float. The body is not collected,
+% so neither needs ##.
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\foreach \x in {0,1,2} {
+  \node at (\x,0) {\x};
+}
+\end{tikzpicture}
+\caption{Item \#1}
+\end{figure}

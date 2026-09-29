@@ -14,7 +14,8 @@ from pathlib import Path
 
 from colophon.limits import SHARE_ROOT
 
-# Gate playbook order. document-shell is Markdown. The other seven are TeX.
+# Gate playbook order. document-shell is Markdown. The other eight are TeX.
+# fulldoc is PDF only (ENDLEAF-R39). It is not a sold kind.
 TEMPLATE_IDS = (
     "document-shell",
     "pidcircuit",
@@ -24,6 +25,7 @@ TEMPLATE_IDS = (
     "gantt",
     "floorplan",
     "sysml",
+    "fulldoc",
 )
 
 # article, the base fonts, and the names in colophon-v1-preamble.tex.
@@ -67,7 +69,9 @@ ALLOWED_LIBRARIES = frozenset(
         "circuits.pid.ISO14617",
     }
 )
-ALLOWED_INPUTS = frozenset({"colophon-v1-preamble.tex"})
+ALLOWED_INPUTS = frozenset(
+    {"colophon-v1-preamble.tex", "endleaf-fit.tex", "endleaf-credit.tex"}
+)
 
 
 @dataclass(frozen=True)
@@ -86,6 +90,7 @@ TEMPLATES = {
     "gantt": TemplateAsset("gantt", "tex", "example.tex"),
     "floorplan": TemplateAsset("floorplan", "tex", "example.tex"),
     "sysml": TemplateAsset("sysml", "tex", "example.tex"),
+    "fulldoc": TemplateAsset("fulldoc", "tex", "example.tex"),
 }
 
 
@@ -99,9 +104,12 @@ def compose(template_id, lane, body, root=None):
     """Preamble plus body. ``root`` defaults to the image share directory."""
     path = owned_root(root) / template_id / "preamble.tex"
     text = path.read_text(encoding="utf-8")
-    if text.count("__LANE__") != 1 or text.count("__BODY__") != 1:
+    # fulldoc's locked preamble has no lane stamp. Other templates have one.
+    if text.count("__LANE__") > 1 or text.count("__BODY__") != 1:
         raise ValueError("preamble")
-    return text.replace("__LANE__", lane, 1).replace("__BODY__", body, 1)
+    if "__LANE__" in text:
+        text = text.replace("__LANE__", lane, 1)
+    return text.replace("__BODY__", body, 1)
 
 
 def example_body(template_id, root=None):

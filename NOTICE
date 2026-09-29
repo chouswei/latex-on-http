@@ -98,8 +98,9 @@ compile service.
   file is pure TeX.
 - `sysml-tikz.sty` is installed in the local texmf tree the same way.
   It is the Endleaf file `prototypes/sysml-layout/sysml-tikz.sty` at
-  commit `7462a3188850852c47ca2c0cb5c43143ba6a0b27`, under the LaTeX
-  Project Public License 1.3c. Its only `\RequirePackage` is `tikz`.
+  commit `65baacff166cdee7b3393bc27a01e5d80ad1262f`
+  (sha256 `aa1d42ababc4d4e813f1943fa89a11fee021ae0a491715a2d5b6933a17315952`),
+  under the LaTeX Project Public License 1.3c. Its only `\RequirePackage` is `tikz`.
   The TikZ libraries `fit`, `backgrounds`, `decorations.markings`,
   `shapes.geometric`, and `shapes.multipart` come from `pgf`. A document
   loads it with `\usepackage{sysml-tikz}`. The shared preamble does that,

@@ -46,7 +46,9 @@ def _error(kind, *, retry_after=None, extra=None, outcome=None):
     if outcome is None:
         body = job_record(kind, None, None, None)
     else:
-        diagnostic = outcome.diagnostic if kind == "rejectRenderError" else None
+        diagnostic = (
+            outcome.diagnostic if kind in ("rejectRenderError", "failCapHit") else None
+        )
         body = job_record(
             kind,
             outcome.wall_sec,

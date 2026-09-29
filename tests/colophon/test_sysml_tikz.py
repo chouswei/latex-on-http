@@ -51,8 +51,8 @@ def test_allowlist_accepts_sysml_tikz():
 
 
 # Byte-identical to Endleaf prototypes/sysml-layout/sysml-tikz.sty
-# at 37c4e28fe1150f6963526b3d54bc30ed5af9281e.
-_ENDLEAF_STY_SHA256 = "da80c8d3ba9efcfac0fb4bba9c4e87caf885deb50fc8061842f307943cc337e0"
+# at 65baacff166cdee7b3393bc27a01e5d80ad1262f.
+_ENDLEAF_STY_SHA256 = "aa1d42ababc4d4e813f1943fa89a11fee021ae0a491715a2d5b6933a17315952"
 
 
 def test_vendored_style_matches_endleaf_and_requires_only_tikz():

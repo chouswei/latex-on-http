@@ -45,6 +45,9 @@ INPUT_CAP_BYTES = 16 * 1024 * 1024
 # separate preflight. Gate-owned quotas (jobs per day, jobs per minute,
 # a smaller input cap) are not in this list.
 MAX_FENCES_PER_JOB = 5
+# ENDLEAF-R39-CAPS. fulldoc only. Not a GET /version limits field:
+# the existing cap set is unchanged.
+FULLDOC_MAX_PAGES = 16
 STDERR_KEEP_BYTES = 16 * 1024
 
 SHARE_ROOT = "/usr/local/share/colophon"

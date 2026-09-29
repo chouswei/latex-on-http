@@ -1,0 +1,187 @@
+\documentclass{article}
+\usepackage{fontspec}
+\setmainfont{DejaVu Sans}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\usepackage{geometry}
+\geometry{a4paper,margin=12mm}
+\usepackage{sysml-tikz}
+\pagestyle{empty}
+\begin{document}
+\begin{sysmlfigure}[view={v2 lines}, revision={review}, overrides={none}, depth={1}, body size={8}]
+\begin{sysmlcanvas}
+% Row pitch 21 mm. Each link ends on the port outer edge (1.6 mm).
+% Left column is the path written from from toward to.
+% Right column writes the same from/to with the path reversed.
+\sysmllabel[note]{2}{1}{連接，無箭頭}
+\sysmlpart{C0.tank}{2}{5}{20}{12}
+\sysmllabel[name]{12}{7}{儲槽}
+\sysmlport{C0.tank.out}{22}{11}{EAST}{24}{6}{出口}{out}
+\sysmlpart{C0.pump}{52}{5}{20}{12}
+\sysmllabel[name]{62}{7}{泵浦}
+\sysmlport{C0.pump.in}{52}{11}{WEST}{40}{6}{入口}{in}
+\sysmlconnection[from=C0.tank.out, to=C0.pump.in]{C0.link}{(23.6,11) -- (50.4,11)}
+\sysmllabel[note]{100}{1}{連接，路徑反寫}
+\sysmlpart{C0r.tank}{100}{5}{20}{12}
+\sysmllabel[name]{110}{7}{儲槽}
+\sysmlport{C0r.tank.out}{120}{11}{EAST}{122}{6}{出口}{out}
+\sysmlpart{C0r.pump}{150}{5}{20}{12}
+\sysmllabel[name]{160}{7}{泵浦}
+\sysmlport{C0r.pump.in}{150}{11}{WEST}{138}{6}{入口}{in}
+\sysmlconnection[from=C0r.tank.out, to=C0r.pump.in]{C0r.link}{(148.4,11) -- (121.6,11)}
+
+\sysmllabel[note]{2}{22}{有向連接}
+\sysmlpart{D0.tank}{2}{26}{20}{12}
+\sysmllabel[name]{12}{28}{儲槽}
+\sysmlport{D0.tank.out}{22}{32}{EAST}{24}{27}{出口}{out}
+\sysmlpart{D0.pump}{52}{26}{20}{12}
+\sysmllabel[name]{62}{28}{泵浦}
+\sysmlport{D0.pump.in}{52}{32}{WEST}{40}{27}{入口}{in}
+\sysmlconnection[directed, from=D0.tank.out, to=D0.pump.in]{D0.link}{(23.6,32) -- (50.4,32)}
+\sysmllabel[note]{100}{22}{有向連接，路徑反寫}
+\sysmlpart{D0r.tank}{100}{26}{20}{12}
+\sysmllabel[name]{110}{28}{儲槽}
+\sysmlport{D0r.tank.out}{120}{32}{EAST}{122}{27}{出口}{out}
+\sysmlpart{D0r.pump}{150}{26}{20}{12}
+\sysmllabel[name]{160}{28}{泵浦}
+\sysmlport{D0r.pump.in}{150}{32}{WEST}{138}{27}{入口}{in}
+\sysmlconnection[directed, from=D0r.tank.out, to=D0r.pump.in]{D0r.link}{(148.4,32) -- (121.6,32)}
+
+\sysmllabel[note]{2}{43}{流向，實心三角在終點}
+\sysmlpart{F0.pump}{2}{47}{20}{12}
+\sysmllabel[name]{12}{49}{泵浦}
+\sysmlport{F0.pump.out}{22}{53}{EAST}{24}{48}{出口}{out}
+\sysmlpart{F0.ctrl}{52}{47}{24}{12}
+\sysmllabel[name]{64}{49}{控制器}
+\sysmlport{F0.ctrl.in}{52}{53}{WEST}{40}{48}{入口}{in}
+\sysmlflow[from=F0.pump.out, to=F0.ctrl.in, item=液位]{F0.flow}{(23.6,53) -- (50.4,53)}
+\sysmllabel[note]{100}{43}{流向，路徑反寫}
+\sysmlpart{F0r.pump}{100}{47}{20}{12}
+\sysmllabel[name]{110}{49}{泵浦}
+\sysmlport{F0r.pump.out}{120}{53}{EAST}{122}{48}{出口}{out}
+\sysmlpart{F0r.ctrl}{150}{47}{24}{12}
+\sysmllabel[name]{162}{49}{控制器}
+\sysmlport{F0r.ctrl.in}{150}{53}{WEST}{138}{48}{入口}{in}
+\sysmlflow[from=F0r.pump.out, to=F0r.ctrl.in, item=液位]{F0r.flow}{(148.4,53) -- (121.6,53)}
+
+\sysmllabel[note]{2}{64}{流向，中線}
+\sysmlpart{M0.tank}{2}{68}{20}{12}
+\sysmllabel[name]{12}{70}{儲槽}
+\sysmlport{M0.tank.out}{22}{74}{EAST}{24}{69}{出口}{out}
+\sysmlpart{M0.pump}{52}{68}{20}{12}
+\sysmllabel[name]{62}{70}{泵浦}
+\sysmlport{M0.pump.in}{52}{74}{WEST}{40}{69}{入口}{in}
+\sysmlflow[from=M0.tank.out, to=M0.pump.in, at=mid, item=液位]{M0.flow}{(23.6,74) -- (50.4,74)}
+\sysmllabel[note]{100}{64}{流向中線，路徑反寫}
+\sysmlpart{M0r.tank}{100}{68}{20}{12}
+\sysmllabel[name]{110}{70}{儲槽}
+\sysmlport{M0r.tank.out}{120}{74}{EAST}{122}{69}{出口}{out}
+\sysmlpart{M0r.pump}{150}{68}{20}{12}
+\sysmllabel[name]{160}{70}{泵浦}
+\sysmlport{M0r.pump.in}{150}{74}{WEST}{138}{69}{入口}{in}
+\sysmlflow[from=M0r.tank.out, to=M0r.pump.in, at=mid, item=液位]{M0r.flow}{(148.4,74) -- (121.6,74)}
+
+\sysmllabel[note]{2}{85}{連接上的流向 forward}
+\sysmlpart{N0.tank}{2}{89}{20}{12}
+\sysmllabel[name]{12}{91}{儲槽}
+\sysmlport{N0.tank.out}{22}{95}{EAST}{24}{90}{出口}{out}
+\sysmlpart{N0.pump}{52}{89}{20}{12}
+\sysmllabel[name]{62}{91}{泵浦}
+\sysmlport{N0.pump.in}{52}{95}{WEST}{40}{90}{入口}{in}
+\sysmlconnection[from=N0.tank.out, to=N0.pump.in, flow=forward, item=流量]{N0.link}{(23.6,95) -- (50.4,95)}
+\sysmllabel[note]{100}{85}{連接上的流向 reverse}
+\sysmlpart{N0r.tank}{100}{89}{20}{12}
+\sysmllabel[name]{110}{91}{儲槽}
+\sysmlport{N0r.tank.out}{120}{95}{EAST}{122}{90}{出口}{out}
+\sysmlpart{N0r.pump}{150}{89}{20}{12}
+\sysmllabel[name]{160}{91}{泵浦}
+\sysmlport{N0r.pump.in}{150}{95}{WEST}{138}{90}{入口}{in}
+\sysmlconnection[from=N0r.tank.out, to=N0r.pump.in, flow=reverse, item=流量]{N0r.link}{(121.6,95) -- (148.4,95)}
+
+\sysmllabel[note]{2}{106}{接續流}
+\sysmlpart{S0.pump}{2}{110}{20}{12}
+\sysmllabel[name]{12}{112}{泵浦}
+\sysmlport{S0.pump.out}{22}{116}{EAST}{24}{111}{出口}{out}
+\sysmlpart{S0.ctrl}{52}{110}{24}{12}
+\sysmllabel[name]{64}{112}{控制器}
+\sysmlport{S0.ctrl.in}{52}{116}{WEST}{40}{111}{入口}{in}
+\sysmlsuccessionflow[from=S0.pump.out, to=S0.ctrl.in]{S0.succ}{(23.6,116) -- (50.4,116)}
+\sysmllabel[note]{100}{106}{接續流，路徑反寫}
+\sysmlpart{S0r.pump}{100}{110}{20}{12}
+\sysmllabel[name]{110}{112}{泵浦}
+\sysmlport{S0r.pump.out}{120}{116}{EAST}{122}{111}{出口}{out}
+\sysmlpart{S0r.ctrl}{150}{110}{24}{12}
+\sysmllabel[name]{162}{112}{控制器}
+\sysmlport{S0r.ctrl.in}{150}{116}{WEST}{138}{111}{入口}{in}
+\sysmlsuccessionflow[from=S0r.pump.out, to=S0r.ctrl.in]{S0r.succ}{(148.4,116) -- (121.6,116)}
+
+\sysmllabel[note]{2}{127}{訊息，空心三角}
+\sysmlpart{G0.ctrl}{2}{131}{24}{12}
+\sysmllabel[name]{14}{133}{控制器}
+\sysmlport{G0.ctrl.out}{26}{137}{EAST}{28}{132}{出口}{out}
+\sysmlpart{G0.pump}{56}{131}{20}{12}
+\sysmllabel[name]{66}{133}{泵浦}
+\sysmlport{G0.pump.in}{56}{137}{WEST}{44}{132}{入口}{in}
+\sysmlmessage[from=G0.ctrl.out, to=G0.pump.in, item=指令]{G0.msg}{(27.6,137) -- (54.4,137)}
+\sysmllabel[note]{100}{127}{訊息，路徑反寫}
+\sysmlpart{G0r.ctrl}{100}{131}{24}{12}
+\sysmllabel[name]{112}{133}{控制器}
+\sysmlport{G0r.ctrl.out}{124}{137}{EAST}{126}{132}{出口}{out}
+\sysmlpart{G0r.pump}{154}{131}{20}{12}
+\sysmllabel[name]{164}{133}{泵浦}
+\sysmlport{G0r.pump.in}{154}{137}{WEST}{142}{132}{入口}{in}
+\sysmlmessage[from=G0r.ctrl.out, to=G0r.pump.in, item=指令]{G0r.msg}{(152.4,137) -- (125.6,137)}
+
+\sysmllabel[note]{2}{148}{綁定，實線與等號}
+\sysmlpart{B0.tank}{2}{152}{20}{12}
+\sysmllabel[name]{12}{154}{儲槽}
+\sysmlport{B0.tank.p}{22}{158}{EAST}{24}{153}{參數}{inout}
+\sysmlpart{B0.pump}{52}{152}{20}{12}
+\sysmllabel[name]{62}{154}{泵浦}
+\sysmlport{B0.pump.p}{52}{158}{WEST}{40}{153}{參數}{inout}
+\sysmlbinding[from=B0.tank.p, to=B0.pump.p]{B0.bind}{(23.6,158) -- (50.4,158)}
+\sysmllabel[note]{100}{148}{介面，無箭頭}
+\sysmlpart{I0.tank}{100}{152}{20}{12}
+\sysmllabel[name]{110}{154}{儲槽}
+\sysmlport{I0.tank.p}{120}{158}{EAST}{122}{153}{埠}{inout}
+\sysmlpart{I0.ctrl}{150}{152}{24}{12}
+\sysmllabel[name]{162}{154}{控制器}
+\sysmlport{I0.ctrl.p}{150}{158}{WEST}{138}{153}{埠}{inout}
+\sysmlinterface[from=I0.tank.p, to=I0.ctrl.p]{I0.if}{(121.6,158) -- (148.4,158)}
+
+\sysmllabel[note]{2}{169}{分配，開口箭頭}
+\sysmlpart{A0.ctrl}{2}{173}{24}{12}
+\sysmllabel[name]{14}{175}{控制器}
+\sysmlport{A0.ctrl.p}{26}{179}{EAST}{28}{174}{埠}{out}
+\sysmlpart{A0.pump}{56}{173}{20}{12}
+\sysmllabel[name]{66}{175}{泵浦}
+\sysmlport{A0.pump.p}{56}{179}{WEST}{44}{174}{埠}{in}
+\sysmlallocation[from=A0.ctrl.p, to=A0.pump.p]{A0.alloc}{(27.6,179) -- (54.4,179)}
+\sysmllabel[note]{100}{169}{分配，路徑反寫}
+\sysmlpart{A0r.ctrl}{100}{173}{24}{12}
+\sysmllabel[name]{112}{175}{控制器}
+\sysmlport{A0r.ctrl.p}{124}{179}{EAST}{126}{174}{埠}{out}
+\sysmlpart{A0r.pump}{154}{173}{20}{12}
+\sysmllabel[name]{164}{175}{泵浦}
+\sysmlport{A0r.pump.p}{154}{179}{WEST}{142}{174}{埠}{in}
+\sysmlallocation[from=A0r.ctrl.p, to=A0r.pump.p]{A0r.alloc}{(152.4,179) -- (125.6,179)}
+
+\sysmllabel[note]{2}{190}{共軛埠，內箭頭對調}
+\sysmlpart{K0.tank}{2}{194}{20}{12}
+\sysmllabel[name]{12}{196}{儲槽}
+\sysmlport[conjugated]{K0.tank.out}{22}{200}{EAST}{24}{195}{出口}{out}
+\sysmlpart{K0.pump}{52}{194}{20}{12}
+\sysmllabel[name]{62}{196}{泵浦}
+\sysmlport{K0.pump.in}{52}{200}{WEST}{40}{195}{~入口}{in}
+\sysmlconnection[from=K0.tank.out, to=K0.pump.in]{K0.link}{(23.6,200) -- (50.4,200)}
+\sysmllabel[note]{100}{190}{out 對 out，只警告}
+\sysmlpart{W0.tank}{100}{194}{20}{12}
+\sysmllabel[name]{110}{196}{儲槽}
+\sysmlport{W0.tank.out}{120}{200}{EAST}{122}{195}{出口}{out}
+\sysmlpart{W0.pump}{150}{194}{20}{12}
+\sysmllabel[name]{160}{196}{泵浦}
+\sysmlport[conjugated]{W0.pump.in}{150}{200}{WEST}{138}{195}{入口}{in}
+\sysmlconnection[from=W0.tank.out, to=W0.pump.in]{W0.link}{(121.6,200) -- (148.4,200)}
+\end{sysmlcanvas}
+\end{sysmlfigure}
+\end{document}
