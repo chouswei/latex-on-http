@@ -2,6 +2,10 @@
 
 ## 2026-09-29
 
+* A TeX PDF body that contains `\ref` or `\pageref` runs XeLaTeX twice.
+  The second pass reads `job.aux` beside `job.tex`, so those references
+  resolve. Bodies without those commands stay one pass. Shell-escape
+  stays off, and `packageSetHash` is unchanged.
 * `templateId` `fulldoc` is a PDF-only TeX kind. The preamble is A4
   `article` with fontspec, xeCJK, Noto Sans CJK TC, TikZ, `sysml-tikz`,
   CircuiTikZ, siunitx, pgfplots (`compat=1.18`), chemfig, mhchem,

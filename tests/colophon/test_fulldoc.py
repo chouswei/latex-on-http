@@ -455,3 +455,38 @@ def test_fulldoc_page_cap_after_compile(tmp_path, monkeypatch):
     assert "fulldoc exceeds maxPages 16 (got 17 pages)" in err
     diag = json.loads(err.split("ENDLEAF_DIAG ", 1)[1].splitlines()[0])
     assert diag["message"] == "fulldoc exceeds maxPages 16 (got 17 pages)"
+
+
+def _assert_refs_resolved(text):
+    """Captions number on the first pass. ``??`` is an unresolved \\ref."""
+    assert "??" not in text
+    assert re.search(r"Figure\s+1", text)
+    assert re.search(r"Figure\s+2", text)
+    assert re.search(r"Figure\s+3", text)
+    assert re.search(r"Table\s+1", text)
+    assert re.search(r"圖\s*1", text), text
+    assert re.search(r"表\s*1", text), text
+    assert re.search(r"Section\s+1", text), text
+
+
+@pytest.mark.skipif(
+    shutil.which("xelatex") is None
+    or shutil.which("pdftotext") is None
+    or shutil.which("pdfinfo") is None,
+    reason="xelatex, pdftotext, or pdfinfo is not installed",
+)
+def test_fulldoc_cross_references_resolve(tmp_path, monkeypatch):
+    _bind_tex(monkeypatch, tmp_path)
+    body = (_KINDS / "fulldoc.tex").read_text(encoding="utf-8")
+    code, pdf, err = _render(
+        valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body),
+        monkeypatch,
+    )
+    assert code == 0, err[-2000:]
+    assert pdf.startswith(b"%PDF")
+    assert "ENDLEAF_STATUS ok" in err
+    assert "ENDLEAF_OVERFULL 0" in err
+    path = tmp_path / "fulldoc-refs.pdf"
+    path.write_bytes(pdf)
+    assert 1 <= _pages(path) <= 16
+    _assert_refs_resolved(_text(path))

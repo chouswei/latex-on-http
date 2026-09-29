@@ -18,6 +18,7 @@ The Markdown path is Pandoc plus the diagram filter.
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import uuid
@@ -200,6 +201,9 @@ def _assert_fulldoc(name, pdf, err):
     for needle in ("幫浦", "參數", "配置"):
         if needle not in text:
             sys.exit(f"{name} PDF text missing {needle}: {text!r}")
+    # Captions number on the first pass. ?? is an unresolved \ref.
+    if "??" in text or not re.search(r"圖\s*1", text) or not re.search(r"表\s*1", text):
+        sys.exit(f"{name} PDF cross-references are unresolved: {text!r}")
     _assert_fonts_embedded(name, pdf)
 
 

@@ -328,7 +328,10 @@ More than `maxFencesPerJob` TikZ fences is `field` `fences`. An unbounded
 absolute path or a `..` segment are `field` `openin`. The image sets
 `openin_any = p` and `openout_any = p`. XeLaTeX is started in `/tmp` on a
 relative name (`job.tex`, or `tikz-image.tex` for a fence), so the aux
-file is written there without widening `openout_any`. Pandoc passes an
+file is written there without widening `openout_any`. A TeX PDF body that
+contains `\ref` or `\pageref` runs that XeLaTeX command twice, and the
+second pass reads the aux file. A body without those commands stays one
+pass. Pandoc's single PDF-engine run is unchanged. Pandoc passes an
 absolute `input.tex`; `xelatex-nonescape` rewrites that to the basename
 before TeX reads it. Owned preambles use the kpathsea name
 `colophon-v1-preamble.tex`, not an absolute path.
