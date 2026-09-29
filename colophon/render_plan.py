@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Commands that run inside the sandbox. Shell-escape stays off."""
 
+import re
 from dataclasses import dataclass
 
 from colophon.enums import JobSpec
@@ -28,6 +29,11 @@ def _template(lane, name):
 # Image PATH lists /usr/local/bin first. The name is absolute so a job
 # cannot select another binary. The sandbox runs this with cwd /tmp.
 XELATEX_BIN = "/usr/local/bin/xelatex-nonescape"
+
+# \ref and \pageref read the aux file. One XeLaTeX run writes it and
+# leaves ?? in the PDF. A control word such as \refstepcounter does not
+# match: the next character after \ref must not be a letter.
+_AUX_REF = re.compile(r"\\(?:page)?ref(?![A-Za-z])")
 
 
 def xelatex_argv(tex_name):
@@ -69,6 +75,16 @@ def _pandoc_base(source_path, job):
     ]
 
 
+def source_needs_aux_pass(source):
+    """True when a TeX body contains ``\\ref`` or ``\\pageref``.
+
+    The sandbox writes ``job.aux`` beside ``job.tex``. A second identical
+    XeLaTeX command reads that file. Bodies without those commands stay
+    one pass so the wall-clock cap is unchanged for them.
+    """
+    return bool(source) and _AUX_REF.search(source) is not None
+
+
 def build_render_plan(job: JobSpec) -> RenderPlan:
     if not isinstance(job, JobSpec):
         raise RenderPlanError("job")
@@ -78,9 +94,12 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
         # The sandbox reads the wrapper from the image and substitutes the body.
         files["/tmp/body.tex"] = job.source
         files["/tmp/job.tex"] = None  # filled by the sandbox from the wrapper
+        passes = (xelatex_argv("job.tex"),)
+        if source_needs_aux_pass(job.source):
+            passes = passes + (xelatex_argv("job.tex"),)
         return RenderPlan(
             files=files,
-            commands=(xelatex_argv("job.tex"),),
+            commands=passes,
             output_path="/tmp/job.pdf",
         )
     source_name = "/tmp/input.md" if job.input_kind == "markdown" else "/tmp/input.tex"
