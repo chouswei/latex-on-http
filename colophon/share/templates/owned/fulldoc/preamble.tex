@@ -37,7 +37,10 @@
 \begin{document}
 \makeatletter
 \setlength\@fptop{0pt}
-\setlength\@fpsep{12pt plus 2fil}
+% The locked preamble used 12pt plus 2fil. That fil takes the spare
+% space and drops the next float down the page. A fixed 12pt gap
+% stacks float pages from the top. \@fpbot keeps the spare space.
+\setlength\@fpsep{12pt}
 \setlength\@fpbot{0pt plus 1fil}
 \makeatother
 __BODY__

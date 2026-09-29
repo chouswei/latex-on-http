@@ -96,7 +96,8 @@ def test_preambles_use_only_the_allowlist():
             assert "\\input{endleaf-fit.tex}" in text
             assert "\\setlength{\\belowcaptionskip}{4pt}" in text
             assert "\\setlength\\@fptop{0pt}" in text
-            assert "\\setlength\\@fpsep{12pt plus 2fil}" in text
+            sep = re.search(r"\\setlength\\@fpsep\{([^}]*)\}", text)
+            assert sep is not None and sep.group(1) == "12pt"
             assert "\\setlength\\@fpbot{0pt plus 1fil}" in text
             for banned in (
                 "\\usepackage{geometry}",

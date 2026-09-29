@@ -13,10 +13,15 @@
   are unchanged.
 * `sysml` and `fulldoc` keep a `sysmlfigure` header and its canvas in
   one minipage. Inside a fulldoc `figure` or `table`, the picture and
-  the caption share a minipage. A wide `sysmlcanvas` is fitted to
-  `\linewidth` by shrinking the coordinate unit. Node fonts stay at
-  the size the picture set (the style floor is 7 pt). `\resizebox` is
-  not used.
+  the caption share a minipage. The float macros are wrapped, so the
+  body is not collected. A `sysmlcanvas` is scaled uniformly, text
+  included, down to 7 pt. Only a remainder past that floor shrinks the
+  coordinate unit, and the same fit is applied to the height so the
+  header and the canvas stay inside `\textheight`. The caption reports
+  the fitted type size. A plain `tikzpicture` or `circuitikz` that is
+  wider than the line logs `ENDLEAF_WIDE_PICTURE` and is not scaled.
+  `\@fpsep` is 12 pt with no fil, so float pages stack at the top.
+  `\resizebox` is not used.
 * `sysml-tikz.sty` is re-vendored from Endleaf
   `prototypes/sysml-layout/sysml-tikz.sty` at
   `65baacff166cdee7b3393bc27a01e5d80ad1262f`

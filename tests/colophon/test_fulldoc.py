@@ -40,7 +40,19 @@ _TEXINPUTS = os.pathsep.join(
     )
 )
 _PACKAGE_SET_HASH = "73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98"
-_FIT = re.compile(r"ENDLEAF_FIT shipped=([0-9.]+)pt line=([0-9.]+)pt factor=([0-9.]+)")
+_FIT = re.compile(
+    r"ENDLEAF_FIT shipped=([0-9.]+)pt line=([0-9.]+)pt "
+    r"high=([0-9.]+)pt avail=([0-9.]+)pt "
+    r"uniform=([0-9.]+) unit=([0-9.]+) type=([0-9.]+)"
+)
+_BOX = re.compile(
+    r"SYSMLBOX\s+(\S+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)"
+)
+_WORD = re.compile(
+    r'<word xMin="([0-9.]+)" yMin="([0-9.]+)" xMax="([0-9.]+)" yMax="([0-9.]+)">(.*?)</word>'
+)
+_PAGE = re.compile(r'<page width="([0-9.]+)" height="([0-9.]+)">')
+_FIT_TEX = _ROOT / "colophon/share/tex/latex/colophon-v1/endleaf-fit.tex"
 
 
 def test_package_set_hash_is_unchanged():
@@ -140,6 +152,94 @@ def _pages(pdf):
     raise AssertionError(info.stdout)
 
 
+def _unwrap(log):
+    """Join TeX log lines. A line of 79 columns or more is a hard wrap."""
+    pieces = []
+    pending = ""
+    for line in log.splitlines():
+        pending = pending + line if pending else line
+        if len(line) < 79:
+            pieces.append(pending)
+            pending = ""
+    if pending:
+        pieces.append(pending)
+    return "\n".join(pieces)
+
+
+def _fit(log):
+    found = _FIT.search(_unwrap(log))
+    assert found, _unwrap(log)[-2000:]
+    shipped, line, high, avail, uniform, unit, type_size = (
+        float(item) for item in found.groups()
+    )
+    return {
+        "shipped": shipped,
+        "line": line,
+        "high": high,
+        "avail": avail,
+        "uniform": uniform,
+        "unit": unit,
+        "type": type_size,
+        "type_text": found.group(7),
+    }
+
+
+def _shipped_boxes(log):
+    text = _unwrap(log)
+    start = text.rfind("ENDLEAF_FIT_SHIP")
+    assert start >= 0, text[-1500:]
+    end = text.find("\nENDLEAF_FIT ", start)
+    assert end > start, text[start : start + 1500]
+    boxes = []
+    for kind, x0, y0, x1, y1 in _BOX.findall(text[start:end]):
+        xa, xb = sorted((float(x0), float(x1)))
+        ya, yb = sorted((float(y0), float(y1)))
+        boxes.append((kind, xa, ya, xb, yb))
+    return boxes
+
+
+def _overlap(a0, a1, b0, b1):
+    return min(a1, b1) - max(a0, b0)
+
+
+def _crosses_outline(label, outline, tol=0.4):
+    """A hit on both axes that is not strictly inside the outline."""
+    ox = _overlap(label[1], label[3], outline[1], outline[3])
+    oy = _overlap(label[2], label[4], outline[2], outline[4])
+    if ox <= tol or oy <= tol:
+        return False
+    inside = (
+        label[1] >= outline[1] - 0.05
+        and label[3] <= outline[3] + 0.05
+        and label[2] >= outline[2] - 0.05
+        and label[4] <= outline[4] + 0.05
+    )
+    return not inside
+
+
+def _bbox_words(pdf, page):
+    extracted = subprocess.run(
+        ["pdftotext", "-bbox", "-f", str(page), "-l", str(page), str(pdf), "-"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert extracted.returncode == 0, extracted.stderr
+    page_box = _PAGE.search(extracted.stdout)
+    assert page_box, extracted.stdout[:500]
+    words = [
+        {
+            "xMin": float(x0),
+            "yMin": float(y0),
+            "xMax": float(x1),
+            "yMax": float(y1),
+            "text": word,
+        }
+        for x0, y0, x1, y1, word in _WORD.findall(extracted.stdout)
+    ]
+    return float(page_box.group(1)), float(page_box.group(2)), words
+
+
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_fulldoc_fixture_compiles(tmp_path):
     body = (_KINDS / "fulldoc.tex").read_text(encoding="utf-8")
@@ -152,7 +252,13 @@ def test_fulldoc_fixture_compiles(tmp_path):
     assert "幫浦" in text
     assert "參數" in text
     assert "配置" in text
-    assert "type" in text and "10" in text
+    fit = _fit(log)
+    assert fit["type"] >= 7
+    assert fit["shipped"] <= fit["line"] + 0.2
+    assert fit["high"] <= fit["avail"] + 0.2
+    assert re.search(rf"type\s+{re.escape(fit['type_text'])}\s*pt", text)
+    assert pages >= 2
+    _assert_float_page_stacks_at_the_top(pdf)
     fonts = subprocess.run(
         ["pdffonts", str(pdf)],
         check=False,
@@ -167,46 +273,124 @@ def test_fulldoc_fixture_compiles(tmp_path):
         assert row.split()[-5] == "yes", row
 
 
+def _assert_float_page_stacks_at_the_top(pdf):
+    """Figure 2 and Figure 3 share the top of page 2, with a fixed gap."""
+    _width, height, words = _bbox_words(pdf, 2)
+    captions = []
+    for index, word in enumerate(words):
+        if word["text"] != "Figure" or index + 1 >= len(words):
+            continue
+        number = words[index + 1]["text"].rstrip(":")
+        if number in {"2", "3"}:
+            captions.append(word["yMin"])
+    assert captions == sorted(captions)
+    assert len(captions) >= 2, [word["text"] for word in words]
+    assert captions[0] < 220
+    assert max(captions) < height * 0.45
+    assert captions[-1] - captions[0] < 180
+
+
+def _assert_labels_clear_outlines(boxes):
+    labels = [box for box in boxes if box[0] in {"text", "plab"}]
+    outlines = [box for box in boxes if box[0] == "part"]
+    lines = [box for box in boxes if box[0] == "line"]
+    assert labels and outlines, boxes
+    for label in labels:
+        for outline in outlines:
+            assert not _crosses_outline(label, outline), (label, outline)
+        for line in lines:
+            assert (
+                _overlap(label[1], label[3], line[1], line[3]) <= 0.4
+                or _overlap(label[2], label[4], line[2], line[4]) <= 0.4
+            ), (label, line)
+
+
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_wide_sysml_canvas_fits_the_line(tmp_path):
-    body = (_REVIEW / "wide-175.tex").read_text(encoding="utf-8")
+    body = "\\makeatletter\\sysml@marktracetrue\\makeatother\n" + (
+        _REVIEW / "wide-175.tex"
+    ).read_text(encoding="utf-8")
     tex = compose("sysml", "Weft", body, _OWNED)
     pdf, log = _xelatex(tmp_path, "wide.tex", tex)
     assert "Overfull \\hbox" not in log
-    found = _FIT.search(log)
-    assert found, log[-1500:]
-    shipped, line, factor = (float(item) for item in found.groups())
-    assert shipped <= line + 0.2
-    assert factor < 1
+    assert "Overfull \\vbox" not in log
+    fit = _fit(log)
+    assert fit["shipped"] <= fit["line"] + 0.2
+    assert fit["high"] <= fit["avail"] + 0.2
+    assert fit["uniform"] == pytest.approx(0.7, abs=0.01)
+    assert fit["unit"] > 0.9
+    assert fit["type"] == pytest.approx(7, abs=0.05)
+    assert fit["type_text"] == "7"
     assert _pages(pdf) == 1
     text = _text(pdf)
     assert "參數" in text
-    assert "10" in text
+    assert re.search(r"type\s+7\s*pt", text)
+    assert "type 10" not in text
+    _assert_labels_clear_outlines(_shipped_boxes(log))
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_sysml_header_and_canvas_stay_together(tmp_path):
     body = (_REVIEW / "tall-split.tex").read_text(encoding="utf-8")
     tex = compose("sysml", "Weft", body, _OWNED)
-    pdf, _log = _xelatex(tmp_path, "tall.tex", tex)
-    pages = _pages(pdf)
-    together = False
-    for number in range(1, pages + 1):
-        extracted = subprocess.run(
-            ["pdftotext", "-f", str(number), "-l", str(number), "-raw", str(pdf), "-"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        assert extracted.returncode == 0
-        text = extracted.stdout
-        has_header = "View" in text
-        has_canvas = "幫浦" in text or "末端" in text
-        if has_canvas:
-            assert has_header, text
-        if has_header and has_canvas:
-            together = True
-    assert together
+    pdf, log = _xelatex(tmp_path, "tall.tex", tex)
+    assert "Overfull \\vbox" not in log
+    assert "Overfull \\hbox" not in log
+    assert _pages(pdf) == 1
+    fit = _fit(log)
+    assert fit["high"] <= fit["avail"] + 0.2
+    assert fit["uniform"] < 1
+    assert fit["unit"] == pytest.approx(1, abs=0.001)
+    assert fit["type"] >= 7
+    text = _text(pdf)
+    assert "View" in text
+    assert "幫浦" in text
+    assert "末端" in text
+    assert re.search(rf"type\s+{re.escape(fit['type_text'])}\s*pt", text)
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_hash_in_a_float_body_compiles(tmp_path):
+    body = (_REVIEW / "hash-float.tex").read_text(encoding="utf-8")
+    tex = compose("fulldoc", "Weft", body, _OWNED)
+    pdf, _log = _xelatex(tmp_path, "hash.tex", tex)
+    assert _pages(pdf) == 1
+    text = _text(pdf)
+    assert "#" in text
+    assert "0" in text and "2" in text
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_plain_pictures_are_not_fitted(tmp_path):
+    body = (
+        "\\begin{tikzpicture}\n"
+        "\\draw (0,0) -- (15,0);\n"
+        "\\end{tikzpicture}\n"
+        "\\begin{circuitikz}\n"
+        "\\draw (0,0) to[R] (15,0);\n"
+        "\\end{circuitikz}\n"
+    )
+    tex = compose("fulldoc", "Weft", body, _OWNED)
+    _pdf, log = _xelatex(tmp_path, "widepic.tex", tex)
+    unwrapped = _unwrap(log)
+    warnings = re.findall(
+        r"ENDLEAF_WIDE_PICTURE width=([0-9.]+)pt line=([0-9.]+)pt", unwrapped
+    )
+    assert len(warnings) == 2, unwrapped[-2000:]
+    for width, line in warnings:
+        assert float(width) > float(line)
+    assert "ENDLEAF_FIT " not in unwrapped
+
+
+def test_float_bodies_are_not_collected():
+    fit = _FIT_TEX.read_text(encoding="utf-8")
+    assert "\\def\\figure" in fit
+    assert "\\def\\table" in fit
+    assert "\\elfit@figopt" in fit
+    assert "\\RenewDocumentEnvironment{figure}" not in fit
+    assert "\\RenewDocumentEnvironment{table}" not in fit
+    assert "\\resizebox" not in fit
+    assert "ENDLEAF_WIDE_PICTURE" in fit
 
 
 def _bind_tex(monkeypatch, tmp_path):
