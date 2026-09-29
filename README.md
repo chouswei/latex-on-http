@@ -341,7 +341,7 @@ ENDLEAF-R27. `POST /v1/jobs` accepts a JSON object with these fields:
 | --- | --- | --- |
 | `lane` | yes | `InstruMeasure`, `Weft`, or `Investor` |
 | `outputFormat` | yes | `pdf`, `html`, or `docx` |
-| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, `floorplan`, or `sysml` |
+| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, `floorplan`, `sysml`, or `fulldoc` |
 | `body` | yes | A non-empty string. The document body only. |
 | `compiler` | no | Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
 
@@ -356,7 +356,11 @@ not pick the class or send a preamble. An unknown `templateId` is HTTP 400
 Each `templateId` is a server-owned asset under
 `colophon/share/templates/owned/<templateId>/`. The preamble is
 `\documentclass{article}` with no options, fontspec, xeCJK, Noto Sans CJK TC,
-and `\input{colophon-v1-preamble.tex}`. Those packages are the allowlist.
+and `\input{colophon-v1-preamble.tex}`, except `sysml` and `fulldoc`, which
+use `\documentclass[a4paper]{article}`. `fulldoc` does not input that shared
+preamble: it loads the sold packages named in its own preamble and refuses
+`html` and `docx` (`outputFormat`). A fulldoc PDF of more than 16 pages is
+`failCapHit`. Those packages are the allowlist.
 A ```` ```tikz ```` fence uses that same font block plus the allowlist, so
 zh-TW labels in the fence are in the PDF image embedded in HTML and DOCX.
 For a TeX `templateId` and `outputFormat` `pdf`, the worker builds the

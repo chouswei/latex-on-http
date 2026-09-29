@@ -181,7 +181,10 @@ def test_compile_fixtures_exist_for_the_image_build():
 
 
 def test_required_kind_fixtures_are_the_sold_candidate_set():
-    """Document shell plus P&ID, circuits, plots, chemistry, Gantt, floor plans, and SysML."""
+    """Document shell plus P&ID, circuits, plots, chemistry, Gantt, floor plans, and SysML.
+
+    fulldoc.tex is the locked playbook body. It has no Markdown twin.
+    """
     kinds = FIXTURES / "kinds"
     names = sorted(path.name for path in kinds.iterdir())
     assert names == [
@@ -194,6 +197,7 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
         "floorplan-scale.tex",
         "floorplan.md",
         "floorplan.tex",
+        "fulldoc.tex",
         "gantt.md",
         "gantt.tex",
         "pgfplots.md",
@@ -233,6 +237,12 @@ def test_required_kind_fixtures_are_the_sold_candidate_set():
     assert "\\documentclass" not in half
     reject_forbidden_source(half)
     reject_forbidden_source((kinds / "pidcircuit.tex").read_text(encoding="utf-8"))
+    fulldoc = (kinds / "fulldoc.tex").read_text(encoding="utf-8")
+    assert "\\documentclass" not in fulldoc
+    assert "\\title{Pump monitor" in fulldoc
+    assert "幫浦監測" in fulldoc
+    reject_forbidden_source(fulldoc)
+    assert not (kinds / "fulldoc.md").exists()
 
 
 def test_unsold_packages_keep_a_smoke_compile_only():

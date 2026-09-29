@@ -1,0 +1,38 @@
+\documentclass{article}
+\usepackage{sysml-tikz}
+\pagestyle{empty}
+\begin{document}
+\makeatletter
+\sysml@marktracetrue
+\makeatother
+%% Each canvas is one page. L is (x,y) -- (x,y+30) -- (x+8,y+30).
+%% The arc-length midpoint is on the vertical run. U is
+%% (x,y) -- (x,y+6) -- (x+36,y+6) -- (x+36,y). The arc-length
+%% midpoint is on the horizontal run. End heads stay on the stroked
+%% path and follow its final segment.
+\begin{sysmlcanvas}
+\sysmlbinding{bL}{(0,0) -- (0,30) -- (8,30)}
+\sysmlbinding{bU}{(50,0) -- (50,6) -- (86,6) -- (86,0)}
+\sysmlflow[at=mid, item=lvl]{fL}{(0,40) -- (0,70) -- (8,70)}
+\sysmlflow[at=mid, item=lvl]{fU}{(50,40) -- (50,46) -- (86,46) -- (86,40)}
+\sysmlconnection[flow=forward, item=fwd]{cL}{(0,80) -- (0,110) -- (8,110)}
+\sysmlconnection[flow=forward, item=fwd]{cU}{(50,80) -- (50,86) -- (86,86) -- (86,80)}
+\sysmlconnection[flow=reverse]{rL}{(0,120) -- (0,150) -- (8,150)}
+\sysmlconnection[flow=reverse]{rU}{(50,120) -- (50,126) -- (86,126) -- (86,120)}
+\sysmlmessage[item=msg]{mL}{(0,160) -- (0,190) -- (8,190)}
+\sysmlmessage[item=msg]{mU}{(50,160) -- (50,166) -- (86,166) -- (86,160)}
+\end{sysmlcanvas}
+\newpage
+\begin{sysmlcanvas}
+\sysmlinterface{iL}{(0,0) -- (0,30) -- (8,30)}
+\sysmlinterface{iU}{(50,0) -- (50,6) -- (86,6) -- (86,0)}
+\sysmlallocation{aL}{(0,40) -- (0,70) -- (8,70)}
+\sysmlallocation{aU}{(50,40) -- (50,46) -- (86,46) -- (86,40)}
+\sysmlflow{eL}{(0,80) -- (0,110) -- (8,110)}
+\sysmlflow{eU}{(50,80) -- (50,86) -- (86,86) -- (86,80)}
+\sysmlconnection[directed]{dL}{(0,120) -- (0,150) -- (8,150)}
+\sysmlconnection[directed]{dU}{(50,120) -- (50,126) -- (86,126) -- (86,120)}
+%% The fulldoc binding. Midpoint is on the long horizontal run.
+\sysmlbinding{bug}{(17,160) -- (17,168.4) -- (67,168.4) -- (67,160)}
+\end{sysmlcanvas}
+\end{document}

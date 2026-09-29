@@ -1,0 +1,76 @@
+% ENDLEAF-R39-KEEP and ENDLEAF-R39-WIDTH.
+% Kernel boxes only. This file is not a package, so packageSetHash
+% does not change. Node fonts stay at the size the picture set.
+% A picture that cannot fit at 7 pt or above is an error.
+\NeedsTeXFormat{LaTeX2e}
+\makeatletter
+\newbox\elfit@picbox
+\newcount\elfit@fittry
+\def\elfit@factor{1}
+\let\elfit@tikzpicture\tikzpicture
+\let\elfit@endtikzpicture\endtikzpicture
+\let\elfit@figure\figure
+\let\elfit@endfigure\endfigure
+\let\elfit@table\table
+\let\elfit@endtable\endtable
+
+% #1 is the sysmlcanvas body. Coordinates are millimetres, y down.
+% The unit shrinks until the box, including every note, is at most
+% \linewidth. scale= and \resizebox are not used, so glyphs stay put.
+\long\def\elfit@measure#1{%
+  \setbox\elfit@picbox=\hbox{%
+    \elfit@tikzpicture[x=\elfit@factor mm,y=-\elfit@factor mm]%
+    #1%
+    \elfit@endtikzpicture
+  }%
+}
+\long\def\elfit@fitcanvas#1{%
+  \def\elfit@factor{1}%
+  \elfit@fittry=0
+  \elfit@measure{#1}%
+  \@whiledim\wd\elfit@picbox>\linewidth\do{%
+    \ifnum\elfit@fittry>5
+      \PackageError{endleaf}{picture does not fit the line at 7pt or above. Text was not shrunk}{Do not shrink type below 7pt.}%
+      \wd\elfit@picbox=0pt
+    \else
+      \pgfmathsetmacro{\elfit@factor}{\elfit@factor*\strip@pt\linewidth/\strip@pt\wd\elfit@picbox*0.998}%
+      \advance\elfit@fittry by 1
+      \elfit@measure{#1}%
+    \fi
+  }%
+  \typeout{ENDLEAF_FIT shipped=\the\wd\elfit@picbox\space line=\the\linewidth\space factor=\elfit@factor}%
+  \leavevmode\box\elfit@picbox
+}
+
+\RenewDocumentEnvironment{sysmlcanvas}{+b}{%
+  \elfit@fitcanvas{%
+    \global\sysml@obscount=0\relax
+    \ifsysml@marktrace
+      \pgfpointtransformed{\pgfpointorigin}%
+      \typeout{SYSMLORIGIN x=\the\pgf@x\space y=\the\pgf@y}%
+    \fi
+    #1%
+  }%
+}{}
+
+% A float's begin hook runs before \@float, so a minipage there is
+% "not in outer par mode". Open the float, then the minipage, then
+% the body. \caption still sees \@captype. A bare sysmlfigure is not
+% a float: the before/after hooks wrap the header and the canvas.
+\RenewDocumentEnvironment{figure}{o +b}{%
+  \IfNoValueTF{#1}{\elfit@figure}{\elfit@figure[#1]}%
+  \noindent\begin{minipage}{\linewidth}%
+  #2%
+  \end{minipage}%
+  \elfit@endfigure
+}{}
+\RenewDocumentEnvironment{table}{o +b}{%
+  \IfNoValueTF{#1}{\elfit@table}{\elfit@table[#1]}%
+  \noindent\begin{minipage}{\linewidth}%
+  #2%
+  \end{minipage}%
+  \elfit@endtable
+}{}
+\AddToHook{env/sysmlfigure/before}{\noindent\begin{minipage}{\linewidth}}
+\AddToHook{env/sysmlfigure/after}{\end{minipage}}
+\makeatother

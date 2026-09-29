@@ -85,9 +85,28 @@ def _assert_allowlist(text):
 def test_preambles_use_only_the_allowlist():
     for template_id in TEMPLATE_IDS:
         text = (_ROOT / template_id / "preamble.tex").read_text(encoding="utf-8")
-        assert "\\documentclass{article}" in text
+        if template_id in ("fulldoc", "sysml"):
+            assert "\\documentclass[a4paper]{article}" in text
+        else:
+            assert "\\documentclass{article}" in text
+            assert "\\documentclass[" not in text
         assert "\\usepackage{fontspec}" in text
-        assert "\\input{colophon-v1-preamble.tex}" in text
+        if template_id == "fulldoc":
+            assert "\\input{colophon-v1-preamble.tex}" not in text
+            assert "\\input{endleaf-fit.tex}" in text
+            assert "\\setlength{\\belowcaptionskip}{4pt}" in text
+            assert "\\setlength\\@fptop{0pt}" in text
+            assert "\\setlength\\@fpsep{12pt plus 2fil}" in text
+            assert "\\setlength\\@fpbot{0pt plus 1fil}" in text
+            for banned in (
+                "\\usepackage{geometry}",
+                "\\usepackage{needspace}",
+                "\\usepackage{float}",
+                "\\usepackage{caption}",
+            ):
+                assert banned not in text
+        else:
+            assert "\\input{colophon-v1-preamble.tex}" in text
         _assert_allowlist(text)
     shared = (
         Path(__file__).resolve().parents[2]
@@ -136,8 +155,11 @@ def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
     if template_id == "document-shell":
         sample = "Hello from the document shell."
     tex = compose(template_id, "InstruMeasure", sample, _ROOT)
-    assert "\\documentclass{article}" in tex
-    assert "\\newcommand{\\EndleafLane}{InstruMeasure}" in tex
+    assert re.search(r"\\documentclass(?:\[[^\]]*\])?\{article\}", tex)
+    if template_id == "fulldoc":
+        assert "\\newcommand{\\EndleafLane}" not in tex
+    else:
+        assert "\\newcommand{\\EndleafLane}{InstruMeasure}" in tex
     assert sample in tex
     if shutil.which("kpsewhich"):
         found = subprocess.run(
@@ -164,7 +186,7 @@ def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
         ],
         cwd=tmp_path,
         check=False,
-        timeout=60,
+        timeout=180 if template_id == "fulldoc" else 90,
         capture_output=True,
         env=env,
     )

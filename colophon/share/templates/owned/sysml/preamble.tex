@@ -1,11 +1,18 @@
 % ENDLEAF-R27. Server-owned preamble for templateId sysml.
 % The caller sends the body only. This file is not a request field.
-\documentclass{article}
+% ENDLEAF-R39-KEEP: the body is one minipage, so the sysmlfigure header
+% and the sysmlcanvas stay on one page. ENDLEAF-R39-WIDTH fits a wide
+% canvas in endleaf-fit.tex. The page is A4. The line stays the article
+% default, about 345 pt.
+\documentclass[a4paper]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
 \setCJKmainfont{Noto Sans CJK TC}
 \input{colophon-v1-preamble.tex}
+\input{endleaf-fit.tex}
 \newcommand{\EndleafLane}{__LANE__}
 \begin{document}
+\noindent\begin{minipage}{\linewidth}
 __BODY__
+\end{minipage}
 \end{document}

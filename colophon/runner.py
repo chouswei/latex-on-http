@@ -344,7 +344,11 @@ def make_podman_runner(config, switch):
                     memory_peak=meters.get("memoryPeak"),
                     pids_peak=meters.get("pidsPeak"),
                     memory_mode=meters.get("memoryMode"),
-                    diagnostic=diagnostic if kind == "rejectRenderError" else None,
+                    diagnostic=(
+                        diagnostic
+                        if kind in ("rejectRenderError", "failCapHit")
+                        else None
+                    ),
                 )
             logger.info(
                 "job %s lane=%s format=%s result=ok bytes=%d",

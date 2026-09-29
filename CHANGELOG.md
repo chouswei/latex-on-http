@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-09-29
+
+* `templateId` `fulldoc` is a PDF-only TeX kind. The preamble is A4
+  `article` with fontspec, xeCJK, Noto Sans CJK TC, TikZ, `sysml-tikz`,
+  CircuiTikZ, siunitx, pgfplots (`compat=1.18`), chemfig, mhchem,
+  pgfgantt, tikz-dimline, tikzscale, and `endleaf-floorplan`. It does
+  not load geometry, needspace, float, caption, or the unsold packages
+  in `colophon-v1-preamble.tex`. HTML and DOCX are `outputFormat`.
+  A compile of more than 16 pages is `failCapHit` with
+  `fulldoc exceeds maxPages 16 (got N pages)`. `GET /version` limits
+  are unchanged.
+* `sysml` and `fulldoc` keep a `sysmlfigure` header and its canvas in
+  one minipage. Inside a fulldoc `figure` or `table`, the picture and
+  the caption share a minipage. A wide `sysmlcanvas` is fitted to
+  `\linewidth` by shrinking the coordinate unit. Node fonts stay at
+  the size the picture set (the style floor is 7 pt). `\resizebox` is
+  not used.
+* `sysml-tikz.sty` is re-vendored from Endleaf
+  `prototypes/sysml-layout/sysml-tikz.sty` at
+  `65baacff166cdee7b3393bc27a01e5d80ad1262f`
+  (sha256 `aa1d42ababc4d4e813f1943fa89a11fee021ae0a491715a2d5b6933a17315952`).
+  Mid-path marks use arc length. `packageSetHash` stays
+  `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`.
+
 ## 2026-09-28
 
 * `sysml-tikz.sty` is re-vendored from Endleaf

@@ -60,6 +60,9 @@ def parse_job(payload):
         raise JobRejected("outputFormat")
     if not isinstance(template_id, str) or template_id not in TEMPLATES:
         raise JobRejected("templateId")
+    # ENDLEAF-R39-CAPS. HTML and DOCX are refused before a compile.
+    if template_id == "fulldoc" and output_format != "pdf":
+        raise JobRejected("outputFormat")
     if not isinstance(source, str) or source == "":
         raise JobRejected("body")
     # Absent means XeLaTeX. Any other value is a request for another engine.

@@ -12,6 +12,7 @@ from pathlib import Path
 from colophon.diagnostics import first_tex_error
 from colophon.enums import JobRejected, parse_job
 from colophon.limits import OUTPUT_CAP_BYTES
+from colophon.pdf_pages import fulldoc_page_count, fulldoc_page_failure
 from colophon.settings import setting
 from colophon.templates import compose
 from colophon.render_plan import RenderPlanError, build_render_plan
@@ -136,7 +137,26 @@ def render_to_stdout(payload_bytes):
             for command in plan.commands:
                 _run(list(command))
             data = Path(plan.output_path).read_bytes()
+            log = _collect_logs()
             status = "cap" if len(data) > OUTPUT_CAP_BYTES else "ok"
+            # ENDLEAF-R39-CAPS. Count after a successful compile. The gate
+            # does not count pages. The message is the tool-result text.
+            if status == "ok" and job.template_id == "fulldoc":
+                failure = fulldoc_page_failure(fulldoc_page_count(data, log))
+                if failure:
+                    diagnostic = {
+                        "engine": "tex",
+                        "message": failure,
+                        "file": "job.tex",
+                        "line": None,
+                        "fence": None,
+                    }
+                    # Unreadable is a render error. Over the cap is failCapHit.
+                    status = "render_error" if "unreadable" in failure else "cap"
+                else:
+                    # The fixture asserts this. The log is deleted below.
+                    overfull = log.count("Overfull \\hbox")
+                    sys.stderr.write(f"ENDLEAF_OVERFULL {overfull}\n")
         except (OSError, RenderPlanError):
             diagnostic = first_tex_error(_collect_logs())
             status = "render_error"
@@ -150,7 +170,7 @@ def render_to_stdout(payload_bytes):
                 except OSError:
                     pass
     _emit_meters()
-    if status == "render_error":
+    if diagnostic and status in ("render_error", "cap"):
         _emit_diag(diagnostic)
     _status(status)
     if status == "ok":

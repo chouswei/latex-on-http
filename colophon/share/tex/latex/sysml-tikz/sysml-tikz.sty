@@ -18,7 +18,7 @@
 %% parts, route connections, or scale type below 7 pt.
 %%
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{sysml-tikz}[2026/09/28 v0.2 SysML interconnection drawing]
+\ProvidesPackage{sysml-tikz}[2026/09/29 v0.5 SysML interconnection drawing]
 
 \RequirePackage{tikz}
 \usetikzlibrary{positioning,calc,fit,backgrounds,arrows.meta,decorations.markings,shapes.geometric,shapes.multipart}
@@ -67,6 +67,19 @@
 \newif\ifsysml@alongpath
 \newif\ifsysml@pointatto
 \newif\ifsysml@usefwd
+\newif\ifsysml@midmark
+\newif\ifsysml@centreonly
+\newif\ifsysml@accept
+\newif\ifsysml@hit
+%% Regression fixture sets this. Production pictures stay quiet.
+\newif\ifsysml@marktrace
+\def\sysml@marks{}
+\newcount\sysml@obscount
+\newcount\sysml@npt
+\newcount\sysml@oi
+\newcount\sysml@k
+\newdimen\sysml@owa
+\newdimen\sysml@owb
 \pgfkeys{
   /sysml/connection/.is family,
   /sysml/connection,
@@ -133,9 +146,11 @@
   sysml message start/.style={draw, line width=0.45pt, {Triangle[open,length=3.2mm,width=2.6mm,sep=0pt]}-},
   sysml allocate end/.style={draw, line width=0.45pt, -{Straight Barb[length=3.2mm,width=2.2mm,sep=0pt]}},
   sysml allocate start/.style={draw, line width=0.45pt, {Straight Barb[length=3.2mm,width=2.2mm,sep=0pt]}-},
-  sysml flow mark forward/.style={postaction={decorate, decoration={markings, mark=at position 0.5 with {\arrow{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}}}}},
-  sysml flow mark reverse/.style={postaction={decorate, decoration={markings, mark=at position 0.5 with {\arrowreversed{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}}}}},
-  sysml edge label/.style={fill=white, inner sep=1.1pt, outer sep=0pt, font=\sysml@font{\sysml@body}},
+  %% End arrow tips follow the final segment when the head is at the
+  %% path end, and the first segment when the head is at the path start.
+  %% TikZ applies the tip to that segment. Do not place a tip with pos=.
+  sysml edge text/.style={inner sep=1.1pt, outer sep=0pt, font=\sysml@font{\sysml@body}},
+  sysml edge label/.style={sysml edge text, fill=white},
   sysml connection undirected/.style={draw, line width=0.35pt},
   sysml keyword/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, anchor=north},
   sysml name/.style={font=\sysml@font{\sysml@name}, inner sep=0pt, anchor=north},
@@ -149,19 +164,23 @@
 
 \newcommand{\sysmlpart}[5]{%
   \draw[sysml usage] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+  \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
 }
 \newcommand{\sysmlframe}[5]{%
   \draw[sysml frame] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
 }
 \newcommand{\sysmldef}[5]{%
   \draw[sysml def] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+  \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
 }
 \newcommand{\sysmlref}[5]{%
   \draw[sysml ref] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+  \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
 }
 
 \newcommand{\sysmllabel}[4][]{%
-  \node[sysml #1] at (#2,#3) {#4};%
+  \node[sysml #1] (sysml@tlab) at (#2,#3) {#4};%
+  \sysml@pushnode{text}{sysml@tlab}%
 }
 
 %% Direction glyph inside the square. Tips sit 1.15 mm from the centre.
@@ -224,8 +243,10 @@
   \sysml@effectivedir{#9}%
   \sysml@rememberport{#2}{#3}{#4}{#5}{\sysml@effdir}%
   \draw[sysml port] ($(#3,#4)+(-1.6,-1.6)$) rectangle ($(#3,#4)+(1.6,1.6)$);%
+  \sysml@recordxy{#3-1.6}{#4-1.6}{3.2}{3.2}{port}%
   \sysml@portdir{#5}{\sysml@effdir}{#3}{#4}%
-  \node[sysml port label] at (#6,#7) {\sysml@shownlabel};%
+  \node[sysml port label] (sysml@plab) at (#6,#7) {\sysml@shownlabel};%
+  \sysml@pushnode{plab}{sysml@plab}%
 }
 \newcommand{\sysml@absorbtilde}[1]{%
   \gdef\sysml@rest{}%
@@ -328,6 +349,12 @@
   \ifx\sysml@nx\sysml@stopmark
   \else
     \sysml@setpt{#1}{#2}\sysml@xhere\sysml@yhere
+    \pgfpointtransformed{\pgfpointxy{#1}{#2}}%
+    \edef\sysml@axhere{\the\pgf@x}%
+    \edef\sysml@ayhere{\the\pgf@y}%
+    \global\advance\sysml@npt by 1\relax
+    \expandafter\xdef\csname sysml@ax@\the\sysml@npt\endcsname{\sysml@axhere}%
+    \expandafter\xdef\csname sysml@ay@\the\sysml@npt\endcsname{\sysml@ayhere}%
     \ifsysml@gotend
     \else
       \let\sysml@xstart\sysml@xhere
@@ -344,8 +371,10 @@
   \gdef\sysml@ystart{0pt}%
   \gdef\sysml@xend{0pt}%
   \gdef\sysml@yend{0pt}%
+  \global\sysml@npt=0\relax
   \global\sysml@gotendfalse
   \sysml@findparen#1(\sysml@stopmark,\sysml@stopmark)\sysml@endscan
+  \sysml@measurepath
 }
 
 %% The tip of a line arrow sits on the path end the caller placed on
@@ -407,13 +436,6 @@
     \ifsysml@pointatto\sysml@usefwdfalse\else\sysml@usefwdtrue\fi
   \fi
 }
-\newcommand{\sysml@markstyle}{%
-  \ifsysml@usefwd
-    \def\sysml@markname{sysml flow mark forward}%
-  \else
-    \def\sysml@markname{sysml flow mark reverse}%
-  \fi
-}
 \newcommand{\sysml@headstyle}[1]{%
   \ifsysml@alongpath
     \edef\sysml@drawstyle{#1 end}%
@@ -421,18 +443,382 @@
     \edef\sysml@drawstyle{#1 start}%
   \fi
 }
-\newcommand{\sysml@drawitem}[3]{%
-  \pgfkeysgetvalue{/sysml/connection/item}{\sysml@item}%
-  \ifx\sysml@item\@empty
-    \draw[#1] #2;%
+%% TikZ node pos= is the fraction of the last segment only. A mid
+%% marker has to sit at a fraction of the whole path. decorations.markings
+%% measures that arc length. The mark is drawn on a copy of the path
+%% with no arrow tip, so an end head does not shorten the length.
+%% The copy is not stroked. End heads stay on the stroked path.
+\newcommand{\sysml@addmark}[2]{%
+  \ifx\sysml@marks\@empty
+    \def\sysml@marks{mark=at position #1 with {#2}}%
   \else
-    \draw[#1] #2 node[sysml edge label, pos=#3] {\sysml@item};%
+    \expandafter\def\expandafter\sysml@marks\expandafter{%
+      \sysml@marks, mark=at position #1 with {#2}}%
   \fi
 }
-\newcommand{\sysml@drawfixed}[4]{%
-  \draw[#1] #2 node[sysml edge label, pos=#3] {#4};%
+\newcommand{\sysml@trace}[1]{%
+  \ifsysml@marktrace
+    \begingroup
+      \pgfpointtransformed{\pgfpointorigin}%
+      \edef\sysml@mx{\the\pgf@x}%
+      \edef\sysml@my{\the\pgf@y}%
+      \pgfmathsetmacro{\sysml@mang}{\pgfdecoratedangle}%
+      \typeout{SYSMLMARK #1 x=\sysml@mx\space y=\sysml@my\space ang=\sysml@mang}%
+    \endgroup
+  \fi
+}
+%% 0.6 mm clears a 0.45 pt stroke on a vertical run. Horizontal text
+%% sits on the stroke. Its white fill is only that label's own box.
+\def\sysml@labelgap{0.6mm}
+\def\sysml@labelsep{1.1pt}
+\def\sysml@for#1\sysml@done{\def\sysml@iter{#1\relax\expandafter\sysml@iter\fi}\sysml@iter\let\sysml@iter\relax}
+%% Rectangles already drawn: parts, port squares, port labels, other
+%% text. A later label shifts along the path instead of covering them.
+\newcommand{\sysml@pushabs}[5]{%
+  \pgfmathsetmacro{\sysml@na}{#2}%
+  \pgfmathsetmacro{\sysml@nb}{#3}%
+  \pgfmathsetmacro{\sysml@nc}{#4}%
+  \pgfmathsetmacro{\sysml@nd}{#5}%
+  \ifdim\sysml@na pt>\sysml@nc pt
+    \pgfmathsetmacro{\sysml@tmp}{\sysml@na}%
+    \let\sysml@na\sysml@nc
+    \let\sysml@nc\sysml@tmp
+  \fi
+  \ifdim\sysml@nb pt>\sysml@nd pt
+    \pgfmathsetmacro{\sysml@tmp}{\sysml@nb}%
+    \let\sysml@nb\sysml@nd
+    \let\sysml@nd\sysml@tmp
+  \fi
+  \global\advance\sysml@obscount by 1\relax
+  \expandafter\xdef\csname sysml@ok@\the\sysml@obscount\endcsname{#1}%
+  \expandafter\xdef\csname sysml@osx@\the\sysml@obscount\endcsname{\sysml@na}%
+  \expandafter\xdef\csname sysml@osy@\the\sysml@obscount\endcsname{\sysml@nb}%
+  \expandafter\xdef\csname sysml@onx@\the\sysml@obscount\endcsname{\sysml@nc}%
+  \expandafter\xdef\csname sysml@ony@\the\sysml@obscount\endcsname{\sysml@nd}%
+  \ifsysml@marktrace
+    \typeout{SYSMLBOX #1 \sysml@na\space\sysml@nb\space\sysml@nc\space\sysml@nd}%
+  \fi
+}
+\newcommand{\sysml@recordxy}[5]{%
+  \pgfpointtransformed{\pgfpointxy{#1}{#2}}%
+  \edef\sysml@ax{\the\pgf@x}%
+  \edef\sysml@ay{\the\pgf@y}%
+  \pgfpointtransformed{\pgfpointxy{#1+#3}{#2+#4}}%
+  \edef\sysml@bx{\the\pgf@x}%
+  \edef\sysml@by{\the\pgf@y}%
+  \sysml@pushabs{#5}{\sysml@ax}{\sysml@ay}{\sysml@bx}{\sysml@by}%
+}
+\newcommand{\sysml@pushnode}[2]{%
+  \pgfpointtransformed{\pgfpointanchor{#2}{south west}}%
+  \edef\sysml@ax{\the\pgf@x}%
+  \edef\sysml@ay{\the\pgf@y}%
+  \pgfpointtransformed{\pgfpointanchor{#2}{north east}}%
+  \edef\sysml@bx{\the\pgf@x}%
+  \edef\sysml@by{\the\pgf@y}%
+  \sysml@pushabs{#1}{\sysml@ax}{\sysml@ay}{\sysml@bx}{\sysml@by}%
+}
+\newcommand{\sysml@measurepath}{%
+  \gdef\sysml@totallen{0}%
+  \ifnum\sysml@npt>1\relax
+    \expandafter\gdef\csname sysml@cum@1\endcsname{0}%
+    \sysml@oi=1\relax
+    \loop
+    \ifnum\sysml@oi<\sysml@npt
+      \edef\sysml@next{\the\numexpr\sysml@oi+1\relax}%
+      \pgfmathsetmacro{\sysml@seglen}{veclen(%
+        \csname sysml@ax@\sysml@next\endcsname-\csname sysml@ax@\the\sysml@oi\endcsname,%
+        \csname sysml@ay@\sysml@next\endcsname-\csname sysml@ay@\the\sysml@oi\endcsname)}%
+      \pgfmathsetmacro{\sysml@tot}{\sysml@totallen+\sysml@seglen}%
+      \xdef\sysml@totallen{\sysml@tot}%
+      \expandafter\xdef\csname sysml@cum@\sysml@next\endcsname{\sysml@tot}%
+      \expandafter\xdef\csname sysml@seg@\the\sysml@oi\endcsname{\sysml@seglen}%
+      \advance\sysml@oi by 1\relax
+    \repeat
+  \fi
+}
+%% #1 is a written-path fraction. Sets px, py and phoriz (1 = horizontal).
+\newcommand{\sysml@pointat}[1]{%
+  \pgfmathsetmacro{\sysml@dist}{#1*\sysml@totallen}%
+  \sysml@oi=1\relax
+  \loop
+  \ifnum\sysml@oi<\sysml@npt
+    \edef\sysml@next{\the\numexpr\sysml@oi+1\relax}%
+    \ifdim\sysml@dist pt>\csname sysml@cum@\sysml@next\endcsname pt
+      \advance\sysml@oi by 1\relax
+    \else
+      \pgfmathsetmacro{\sysml@cbase}{\csname sysml@cum@\the\sysml@oi\endcsname}%
+      \pgfmathsetmacro{\sysml@seglen}{\csname sysml@seg@\the\sysml@oi\endcsname}%
+      \pgfmathsetmacro{\sysml@t}{\sysml@seglen>0.01 ? (\sysml@dist-\sysml@cbase)/\sysml@seglen : 0}%
+      \pgfmathsetmacro{\sysml@px}{\csname sysml@ax@\the\sysml@oi\endcsname+\sysml@t*(\csname sysml@ax@\sysml@next\endcsname-\csname sysml@ax@\the\sysml@oi\endcsname)}%
+      \pgfmathsetmacro{\sysml@py}{\csname sysml@ay@\the\sysml@oi\endcsname+\sysml@t*(\csname sysml@ay@\sysml@next\endcsname-\csname sysml@ay@\the\sysml@oi\endcsname)}%
+      \pgfmathsetmacro{\sysml@pdx}{abs(\csname sysml@ax@\sysml@next\endcsname-\csname sysml@ax@\the\sysml@oi\endcsname)}%
+      \pgfmathsetmacro{\sysml@pdy}{abs(\csname sysml@ay@\sysml@next\endcsname-\csname sysml@ay@\the\sysml@oi\endcsname)}%
+      \ifdim\sysml@pdx pt<\sysml@pdy pt
+        \def\sysml@phoriz{0}%
+      \else
+        \def\sysml@phoriz{1}%
+      \fi
+      \sysml@oi=\sysml@npt
+    \fi
+  \repeat
+}
+\newcommand{\sysml@measuretext}[1]{%
+  \pgfinterruptpicture
+    \setbox0=\hbox{\sysml@font{\sysml@body}#1}%
+  \endpgfinterruptpicture
+  \pgfmathsetmacro{\sysml@labwd}{\wd0+2*\sysml@labelsep}%
+  \pgfmathsetmacro{\sysml@labht}{\ht0+\dp0+2*\sysml@labelsep}%
+}
+\newcommand{\sysml@candbox}{%
+  \pgfmathsetmacro{\sysml@hw}{\sysml@labwd/2}%
+  \pgfmathsetmacro{\sysml@hh}{\sysml@labht/2}%
+  \ifsysml@centreonly
+    \pgfmathsetmacro{\sysml@cx}{\sysml@px}%
+    \pgfmathsetmacro{\sysml@cy}{\sysml@py}%
+  \else
+    \ifdim\sysml@phoriz pt>0pt
+      \pgfmathsetmacro{\sysml@cx}{\sysml@px}%
+      \pgfmathsetmacro{\sysml@cy}{\sysml@py}%
+    \else
+      \pgfmathsetmacro{\sysml@gappt}{0.6*72.27/25.4}%
+      \pgfmathsetmacro{\sysml@cx}{\sysml@px+\sysml@gappt+\sysml@hw}%
+      \pgfmathsetmacro{\sysml@cy}{\sysml@py}%
+    \fi
+  \fi
+  \pgfmathsetmacro{\sysml@xlo}{\sysml@cx-\sysml@hw}%
+  \pgfmathsetmacro{\sysml@ylo}{\sysml@cy-\sysml@hh}%
+  \pgfmathsetmacro{\sysml@xhi}{\sysml@cx+\sysml@hw}%
+  \pgfmathsetmacro{\sysml@yhi}{\sysml@cy+\sysml@hh}%
+}
+\newcommand{\sysml@markbox}{%
+  \ifsysml@midmark
+    \sysml@pointat{0.5}%
+    \pgfmathsetmacro{\sysml@along}{2.0*72.27/25.4}%
+    \pgfmathsetmacro{\sysml@across}{1.7*72.27/25.4}%
+    \ifdim\sysml@phoriz pt>0pt
+      \pgfmathsetmacro{\sysml@mxlo}{\sysml@px-\sysml@along}%
+      \pgfmathsetmacro{\sysml@mxhi}{\sysml@px+\sysml@along}%
+      \pgfmathsetmacro{\sysml@mylo}{\sysml@py-\sysml@across}%
+      \pgfmathsetmacro{\sysml@myhi}{\sysml@py+\sysml@across}%
+    \else
+      \pgfmathsetmacro{\sysml@mxlo}{\sysml@px-\sysml@across}%
+      \pgfmathsetmacro{\sysml@mxhi}{\sysml@px+\sysml@across}%
+      \pgfmathsetmacro{\sysml@mylo}{\sysml@py-\sysml@along}%
+      \pgfmathsetmacro{\sysml@myhi}{\sysml@py+\sysml@along}%
+    \fi
+  \fi
+}
+%% Overlap must be more than 0.4 pt on both axes. A shared edge is not a cover.
+\newcommand{\sysml@hitsone}[4]{%
+  \sysml@owa=\sysml@xhi pt\relax
+  \ifdim#3pt<\sysml@owa \sysml@owa=#3pt\relax \fi
+  \sysml@owb=\sysml@xlo pt\relax
+  \ifdim#1pt>\sysml@owb \sysml@owb=#1pt\relax \fi
+  \advance\sysml@owa by -\sysml@owb\relax
+  \ifdim\sysml@owa>0.4pt
+    \sysml@owa=\sysml@yhi pt\relax
+    \ifdim#4pt<\sysml@owa \sysml@owa=#4pt\relax \fi
+    \sysml@owb=\sysml@ylo pt\relax
+    \ifdim#2pt>\sysml@owb \sysml@owb=#2pt\relax \fi
+    \advance\sysml@owa by -\sysml@owb\relax
+    \ifdim\sysml@owa>0.4pt
+      \sysml@hittrue
+    \fi
+  \fi
+}
+\newcommand{\sysml@checkhits}{%
+  \sysml@hitfalse
+  \sysml@oi=0\relax
+  \loop
+  \ifnum\sysml@oi<\sysml@obscount
+    \advance\sysml@oi by 1\relax
+    \ifsysml@hit
+    \else
+      \sysml@hitsone
+        {\csname sysml@osx@\the\sysml@oi\endcsname}%
+        {\csname sysml@osy@\the\sysml@oi\endcsname}%
+        {\csname sysml@onx@\the\sysml@oi\endcsname}%
+        {\csname sysml@ony@\the\sysml@oi\endcsname}%
+    \fi
+  \repeat
+  \ifsysml@midmark
+    \ifsysml@hit
+    \else
+      \sysml@hitsone{\sysml@mxlo}{\sysml@mylo}{\sysml@mxhi}{\sysml@myhi}%
+    \fi
+  \fi
+}
+%% #1 is a fraction measured from the from end, not from the path start.
+\newcommand{\sysml@tryfrom}[1]{%
+  \ifsysml@accept
+  \else
+    \pgfmathsetmacro{\sysml@fromf}{#1}%
+    \ifdim\sysml@fromf pt<\sysml@flo pt
+    \else
+      \ifdim\sysml@fromf pt>\sysml@fhi pt
+      \else
+        \ifsysml@alongpath
+          \pgfmathsetmacro{\sysml@wf}{\sysml@fromf}%
+        \else
+          \pgfmathsetmacro{\sysml@wf}{1-\sysml@fromf}%
+        \fi
+        \sysml@pointat{\sysml@wf}%
+        \sysml@candbox
+        \sysml@checkhits
+        \ifsysml@hit
+        \else
+          \sysml@accepttrue
+          \xdef\sysml@frac{\sysml@wf}%
+        \fi
+      \fi
+    \fi
+  \fi
+}
+\newcommand{\sysml@choosefrac}[1]{%
+  \sysml@measuretext{#1}%
+  \ifsysml@midmark
+    \def\sysml@flo{0.08}%
+    \def\sysml@fhi{0.42}%
+    \def\sysml@fideal{0.25}%
+  \else
+    \def\sysml@flo{0.08}%
+    \def\sysml@fhi{0.92}%
+    \def\sysml@fideal{0.5}%
+  \fi
+  \ifsysml@alongpath
+    \xdef\sysml@frac{\sysml@fideal}%
+  \else
+    \pgfmathsetmacro{\sysml@wf}{1-\sysml@fideal}%
+    \xdef\sysml@frac{\sysml@wf}%
+  \fi
+  \sysml@acceptfalse
+  \ifnum\sysml@npt>1\relax
+    \ifdim\sysml@totallen pt>1pt
+      \sysml@markbox
+      \pgfmathsetmacro{\sysml@step}{0.8*72.27/25.4/\sysml@totallen}%
+      \sysml@tryfrom{\sysml@fideal}%
+      \sysml@k=1\relax
+      \sysml@for\ifnum\sysml@k<28
+        \ifsysml@accept
+        \else
+          \sysml@tryfrom{\sysml@fideal-\the\sysml@k*\sysml@step}%
+          \sysml@tryfrom{\sysml@fideal+\the\sysml@k*\sysml@step}%
+        \fi
+        \advance\sysml@k by 1\relax
+      \sysml@done
+    \fi
+  \fi
+}
+%% Upright equals sign, centred on the mark. fill=white gaps the stroke.
+%% The glyph is not rotated: a quarter turn would draw bars as ||.
+\newcommand{\sysml@placeequals}{%
+  \node[sysml edge label] (sysml@lab) at (0,0) {=};%
+  \def\sysml@side{centre}%
+  \def\sysml@fill{1}%
+  \sysml@tracelabel{bind}%
+  \sysml@pushnode{edge}{sysml@lab}%
+}
+%% Text stays upright. A horizontal segment keeps it on the line.
+%% A vertical segment puts it to the right, with no fill.
+\newcommand{\sysml@placetext}[2]{%
+  \begingroup
+    \pgfmathsetmacro{\sysml@c}{abs(cos(\pgfdecoratedangle))}%
+    \pgfmathsetmacro{\sysml@s}{abs(sin(\pgfdecoratedangle))}%
+    \ifsysml@centreonly
+      \def\sysml@side{centre}%
+      \def\sysml@fill{1}%
+      \node[sysml edge label] (sysml@lab) at (0,0) {#2};%
+    \else
+      \ifdim\sysml@c pt<\sysml@s pt
+        \def\sysml@side{right}%
+        \def\sysml@fill{0}%
+        \node[sysml edge text, anchor=west, xshift=\sysml@labelgap] (sysml@lab) at (0,0) {#2};%
+      \else
+        \def\sysml@side{inline}%
+        \def\sysml@fill{1}%
+        \node[sysml edge label] (sysml@lab) at (0,0) {#2};%
+      \fi
+    \fi
+    \sysml@tracelabel{#1}%
+    \sysml@pushnode{edge}{sysml@lab}%
+  \endgroup
+}
+\newcommand{\sysml@tracelabel}[1]{%
+  \ifsysml@marktrace
+    \begingroup
+      \pgfpointtransformed{\pgfpointorigin}%
+      \edef\sysml@mx{\the\pgf@x}%
+      \edef\sysml@my{\the\pgf@y}%
+      \pgfpointtransformed{\pgfpointanchor{sysml@lab}{center}}%
+      \edef\sysml@lx{\the\pgf@x}%
+      \edef\sysml@ly{\the\pgf@y}%
+      \pgfmathsetmacro{\sysml@mang}{\pgfdecoratedangle}%
+      \typeout{SYSMLMARK #1 rot=0 side=\sysml@side\space x=\sysml@mx\space y=\sysml@my\space ang=\sysml@mang}%
+      \typeout{SYSMLLAB #1 fill=\sysml@fill\space lx=\sysml@lx\space ly=\sysml@ly}%
+    \endgroup
+  \fi
+}
+\newcommand{\sysml@placetriangle}{%
+  \ifsysml@usefwd
+    \sysml@trace{triangle dir=fwd}%
+    \arrow{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}%
+  \else
+    \sysml@trace{triangle dir=rev}%
+    \arrowreversed{Triangle[length=3.2mm,width=2.6mm,sep=0pt]}%
+  \fi
+}
+\newcommand{\sysml@addlabel}[3]{%
+  \sysml@addmark{#1}{\sysml@placetext{#2}{#3}}%
+}
+\newcommand{\sysml@addtriangle}{%
+  \sysml@addmark{0.5}{\sysml@placetriangle}%
+}
+\newcommand{\sysml@queueitem}{%
+  \pgfkeysgetvalue{/sysml/connection/item}{\sysml@item}%
+  \ifx\sysml@item\@empty\else
+    \sysml@choosefrac{\sysml@item}%
+    \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+  \fi
+}
+%% Mid-line triangle at 0.5. Text, when present, sits at the middle of
+%% the from-side half, and is queued in increasing written fraction.
+\newcommand{\sysml@queuemid}{%
+  \sysml@midmarktrue
+  \pgfkeysgetvalue{/sysml/connection/item}{\sysml@item}%
+  \ifx\sysml@item\@empty
+    \sysml@addtriangle
+  \else
+    \sysml@choosefrac{\sysml@item}%
+    \ifdim\sysml@frac pt<0.5pt
+      \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+      \sysml@addtriangle
+    \else
+      \sysml@addtriangle
+      \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+    \fi
+  \fi
+}
+\newcommand{\sysml@drawmarked}[2]{%
+  \path[decorate, decoration={markings, #1}] #2;%
+}
+\newcommand{\sysml@drawpath}[2]{%
+  \ifsysml@marktrace
+    \sysml@addmark{0.999}{\sysml@trace{end}}%
+  \fi
+  \draw[#1] #2;%
+  \ifx\sysml@marks\@empty\else
+    \expandafter\sysml@drawmarked\expandafter{\sysml@marks}{#2}%
+  \fi
+}
+\newcommand{\sysml@drawitem}[2]{%
+  \sysml@midmarkfalse
+  \sysml@queueitem
+  \sysml@drawpath{#1}{#2}%
 }
 \newcommand{\sysml@resetline}[1]{%
+  \def\sysml@marks{}%
+  \sysml@midmarkfalse
+  \sysml@centreonlyfalse
   \pgfkeys{/sysml/connection, from={}, to={}, directed=false, flow={}, item={}, at=end, keyword=false, #1}%
   \sysml@loadends
   \sysml@warnends
@@ -444,27 +830,25 @@
 \newcommand{\sysmlconnection}[3][]{%
   \sysml@resetline{#1}%
   \def\sysml@edgename{#2}%
+  \sysml@pathendisto{#3}%
   \pgfkeysgetvalue{/sysml/connection/flow}{\sysml@flow}%
   \ifx\sysml@flow\@empty
     \ifsysml@directed
-      \sysml@pathendisto{#3}%
       \sysml@headstyle{sysml directed}%
     \else
       \def\sysml@drawstyle{sysml connection}%
     \fi
-    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}%
   \else
-    \sysml@pathendisto{#3}%
     \sysml@setpointatto
     \sysml@choosearrow
-    \sysml@markstyle
     \ifsysml@directed
       \sysml@headstyle{sysml directed}%
-      \edef\sysml@drawstyle{\sysml@drawstyle, \sysml@markname}%
     \else
-      \edef\sysml@drawstyle{sysml connection, \sysml@markname}%
+      \def\sysml@drawstyle{sysml connection}%
     \fi
-    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.18}%
+    \sysml@queuemid
+    \expandafter\sysml@drawpath\expandafter{\sysml@drawstyle}{#3}%
   \fi
 }
 %% Solid filled triangle from from toward to. at=mid keeps it on the line.
@@ -478,12 +862,11 @@
   \sysml@pathendisto{#3}%
   \ifx\sysml@attest\sysml@midword
     \sysml@choosearrow
-    \sysml@markstyle
-    \edef\sysml@drawstyle{sysml connection, \sysml@markname}%
-    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.18}%
+    \sysml@queuemid
+    \sysml@drawpath{sysml connection}{#3}%
   \else
     \sysml@headstyle{sysml flow}%
-    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+    \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}%
   \fi
 }
 %% Dashed line, filled triangle at the to end.
@@ -492,7 +875,7 @@
   \def\sysml@edgename{#2}%
   \sysml@pathendisto{#3}%
   \sysml@headstyle{sysml succession}%
-  \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+  \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}%
 }
 %% Solid line, hollow triangle at the to end.
 \newcommand{\sysmlmessage}[3][]{%
@@ -500,25 +883,34 @@
   \def\sysml@edgename{#2}%
   \sysml@pathendisto{#3}%
   \sysml@headstyle{sysml message}%
-  \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}{0.42}%
+  \expandafter\sysml@drawitem\expandafter{\sysml@drawstyle}{#3}%
 }
-%% Solid line, equals sign at the midpoint, no arrowhead.
+%% Solid line, upright equals sign at the arc-length midpoint, no
+%% arrowhead. The glyph is not rotated. The label fill gaps the stroke.
 \newcommand{\sysmlbinding}[3][]{%
   \sysml@resetline{#1}%
   \def\sysml@edgename{#2}%
-  \draw[sysml connection] #3 node[sysml edge label, pos=0.5] {=};%
+  \sysml@pathendisto{#3}%
+  \sysml@centreonlytrue
+  \sysml@choosefrac{=}%
+  \sysml@centreonlyfalse
+  \sysml@addmark{\sysml@frac}{\sysml@placeequals}%
+  \sysml@drawpath{sysml connection}{#3}%
 }
 %% Solid line, optional «interface», no arrowhead.
 \newcommand{\sysmlinterface}[3][]{%
+  \def\sysml@marks{}%
   \pgfkeys{/sysml/connection, from={}, to={}, directed=false, flow={}, item={}, at=end, keyword=true, #1}%
   \def\sysml@edgename{#2}%
   \sysml@loadends
   \sysml@warnends
+  \sysml@midmarkfalse
+  \sysml@pathendisto{#3}%
   \ifsysml@showkeyword
-    \draw[sysml connection] #3 node[sysml edge label, pos=0.5] {\sysmlguillemets{interface}};%
-  \else
-    \draw[sysml connection] #3;%
+    \sysml@choosefrac{\sysmlguillemets{interface}}%
+    \sysml@addlabel{\sysml@frac}{interface}{\sysmlguillemets{interface}}%
   \fi
+  \sysml@drawpath{sysml connection}{#3}%
 }
 %% Solid line, open stick at the to end (same head as directed), «allocate».
 \newcommand{\sysmlallocation}[3][]{%
@@ -526,7 +918,10 @@
   \def\sysml@edgename{#2}%
   \sysml@pathendisto{#3}%
   \sysml@headstyle{sysml allocate}%
-  \expandafter\sysml@drawfixed\expandafter{\sysml@drawstyle}{#3}{0.5}{\sysmlguillemets{allocate}}%
+  \sysml@midmarkfalse
+  \sysml@choosefrac{\sysmlguillemets{allocate}}%
+  \sysml@addlabel{\sysml@frac}{allocate}{\sysmlguillemets{allocate}}%
+  \expandafter\sysml@drawpath\expandafter{\sysml@drawstyle}{#3}%
 }
 
 %% Collapse count, bottom-right inside the owner. Not a header line.
@@ -634,6 +1029,11 @@
 %% ELK y-down millimetre coordinates. No placement.
 \newenvironment{sysmlcanvas}{%
   \tikzpicture[x=1mm,y=-1mm]%
+  \global\sysml@obscount=0\relax
+  \ifsysml@marktrace
+    \pgfpointtransformed{\pgfpointorigin}%
+    \typeout{SYSMLORIGIN x=\the\pgf@x\space y=\the\pgf@y}%
+  \fi
 }{%
   \endtikzpicture
 }

@@ -1,0 +1,44 @@
+% ENDLEAF-R39. Server-owned preamble for templateId fulldoc.
+% The caller sends the body only. This file is not a request field.
+% No geometry, needspace, float, or caption. No unsold package.
+% PIDcircuitTikZ replaces /tikz/at and /tikz/pos. Those two keys are
+% restored with the same kernel lines as colophon-v1-preamble.tex so
+% \node at and chemfig still place. That restoration is not a package.
+\documentclass[a4paper]{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap,circuits.pid.ISO14617}
+\usepackage{sysml-tikz}
+\usepackage{circuitikz}
+\usepackage{siunitx}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{chemfig}
+\usepackage{mhchem}
+\usepackage{pgfgantt}
+\usepackage{tikz-dimline}
+\usepackage{tikzscale}
+\usepackage{endleaf-floorplan}
+\setlength{\belowcaptionskip}{4pt}
+\makeatletter
+\tikzoption{at}{\tikz@scan@one@point\tikz@set@at#1}%
+\tikzoption{pos}{%
+  \edef\tikz@time{#1}%
+  \ifx\tikz@time\pgfutil@empty
+  \else
+    \pgfmathsetmacro\tikz@time{\tikz@time}%
+    \let\flowpos\tikz@time
+  \fi
+}%
+\makeatother
+\input{endleaf-fit.tex}
+\begin{document}
+\makeatletter
+\setlength\@fptop{0pt}
+\setlength\@fpsep{12pt plus 2fil}
+\setlength\@fpbot{0pt plus 1fil}
+\makeatother
+__BODY__
+\end{document}
