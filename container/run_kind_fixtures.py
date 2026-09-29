@@ -113,6 +113,41 @@ def _pdf_text(pdf):
     return text.replace("m²", "m2").replace("m^2", "m2")
 
 
+_CREDIT = {
+    "Creator": "Endleaf by InkMirage (endleaf.inkmirage.xyz)",
+    "Producer": "Endleaf by InkMirage; XeTeX",
+    "Keywords": "Endleaf",
+}
+
+
+def _pdf_fields(pdf):
+    completed = subprocess.run(
+        ["pdfinfo", "-"],
+        input=pdf,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        sys.exit(completed.stderr.decode("utf-8", "replace") or "pdfinfo failed")
+    fields = {}
+    for line in completed.stdout.decode("utf-8", "replace").splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        fields[key.strip()] = value.strip()
+    return fields
+
+
+def _assert_credit(name, pdf):
+    fields = _pdf_fields(pdf)
+    for key, expected in _CREDIT.items():
+        if fields.get(key) != expected:
+            sys.exit(f"{name} {key} is {fields.get(key)!r}, expected {expected!r}")
+    if "Subject" in fields:
+        sys.exit(f"{name} set Subject {fields['Subject']!r}")
+
+
 def _pdf_pages(pdf):
     completed = subprocess.run(
         ["pdfinfo", "-"],
@@ -209,6 +244,7 @@ def _compile(path, *, image, podman):
         sys.exit(f"{path.name} failed rc={code}\n{err[-4000:]}")
     if "ENDLEAF_METERS " not in err:
         sys.exit(f"{path.name} did not report cgroup meters")
+    _assert_credit(path.name, stdout)
     if path.stem.startswith("floorplan"):
         _assert_floorplan(path.name, stdout)
     if path.name == "sysml.tex":

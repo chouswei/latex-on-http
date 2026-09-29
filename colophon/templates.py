@@ -69,7 +69,9 @@ ALLOWED_LIBRARIES = frozenset(
         "circuits.pid.ISO14617",
     }
 )
-ALLOWED_INPUTS = frozenset({"colophon-v1-preamble.tex", "endleaf-fit.tex"})
+ALLOWED_INPUTS = frozenset(
+    {"colophon-v1-preamble.tex", "endleaf-fit.tex", "endleaf-credit.tex"}
+)
 
 
 @dataclass(frozen=True)

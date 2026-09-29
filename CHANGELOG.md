@@ -22,6 +22,11 @@
   wider than the line logs `ENDLEAF_WIDE_PICTURE` and is not scaled.
   `\@fpsep` is 12 pt with no fil, so float pages stack at the top.
   `\resizebox` is not used.
+* Every PDF sets the document-info Creator, Producer and Keywords
+  with `\special{pdf:docinfo...}` (ENDLEAF-R40-CREDIT). Subject is
+  left unset unless the caller sets it. The credit is not page text
+  and does not load hyperref. `packageSetHash` stays
+  `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`.
 * `sysml-tikz.sty` is re-vendored from Endleaf
   `prototypes/sysml-layout/sysml-tikz.sty` at
   `65baacff166cdee7b3393bc27a01e5d80ad1262f`

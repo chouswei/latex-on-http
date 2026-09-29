@@ -94,6 +94,10 @@ def test_preambles_use_only_the_allowlist():
         if template_id == "fulldoc":
             assert "\\input{colophon-v1-preamble.tex}" not in text
             assert "\\input{endleaf-fit.tex}" in text
+            assert "\\input{endleaf-credit.tex}" in text
+            assert text.index("\\input{endleaf-credit.tex}") < text.index(
+                "\\begin{document}"
+            )
             assert "\\setlength{\\belowcaptionskip}{4pt}" in text
             assert "\\setlength\\@fptop{0pt}" in text
             sep = re.search(r"\\setlength\\@fpsep\{([^}]*)\}", text)
