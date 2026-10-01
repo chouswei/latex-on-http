@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-10-01
+
+* Shared type stack `endleaf-type.tex`: TeX Gyre Pagella body, Heros
+  diagram labels, Cursor mono. Owned preambles, lane Pandoc wrappers, and
+  the fenced-TikZ lock input it after fontspec/xeCJK. `fulldoc` and
+  `document-shell` (and the lane wrappers) are explicit 10 pt. The image
+  installs Debian `tex-gyre`. This input is not a package, so
+  `packageSetHash` stays
+  `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`.
+  `pdffonts` on a live PDF should show Pagella/Heros/Cursor, not CMR for
+  body type.
+
 ## 2026-09-29
 
 * A TeX PDF body that contains `\ref` or `\pageref` runs XeLaTeX twice.

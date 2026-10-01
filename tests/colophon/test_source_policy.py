@@ -301,11 +301,23 @@ def test_shared_preamble_is_the_only_package_list():
         template = (root / f"colophon/share/templates/{lane}/pandoc.latex").read_text(
             encoding="utf-8"
         )
+        assert "\\input{endleaf-type.tex}" in wrapper
         assert "\\input{colophon-v1-preamble.tex}" in wrapper
+        assert wrapper.index("\\setCJKmainfont{Noto Sans CJK TC}") < wrapper.index(
+            "\\input{endleaf-type.tex}"
+        )
+        assert wrapper.index("\\input{endleaf-type.tex}") < wrapper.index(
+            "\\input{colophon-v1-preamble.tex}"
+        )
+        assert "\\input{endleaf-type.tex}" in template
         assert "\\input{colophon-v1-preamble.tex}" in template
+        assert template.index("\\setCJKmainfont{Noto Sans CJK TC}") < template.index(
+            "\\input{endleaf-type.tex}"
+        )
         assert "\\usepackage{circuitikz}" not in wrapper
         assert "\\usepackage{circuitikz}" not in template
     lock = (root / "colophon/share/lock-diagram.lua").read_text(encoding="utf-8")
+    assert "\\input{endleaf-type.tex}" in lock
     assert "\\input{colophon-v1-preamble.tex}" in lock
     assert "mermaid" not in lock
     assert "mmdc" not in lock

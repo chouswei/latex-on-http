@@ -1,7 +1,8 @@
-\documentclass{article}
+\documentclass[10pt]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
 \setCJKmainfont{Noto Sans CJK TC}
+\input{endleaf-type.tex}
 \usepackage{graphicx}
 % Pandoc 3.6 wraps images in \pandocbounded. Taken from its common.latex partial.
 \makeatletter

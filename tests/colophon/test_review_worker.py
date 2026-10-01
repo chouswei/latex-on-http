@@ -30,6 +30,14 @@ _PDFFONTS = shutil.which("pdffonts")
 
 
 def _compile(tmp_path, tex):
+    if shutil.which("kpsewhich"):
+        gyre = subprocess.run(
+            ["kpsewhich", "texgyrepagella-regular.otf"],
+            check=False,
+            capture_output=True,
+        )
+        if gyre.returncode != 0 or not gyre.stdout.strip():
+            tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
     env = os.environ.copy()
     env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
@@ -174,8 +182,9 @@ def test_fenced_tikz_preamble_embeds_zh_tw(tmp_path):
     font = lua.index("\\usepackage{fontspec}")
     cjk = lua.index("\\usepackage{xeCJK}")
     noto = lua.index("\\setCJKmainfont{Noto Sans CJK TC}")
+    type_stack = lua.index("\\input{endleaf-type.tex}")
     preamble = lua.index("\\input{colophon-v1-preamble.tex}")
-    assert font < cjk < noto < preamble
+    assert font < cjk < noto < type_stack < preamble
     diagram = (_ROOT / "vendor/diagram/diagram.lua").read_text(encoding="utf-8")
     assert "-cnf-line=openin_any=p" in diagram
     tex = (
@@ -184,6 +193,7 @@ def test_fenced_tikz_preamble_embeds_zh_tw(tmp_path):
         "\\usepackage{fontspec}\n"
         "\\usepackage{xeCJK}\n"
         "\\setCJKmainfont{Noto Sans CJK TC}\n"
+        "\\input{endleaf-type.tex}\n"
         "\\input{colophon-v1-preamble.tex}\n"
         "\\begin{document}\n"
         "\\begin{circuitikz}\n"
@@ -191,6 +201,14 @@ def test_fenced_tikz_preamble_embeds_zh_tw(tmp_path):
         "\\end{circuitikz}\n"
         "\\end{document}\n"
     )
+    if shutil.which("kpsewhich"):
+        gyre = subprocess.run(
+            ["kpsewhich", "texgyrepagella-regular.otf"],
+            check=False,
+            capture_output=True,
+        )
+        if gyre.returncode != 0 or not gyre.stdout.strip():
+            tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     pdf = _compile(tmp_path, tex)
     text = _text(pdf)
     assert "幫浦" in text

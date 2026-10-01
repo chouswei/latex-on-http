@@ -4,10 +4,11 @@
 % PIDcircuitTikZ replaces /tikz/at and /tikz/pos. Those two keys are
 % restored with the same kernel lines as colophon-v1-preamble.tex so
 % \node at and chemfig still place. That restoration is not a package.
-\documentclass[a4paper]{article}
+\documentclass[10pt,a4paper]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
 \setCJKmainfont{Noto Sans CJK TC}
+\input{endleaf-type.tex}
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap,circuits.pid.ISO14617}
 \usepackage{sysml-tikz}

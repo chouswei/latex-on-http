@@ -70,7 +70,12 @@ ALLOWED_LIBRARIES = frozenset(
     }
 )
 ALLOWED_INPUTS = frozenset(
-    {"colophon-v1-preamble.tex", "endleaf-fit.tex", "endleaf-credit.tex"}
+    {
+        "colophon-v1-preamble.tex",
+        "endleaf-fit.tex",
+        "endleaf-credit.tex",
+        "endleaf-type.tex",
+    }
 )
 
 

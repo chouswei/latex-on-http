@@ -85,12 +85,20 @@ def _assert_allowlist(text):
 def test_preambles_use_only_the_allowlist():
     for template_id in TEMPLATE_IDS:
         text = (_ROOT / template_id / "preamble.tex").read_text(encoding="utf-8")
-        if template_id in ("fulldoc", "sysml"):
+        if template_id == "fulldoc":
+            assert "\\documentclass[10pt,a4paper]{article}" in text
+        elif template_id == "sysml":
             assert "\\documentclass[a4paper]{article}" in text
+        elif template_id == "document-shell":
+            assert "\\documentclass[10pt]{article}" in text
         else:
             assert "\\documentclass{article}" in text
             assert "\\documentclass[" not in text
         assert "\\usepackage{fontspec}" in text
+        assert "\\input{endleaf-type.tex}" in text
+        assert text.index("\\setCJKmainfont{Noto Sans CJK TC}") < text.index(
+            "\\input{endleaf-type.tex}"
+        )
         if template_id == "fulldoc":
             assert "\\input{colophon-v1-preamble.tex}" not in text
             assert "\\input{endleaf-fit.tex}" in text
@@ -118,6 +126,17 @@ def test_preambles_use_only_the_allowlist():
         / "colophon/share/tex/latex/colophon-v1/colophon-v1-preamble.tex"
     ).read_text(encoding="utf-8")
     _assert_allowlist(shared)
+    type_stack = (
+        Path(__file__).resolve().parents[2]
+        / "colophon/share/tex/latex/colophon-v1/endleaf-type.tex"
+    ).read_text(encoding="utf-8")
+    _assert_allowlist(type_stack)
+    assert "texgyrepagella" in type_stack
+    assert "texgyreheros" in type_stack
+    assert "texgyrecursor" in type_stack
+    assert "\\setCJKmainfont" not in type_stack
+    assert "\\usepackage{xeCJK}" not in type_stack
+    assert "7 pt" in type_stack or "7pt" in type_stack
 
 
 def test_gantt_example_does_not_end_the_last_bar_with_a_row_break():
@@ -177,7 +196,16 @@ def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
                 tex.replace("\\usepackage{fontspec}\n", "")
                 .replace("\\usepackage{xeCJK}\n", "")
                 .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+                .replace("\\input{endleaf-type.tex}\n", "")
             )
+        else:
+            gyre = subprocess.run(
+                ["kpsewhich", "texgyrepagella-regular.otf"],
+                check=False,
+                capture_output=True,
+            )
+            if gyre.returncode != 0 or not gyre.stdout.strip():
+                tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
     env = os.environ.copy()
     env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")

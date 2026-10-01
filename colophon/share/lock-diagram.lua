@@ -18,6 +18,7 @@ diagram:
         \usepackage{fontspec}
         \usepackage{xeCJK}
         \setCJKmainfont{Noto Sans CJK TC}
+        \input{endleaf-type.tex}
         \input{colophon-v1-preamble.tex}
 ---
 ]], "markdown")
