@@ -43,6 +43,23 @@ wrapper, the Pandoc template, and TikZ diagram blocks all input. A fence
 option cannot replace that list. `packages-once.tex` only checks that the
 packages are installed.
 
+Human-facing PDFs then `\input{endleaf-type.tex}` after fontspec and xeCJK.
+Body and headings are TeX Gyre Pagella (`tgpagella`), 10 pt on `fulldoc`
+and `document-shell`. Diagram and UI labels are TeX Gyre Heros (`tgheros`).
+Canvas tokens and mono are TeX Gyre Cursor (`tgcursor`). Figure labels stay
+at or above 7 pt. zh-TW still uses xeCJK with Noto Sans CJK TC; this worker
+does not add a bilingual playbook.
+
+### Type stack (Keeper / Devicor)
+
+The sandbox image must install Debian `tex-gyre` (and `fonts-texgyre`) so
+kpathsea finds `texgyrepagella-regular.otf`, `texgyreheros-regular.otf`,
+and `texgyrecursor-regular.otf`. That input is not a TeX package, so
+`packageSetHash` does not change. After a live render, `pdffonts` on the
+PDF should list Pagella, Heros, and Cursor, not Computer Modern (`CMR`)
+for body type. Devicor can check that on the Pi the same way as other
+fixture smoke.
+
 The required fixture set is the document shell plus P&ID, circuits, plots
 (a small 3D sample), chemistry, Gantt, floor plans, and SysML. Mermaid and D2
 have no fixtures and do not report job meters.
@@ -333,8 +350,9 @@ contains `\ref` or `\pageref` runs that XeLaTeX command twice, and the
 second pass reads the aux file. A body without those commands stays one
 pass. Pandoc's single PDF-engine run is unchanged. Pandoc passes an
 absolute `input.tex`; `xelatex-nonescape` rewrites that to the basename
-before TeX reads it. Owned preambles use the kpathsea name
-`colophon-v1-preamble.tex`, not an absolute path.
+before TeX reads it. Owned preambles use the kpathsea names
+`colophon-v1-preamble.tex` and `endleaf-type.tex`,
+not an absolute path.
 
 ### Job input
 
@@ -359,8 +377,10 @@ not pick the class or send a preamble. An unknown `templateId` is HTTP 400
 Each `templateId` is a server-owned asset under
 `colophon/share/templates/owned/<templateId>/`. The preamble is
 `\documentclass{article}` with no options, fontspec, xeCJK, Noto Sans CJK TC,
-and `\input{colophon-v1-preamble.tex}`, except `sysml` and `fulldoc`, which
-use `\documentclass[a4paper]{article}`. `fulldoc` does not input that shared
+`\input{endleaf-type.tex}`, and `\input{colophon-v1-preamble.tex}`, except
+`document-shell`, which is `\documentclass[10pt]{article}`, and `sysml` and
+`fulldoc`, which use `\documentclass[a4paper]{article}` (`fulldoc` adds
+`10pt`). `fulldoc` does not input that shared
 preamble: it loads the sold packages named in its own preamble and refuses
 `html` and `docx` (`outputFormat`). A fulldoc PDF of more than 16 pages is
 `failCapHit`. Those packages are the allowlist.

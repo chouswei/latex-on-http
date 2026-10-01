@@ -189,6 +189,17 @@ def _assert_fonts_embedded(name, pdf):
         # name and type vary in width. emb sub uni sit before the object id.
         if row.split()[-5] != "yes":
             sys.exit(f"{name} font is not embedded: {row}")
+    blob = "\n".join(rows).lower().replace("-", "").replace(" ", "")
+    for banned in ("cmr", "lmroman", "latinmodernroman"):
+        if banned in blob:
+            sys.exit(
+                f"{name} PDF still uses Computer Modern or Latin Modern Roman:\n"
+                + "\n".join(lines)
+            )
+    if "pagella" not in blob:
+        sys.exit(
+            f"{name} PDF body is not TeX Gyre Pagella:\n" + "\n".join(lines)
+        )
 
 
 def _assert_fulldoc(name, pdf, err):

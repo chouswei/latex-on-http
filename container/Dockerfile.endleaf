@@ -9,8 +9,10 @@
 # from jellespijker/PIDcircuitTikZ (MIT). CircuiTikZ is the separate CTAN
 # package `circuitikz`. TikZ is CTAN `pgf`. xeCJK is CTAN `xecjk`, shipped by
 # Debian bookworm `texlive-lang-cjk` as xeCJK.sty (kpathsea is case-sensitive).
-# sysml-tikz.sty is vendored. Its only \RequirePackage is tikz, already
-# installed. The libraries it loads (fit, backgrounds, decorations.markings,
+# TeX Gyre Pagella/Heros/Cursor come from Debian `tex-gyre` (OTF files
+# texgyrepagella-regular.otf and siblings). sysml-tikz.sty is vendored.
+# Its only \RequirePackage is tikz, already installed. The libraries it
+# loads (fit, backgrounds, decorations.markings,
 # shapes.geometric, shapes.multipart, plus positioning, calc, and arrows.meta)
 # ship in pgf via texlive-pictures.
 
@@ -40,6 +42,8 @@ RUN apt-get update -qq \
         texlive-science \
         texlive-latex-recommended \
         texlive-fonts-recommended \
+        tex-gyre \
+        fonts-texgyre \
     && rm -rf /var/lib/apt/lists/*
 
 # Pandoc 3 is required by pandoc-ext/diagram (Figure AST). Bookworm's Pandoc
@@ -116,6 +120,10 @@ RUN set -eu; \
     kpsewhich tikzlibraryshapes.geometric.code.tex; \
     kpsewhich tikzlibraryshapes.multipart.code.tex; \
     kpsewhich colophon-v1-preamble.tex; \
+    kpsewhich endleaf-type.tex; \
+    kpsewhich texgyrepagella-regular.otf; \
+    kpsewhich texgyreheros-regular.otf; \
+    kpsewhich texgyrecursor-regular.otf; \
     kpsewhich xeCJK.sty; \
     kpsewhich fontspec.sty; \
     kpsewhich tikzlibrarycircuits.pid.ISO14617.code.tex; \
@@ -129,12 +137,23 @@ RUN set -eu; \
       exit 1; \
     fi; \
     fc-list : family | grep -F "Noto Sans CJK TC"; \
-    sed 's/__BODY__/繁體中文/' \
+    sed 's/__BODY__/Body 繁體中文 {\\sffamily UI} {\\ttfamily token}/' \
         /usr/local/share/colophon/templates/Weft/wrapper.tex > /tmp/cjk.tex; \
     cd /tmp; \
     xelatex -interaction=nonstopmode -halt-on-error cjk.tex; \
     test -s /tmp/cjk.pdf; \
-    rm -f /tmp/cjk.tex /tmp/cjk.pdf /tmp/cjk.aux /tmp/cjk.log /tmp/cjk.out; \
+    pdffonts /tmp/cjk.pdf | tee /tmp/cjk-fonts.txt; \
+    grep -qi pagella /tmp/cjk-fonts.txt; \
+    grep -qi heros /tmp/cjk-fonts.txt; \
+    grep -qi cursor /tmp/cjk-fonts.txt; \
+    grep -F "Noto" /tmp/cjk-fonts.txt; \
+    if grep -Eiq 'CMR|LMRoman|LatinModernRoman' /tmp/cjk-fonts.txt; then \
+      echo "cjk.pdf still uses Computer Modern or Latin Modern Roman"; \
+      cat /tmp/cjk-fonts.txt; \
+      exit 1; \
+    fi; \
+    rm -f /tmp/cjk.tex /tmp/cjk.pdf /tmp/cjk.aux /tmp/cjk.log /tmp/cjk.out \
+      /tmp/cjk-fonts.txt; \
     cd /tmp/endleaf-fixtures; \
     xelatex -interaction=nonstopmode -halt-on-error packages-once.tex; \
     test -s packages-once.pdf; \

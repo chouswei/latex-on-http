@@ -48,6 +48,7 @@ def test_allowlist_accepts_sysml_tikz():
     assert "\\usepackage{sysml-tikz}" in preamble
     shell = (_OWNED / "document-shell" / "preamble.tex").read_text(encoding="utf-8")
     assert "\\input{colophon-v1-preamble.tex}" in shell
+    assert "\\input{endleaf-type.tex}" in shell
 
 
 # Byte-identical to Endleaf prototypes/sysml-layout/sysml-tikz.sty
@@ -133,7 +134,16 @@ def test_sysml_kind_fixture_compiles(tmp_path):
             tex.replace("\\usepackage{fontspec}\n", "")
             .replace("\\usepackage{xeCJK}\n", "")
             .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+            .replace("\\input{endleaf-type.tex}\n", "")
         )
+    elif shutil.which("kpsewhich"):
+        gyre = subprocess.run(
+            ["kpsewhich", "texgyrepagella-regular.otf"],
+            check=False,
+            capture_output=True,
+        )
+        if gyre.returncode != 0 or not gyre.stdout.strip():
+            tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     (tmp_path / "sysml.tex").write_text(tex, encoding="utf-8")
     env = os.environ.copy()
     env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")

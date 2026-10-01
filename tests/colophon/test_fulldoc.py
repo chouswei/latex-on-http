@@ -55,6 +55,18 @@ _PAGE = re.compile(r'<page width="([0-9.]+)" height="([0-9.]+)">')
 _FIT_TEX = _ROOT / "colophon/share/tex/latex/colophon-v1/endleaf-fit.tex"
 
 
+def _type_ready():
+    if shutil.which("kpsewhich") is None:
+        return False
+    found = subprocess.run(
+        ["kpsewhich", "texgyrepagella-regular.otf"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return found.returncode == 0 and bool(found.stdout.strip())
+
+
 def test_package_set_hash_is_unchanged():
     assert package_set_hash(package_set()) == _PACKAGE_SET_HASH
 
@@ -97,6 +109,8 @@ def test_sysml_preamble_keeps_the_body_in_one_minipage():
 
 
 def _xelatex(tmp_path, name, tex):
+    if not _type_ready():
+        tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     (tmp_path / name).write_text(tex, encoding="utf-8")
     env = os.environ.copy()
     env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
@@ -244,6 +258,7 @@ def _bbox_words(pdf, page):
 def test_fulldoc_fixture_compiles(tmp_path):
     body = (_KINDS / "fulldoc.tex").read_text(encoding="utf-8")
     tex = compose("fulldoc", "Weft", body, _OWNED)
+    typed = _type_ready()
     pdf, log = _xelatex(tmp_path, "fulldoc.tex", tex)
     assert "Overfull \\hbox" not in log
     pages = _pages(pdf)
@@ -268,6 +283,11 @@ def test_fulldoc_fixture_compiles(tmp_path):
     assert fonts.returncode == 0, fonts.stderr
     rows = fonts.stdout.splitlines()[2:]
     assert rows
+    blob = fonts.stdout.lower().replace("-", "").replace(" ", "")
+    if typed:
+        assert "pagella" in blob
+        for banned in ("cmr", "lmroman", "latinmodernroman"):
+            assert banned not in blob, fonts.stdout
     for row in rows:
         # name and type vary in width. emb sub uni sit before the object id.
         assert row.split()[-5] == "yes", row

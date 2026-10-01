@@ -1,0 +1,48 @@
+% Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% Owner lock: one type stack for every human-facing PDF. This file is
+% not a package, so packageSetHash does not change. Input it after
+% fontspec and xeCJK. The CJK companion stays in the caller preamble
+% (Noto Sans CJK TC). Do not invent a bilingual path here.
+%
+% Body / headings: TeX Gyre Pagella (tgpagella). Not Computer Modern.
+% Diagram / UI labels: TeX Gyre Heros (tgheros) via \sffamily.
+% Canvas tokens / mono: TeX Gyre Cursor (tgcursor) via \ttfamily.
+% Figure labels stay at or above 7 pt; this file does not shrink type.
+\setmainfont{texgyrepagella}[
+  Ligatures=TeX,
+  Extension=.otf,
+  UprightFont=*-regular,
+  ItalicFont=*-italic,
+  BoldFont=*-bold,
+  BoldItalicFont=*-bolditalic,
+]
+\setsansfont{texgyreheros}[
+  Ligatures=TeX,
+  Extension=.otf,
+  UprightFont=*-regular,
+  ItalicFont=*-italic,
+  BoldFont=*-bold,
+  BoldItalicFont=*-bolditalic,
+]
+\setmonofont{texgyrecursor}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  ItalicFont=*-italic,
+  BoldFont=*-bold,
+  BoldItalicFont=*-bolditalic,
+]
+\makeatletter
+\AtBeginDocument{%
+  \@ifundefined{tikzset}{}{%
+    \tikzset{every picture/.append style={font=\sffamily}}%
+    \tikzset{every node/.append style={font=\sffamily}}%
+    \tikzset{every info/.append style={font=\small\sffamily}}%
+  }%
+  \@ifundefined{sysml@font}{}{%
+    \let\endleaf@sysml@font\sysml@font
+    \renewcommand{\sysml@font}[1]{\sffamily\endleaf@sysml@font{#1}}%
+  }%
+}
+\makeatother

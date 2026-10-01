@@ -147,6 +147,10 @@ Third-party pieces added with this fork
   xeCJK is CTAN package `xecjk`. Debian bookworm ships it in
   `texlive-lang-cjk` as `xeCJK.sty` (kpathsea is case-sensitive). Noto CJK
   TC is installed from Debian `fonts-noto-cjk`, not from CTAN.
+  TeX Gyre Pagella, Heros, and Cursor come from Debian `tex-gyre`
+  (`texgyrepagella-regular.otf` and siblings). The worker inputs
+  `endleaf-type.tex`; that file is not a TeX package and does not change
+  `packageSetHash`.
 
 Busy and load-shed responses use `Retry-After: 10`. Request bodies above
 16 MiB are refused.

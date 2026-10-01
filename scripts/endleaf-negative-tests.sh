@@ -1,6 +1,10 @@
 #!/bin/sh
 # Live checks for a running Endleaf by Inkmirage worker. Devicor runs this on the Pi.
 #
+# After a live PDF render, pdffonts should list TeX Gyre Pagella, Heros,
+# and Cursor, not Computer Modern (CMR) for body type. The image installs
+# Debian tex-gyre for that stack (see README, Type stack).
+#
 #   ENDLEAF_URL=http://100.64.0.1:8080 \
 #   ENDLEAF_WORKER_TOKEN=... \
 #   ENDLEAF_IMAGE=localhost/endleaf-render:local \

@@ -113,7 +113,16 @@ def _prepare(tex):
             tex.replace("\\usepackage{fontspec}\n", "")
             .replace("\\usepackage{xeCJK}\n", "")
             .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+            .replace("\\input{endleaf-type.tex}\n", "")
         )
+    else:
+        gyre = subprocess.run(
+            ["kpsewhich", "texgyrepagella-regular.otf"],
+            check=False,
+            capture_output=True,
+        )
+        if gyre.returncode != 0 or not gyre.stdout.strip():
+            tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     return tex
 
 
