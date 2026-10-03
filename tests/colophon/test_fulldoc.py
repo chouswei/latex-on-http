@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """ENDLEAF-R39 and ENDLEAF-R49. fulldoc is PDF only; wide sysml is landscape A4."""
 
+import importlib.util
 import io
 import json
 import os
@@ -27,6 +28,19 @@ from colophon.templates import compose
 from tests.colophon.conftest import valid_body
 
 _ROOT = Path(__file__).resolve().parents[2]
+
+
+def _kind_fixtures():
+    path = _ROOT / "container/run_kind_fixtures.py"
+    spec = importlib.util.spec_from_file_location("endleaf_kind_fixtures_fulldoc", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_KIND_FIXTURES = _kind_fixtures()
+_CJK_TOKENS_PRESENT = _KIND_FIXTURES._cjk_tokens_present
+_BODY_TYPE_ERROR = _KIND_FIXTURES._body_type_error
 _OWNED = _ROOT / "colophon/share/templates/owned"
 _KINDS = _ROOT / "tests/colophon/fixtures/kinds"
 _REVIEW = _ROOT / "tests/colophon/fixtures/review"
@@ -72,6 +86,66 @@ def _type_ready():
 
 def test_package_set_hash_is_unchanged():
     assert package_set_hash(package_set()) == _PACKAGE_SET_HASH
+
+
+def test_cjk_tokens_tolerate_pdftotext_breaks():
+    extracted = "配\n置見圖 1"
+    assert _CJK_TOKENS_PRESENT(extracted, "配置")
+    assert _CJK_TOKENS_PRESENT("配 置見圖 1", "配置")
+    assert _CJK_TOKENS_PRESENT("配置見圖 1", "配置")
+    assert _CJK_TOKENS_PRESENT("幫\n浦監測", "幫浦")
+    assert _CJK_TOKENS_PRESENT("參 數", "參數")
+    assert not _CJK_TOKENS_PRESENT("配見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("置見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("配設見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("置\n配見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("幫監測", "幫浦")
+    assert not _CJK_TOKENS_PRESENT("參見", "參數")
+
+
+_PDFONTS_HEADER = (
+    "name                                 type              encoding         "
+    "emb sub uni object ID",
+    "------------------------------------ ----------------- ---------------- "
+    "--- --- --- ---------",
+)
+_PDFONTS_PAGELLA = (
+    "SQMVLL+TeXGyrePagella-Regular-Identity-H CID Type 0C       Identity-H"
+    "       yes yes yes      5  0"
+)
+_PDFONTS_CMMI = (
+    "QXLMBR+CMMI10                        Type 1C           Builtin"
+    "          yes yes yes     19  0"
+)
+_PDFONTS_CMR7 = (
+    "NWVKSU+CMR7                          Type 1C           Builtin"
+    "          yes yes yes     20  0"
+)
+_PDFONTS_CMR10 = (
+    "AAAAAA+CMR10                         Type 1            Builtin"
+    "          yes yes yes      1  0"
+)
+_PDFONTS_LMROMAN = (
+    "BAAAAA+LMRoman10-Regular             CID Type 0C       Identity-H"
+    "       yes yes yes      3  0"
+)
+
+
+def test_body_type_allows_cmr7_math_not_cmr10_or_latin_modern():
+    math_ok = _BODY_TYPE_ERROR(
+        list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_CMMI, _PDFONTS_CMR7]
+    )
+    assert math_ok is None
+    body_cmr = _BODY_TYPE_ERROR(
+        list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_CMR10]
+    )
+    assert body_cmr and "Computer Modern" in body_cmr
+    no_pagella = _BODY_TYPE_ERROR(list(_PDFONTS_HEADER) + [_PDFONTS_CMR7])
+    assert no_pagella and "Pagella" in no_pagella
+    latin = _BODY_TYPE_ERROR(
+        list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_LMROMAN]
+    )
+    assert latin and "Latin Modern" in latin
 
 
 def test_fulldoc_html_and_docx_are_refused():
@@ -330,9 +404,8 @@ def test_fulldoc_fixture_compiles(tmp_path):
     pages = _pages(pdf)
     assert 1 <= pages <= 16
     text = _text(pdf)
-    assert "幫浦" in text
-    assert "參數" in text
-    assert "配置" in text
+    for needle in ("幫浦", "參數", "配置"):
+        assert _CJK_TOKENS_PRESENT(text, needle), text
     fit = _fit(log)
     assert fit["uniform"] == pytest.approx(1, abs=0.01)
     assert fit["unit"] == pytest.approx(1, abs=0.001)
@@ -352,16 +425,15 @@ def test_fulldoc_fixture_compiles(tmp_path):
         text=True,
     )
     assert fonts.returncode == 0, fonts.stderr
-    rows = fonts.stdout.splitlines()[2:]
-    assert rows
-    blob = fonts.stdout.lower().replace("-", "").replace(" ", "")
+    rows = fonts.stdout.splitlines()
     if typed:
-        assert "pagella" in blob
-        for banned in ("cmr", "lmroman", "latinmodernroman"):
-            assert banned not in blob, fonts.stdout
-    for row in rows:
-        # name and type vary in width. emb sub uni sit before the object id.
-        assert row.split()[-5] == "yes", row
+        problem = _BODY_TYPE_ERROR(rows)
+        assert problem is None, fonts.stdout
+    else:
+        assert rows[2:]
+        for row in rows[2:]:
+            # name and type vary in width. emb sub uni sit before the object id.
+            assert row.split()[-5] == "yes", row
 
 
 def _assert_float_page_stacks_at_the_top(pdf):
