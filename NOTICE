@@ -105,6 +105,13 @@ compile service.
   `shapes.geometric`, and `shapes.multipart` come from `pgf`. A document
   loads it with `\usepackage{sysml-tikz}`. The shared preamble does that,
   so the document-shell allowlist includes the package name.
+- `endleaf-fit.tex` is the Endleaf file
+  `prototypes/endleaf-fit/endleaf-fit.tex` at
+  `59178c12e760140162f9fe18021766ee7628f73f`. The sysml preamble is
+  `prototypes/endleaf-fit/sysml-preamble.tex` at the same commit. Neither
+  file is a TeX package, so `packageSetHash` does not change. A sysml
+  canvas wider than the portrait A4 line at the declared body size is
+  landscape A4 at that size; 7 pt is a floor, not a fit target.
 - A failed render returns a result class (`ok`, `failTimeout`,
   `failCapHit`, `renderError`, or `refused`), wall time, `memory.peak` and
   `pids.peak` from the job cgroup, and on a render error the first TeX

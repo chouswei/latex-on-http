@@ -1,22 +1,47 @@
-% ENDLEAF-R39-KEEP and ENDLEAF-R39-WIDTH.
+% ENDLEAF-R49 and ENDLEAF-R39-KEEP.
 % Kernel boxes only. This file is not a package, so packageSetHash
 % does not change.
-% A sysmlcanvas is scaled uniformly, text included, down to the 7 pt
-% floor. Only a remainder past that floor shrinks the coordinate unit.
-% A picture that still does not fit is an error. Plain tikzpictures are
-% not scaled; a wide one logs ENDLEAF_WIDE_PICTURE.
+% The template owns A4 page geometry. A sysml canvas wider than the
+% portrait text line at the declared body size is landscape A4, and
+% type stays at that declared size. 7 pt is an absolute floor, not a
+% fit target. Do not scale type down to force portrait. Do not shrink
+% the coordinate unit (that leaves names outside their boxes). If the
+% canvas still will not fit landscape A4 at the declared size, this
+% is an error. Portrait sheets that already fit stay portrait.
+% Caller \pdfpagewidth in the body is not the switch: a minipage
+% group would restore portrait at shipout.
+% Plain tikzpictures are not scaled; a wide one logs ENDLEAF_WIDE_PICTURE.
 \NeedsTeXFormat{LaTeX2e}
 \makeatletter
 \newbox\elfit@picbox
 \newbox\elfit@plainbox
 \newdimen\elfit@availht
 \newdimen\elfit@nath
-\newcount\elfit@fittry
-\newif\ifelfit@needshrink
-\newif\ifelfit@coordshrink
+\newdimen\elfit@portline
+\newdimen\elfit@porttw
+\newdimen\elfit@portth
+\newdimen\elfit@portpw
+\newdimen\elfit@portph
+\newdimen\elfit@portoddm
+\newdimen\elfit@portevenm
+\newdimen\elfit@porttopm
+\newdimen\elfit@left
+\newdimen\elfit@right
+\newdimen\elfit@top
+\newdimen\elfit@bot
+\newdimen\elfit@landpw
+\newdimen\elfit@landph
+\newdimen\elfit@landtw
+\newdimen\elfit@landth
+\newdimen\elfit@landline
+\newif\ifelfit@needland
+\newif\ifelfit@thisland
+\newif\ifelfit@landscaped
+\newif\ifelfit@insidefloat
 \def\elfit@uniform{1}
 \def\elfit@unit{1}
 \def\elfit@shown{}
+\def\elfit@page{portrait}
 \let\elfit@tikzpicture\tikzpicture
 \let\elfit@endtikzpicture\endtikzpicture
 \let\elfit@figure\figure
@@ -24,8 +49,82 @@
 \let\elfit@table\table
 \let\elfit@endtable\endtable
 
-% The caption prints the fitted type size. \sysml@body stays the size
-% the picture asked for, so a later canvas does not inherit a fit.
+% Snapshot portrait article metrics. Landscape keeps the same
+% physical margins and uses the extra A4 width.
+\AtBeginDocument{%
+  \elfit@portline=\linewidth
+  \elfit@porttw=\textwidth
+  \elfit@portth=\textheight
+  \elfit@portpw=\paperwidth
+  \elfit@portph=\paperheight
+  \elfit@portoddm=\oddsidemargin
+  \elfit@portevenm=\evensidemargin
+  \elfit@porttopm=\topmargin
+  \elfit@left=\dimexpr 1in+\oddsidemargin\relax
+  \elfit@right=\dimexpr\paperwidth-\elfit@left-\textwidth\relax
+  \elfit@top=\dimexpr 1in+\topmargin+\headheight+\headsep\relax
+  \elfit@bot=\dimexpr\paperheight-\elfit@top-\textheight\relax
+  \elfit@landpw=\paperheight
+  \elfit@landph=\paperwidth
+  \elfit@landtw=\dimexpr\elfit@landpw-\elfit@left-\elfit@right\relax
+  \elfit@landth=\dimexpr\elfit@landph-\elfit@top-\elfit@bot\relax
+  \ifdim\elfit@landth<80pt
+    \elfit@landth=80pt
+  \fi
+  \elfit@landline=\elfit@landtw
+}
+
+\def\elfit@applypapersize{%
+  \ifdefined\pdfpagewidth
+    \global\pdfpagewidth=\paperwidth
+    \global\pdfpageheight=\paperheight
+  \fi
+  \ifdefined\pagewidth
+    \global\pagewidth=\paperwidth
+    \global\pageheight=\paperheight
+  \fi
+}
+
+\def\elfit@setlandscape{%
+  \global\paperwidth=\elfit@landpw
+  \global\paperheight=\elfit@landph
+  \global\oddsidemargin=\elfit@portoddm
+  \global\evensidemargin=\elfit@portevenm
+  \global\topmargin=\elfit@porttopm
+  \global\textwidth=\elfit@landtw
+  \global\textheight=\elfit@landth
+  \global\hsize=\elfit@landtw
+  \global\linewidth=\elfit@landtw
+  \global\columnwidth=\elfit@landtw
+  \global\vsize=\elfit@landth
+  \global\@colht=\elfit@landth
+  \global\@colroom=\elfit@landth
+  \elfit@applypapersize
+  \gdef\elfit@page{landscape}%
+  \global\elfit@landscapedtrue
+}
+
+\def\elfit@setportrait{%
+  \global\paperwidth=\elfit@portpw
+  \global\paperheight=\elfit@portph
+  \global\oddsidemargin=\elfit@portoddm
+  \global\evensidemargin=\elfit@portevenm
+  \global\topmargin=\elfit@porttopm
+  \global\textwidth=\elfit@porttw
+  \global\textheight=\elfit@portth
+  \global\hsize=\elfit@porttw
+  \global\linewidth=\elfit@porttw
+  \global\columnwidth=\elfit@porttw
+  \global\vsize=\elfit@portth
+  \global\@colht=\elfit@portth
+  \global\@colroom=\elfit@portth
+  \elfit@applypapersize
+  \gdef\elfit@page{portrait}%
+  \global\elfit@landscapedfalse
+}
+
+% The caption prints the declared type size. Fit never rewrites it
+% down to the 7 pt floor.
 \let\elfit@caption\sysml@caption
 \renewcommand{\sysml@caption}{%
   \begingroup
@@ -37,7 +136,7 @@
 }
 
 % Room for the sysml header, the 3 mm gap, and \topskip, so the header
-% and the canvas together sit inside \textheight.
+% and the canvas together sit inside the chosen text height.
 \def\elfit@reserve{%
   \setbox\elfit@picbox=\vbox{%
     \hsize=\textwidth
@@ -70,109 +169,88 @@
   }%
 }
 
-\def\elfit@decide{%
-  \pgfmathsetmacro{\elfit@sfloor}{min(1,7/max(\elfit@bodyreq,7))}%
-  \ifdim\wd\elfit@picbox<1pt
-    \def\elfit@sneedw{1}%
-  \else
-    \pgfmathsetmacro{\elfit@sneedw}{\strip@pt\linewidth/\strip@pt\wd\elfit@picbox}%
-  \fi
-  \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
-  \ifdim\elfit@nath<1pt
-    \def\elfit@sneedh{1}%
-  \else
-    \pgfmathsetmacro{\elfit@sneedh}{\strip@pt\elfit@availht/\strip@pt\elfit@nath}%
-  \fi
-  \pgfmathsetmacro{\elfit@sneed}{min(1,\elfit@sneedw,\elfit@sneedh)}%
-  \pgfmathsetmacro{\elfit@below}{\elfit@sneed+0.0001<\elfit@sfloor ? 1 : 0}%
-  \ifdim\elfit@below pt>0.5pt
-    \let\elfit@uniform\elfit@sfloor
-    \pgfmathsetmacro{\elfit@unit}{\elfit@sneed/\elfit@sfloor}%
-    \elfit@coordshrinktrue
-  \else
-    \let\elfit@uniform\elfit@sneed
-    \def\elfit@unit{1}%
-    \elfit@coordshrinkfalse
-  \fi
+\def\elfit@refuse#1{%
+  \PackageError{endleaf}{#1}{Split the sheet. 7pt is a floor, not a fit target. Do not shrink type or the millimetre unit.}%
 }
 
-\def\elfit@flagover{%
-  \elfit@needshrinkfalse
-  \ifdim\wd\elfit@picbox>\linewidth
-    \elfit@needshrinktrue
-  \fi
+\def\elfit@fitcheck{%
   \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
-  \ifdim\elfit@nath>\elfit@availht
-    \elfit@needshrinktrue
-  \fi
-}
-
-\def\elfit@shrink{%
-  \def\elfit@rw{1}%
-  \def\elfit@rh{1}%
   \ifdim\wd\elfit@picbox>\linewidth
-    \pgfmathsetmacro{\elfit@rw}{\strip@pt\linewidth/\strip@pt\wd\elfit@picbox}%
+    \elfit@refuse{picture does not fit A4 at the declared type size. Text was not shrunk}%
   \fi
-  \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
   \ifdim\elfit@nath>\elfit@availht
-    \pgfmathsetmacro{\elfit@rh}{\strip@pt\elfit@availht/\strip@pt\elfit@nath}%
-  \fi
-  \pgfmathsetmacro{\elfit@cut}{min(\elfit@rw,\elfit@rh)*0.998}%
-  \ifelfit@coordshrink
-    \pgfmathsetmacro{\elfit@unit}{\elfit@unit*\elfit@cut}%
-  \else
-    \pgfmathsetmacro{\elfit@uniform}{\elfit@uniform*\elfit@cut}%
-    \pgfmathsetmacro{\elfit@below}{\elfit@uniform<\elfit@sfloor ? 1 : 0}%
-    \ifdim\elfit@below pt>0.5pt
-      \pgfmathsetmacro{\elfit@unit}{\elfit@uniform/\elfit@sfloor}%
-      \let\elfit@uniform\elfit@sfloor
-      \elfit@coordshrinktrue
-    \fi
+    \elfit@refuse{picture does not fit A4 at the declared type size. Text was not shrunk}%
   \fi
 }
 
 \def\elfit@publishtype{%
-  \pgfmathsetmacro{\elfit@typept}{\elfit@bodyreq*\elfit@uniform}%
-  \pgfmathtruncatemacro{\elfit@shownint}{round(\elfit@typept*10)}%
-  \pgfmathtruncatemacro{\elfit@w}{\elfit@shownint/10}%
-  \pgfmathtruncatemacro{\elfit@f}{\elfit@shownint-10*\elfit@w}%
-  \ifnum\elfit@f=0
-    \xdef\elfit@shown{\elfit@w}%
-  \else
-    \xdef\elfit@shown{\elfit@w.\elfit@f}%
-  \fi
+  \xdef\elfit@shown{\elfit@bodyreq}%
+}
+
+\def\elfit@landreserve{%
+  \setbox\elfit@picbox=\vbox{%
+    \hsize=\elfit@landtw
+    \raggedright
+    \noindent\sysml@caption
+  }%
+  \elfit@availht=\elfit@landth
+  \advance\elfit@availht by -\ht\elfit@picbox
+  \advance\elfit@availht by -\dp\elfit@picbox
+  \advance\elfit@availht by -3mm
+  \advance\elfit@availht by -\topskip
+  \advance\elfit@availht by -2pt
 }
 
 \long\def\elfit@fitcanvas#1{%
   \edef\elfit@bodyreq{\sysml@body}%
-  \gdef\elfit@shown{}%
+  \gdef\elfit@shown{\sysml@body}%
   \def\elfit@uniform{1}%
   \def\elfit@unit{1}%
   \ifsysml@marktrace \def\elfit@marksave{1}\else \def\elfit@marksave{0}\fi
   \sysml@marktracefalse
+  \global\elfit@needlandfalse
   \elfit@reserve
   \elfit@measure{#1}%
-  \elfit@decide
-  \elfit@fittry=0
-  \elfit@measure{#1}%
-  \elfit@flagover
-  \@whilesw\ifelfit@needshrink\fi{%
-    \ifnum\elfit@fittry>5
-      \PackageError{endleaf}{picture does not fit the line at 7pt or above. Text was not shrunk}{Do not shrink type below 7pt.}%
-      \elfit@needshrinkfalse
-    \else
-      \elfit@shrink
-      \advance\elfit@fittry by 1
+  \ifdim\wd\elfit@picbox>\elfit@portline
+    \global\elfit@needlandtrue
+  \fi
+  \ifelfit@needland
+    \gdef\elfit@page{landscape}%
+    \ifelfit@insidefloat
+      \global\elfit@thislandtrue
+      \elfit@landreserve
       \elfit@measure{#1}%
-      \elfit@flagover
+      \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
+      \ifdim\wd\elfit@picbox>\elfit@landline
+        \elfit@refuse{picture does not fit landscape A4 at the declared type size. Text was not shrunk}%
+      \fi
+      \ifdim\elfit@nath>\elfit@availht
+        \elfit@refuse{picture does not fit landscape A4 at the declared type size. Text was not shrunk}%
+      \fi
+    \else
+      \elfit@setlandscape
+      \elfit@reserve
+      \elfit@measure{#1}%
+      \elfit@fitcheck
     \fi
-  }%
+  \else
+    \gdef\elfit@page{portrait}%
+    \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
+    \ifdim\elfit@nath>\elfit@availht
+      \elfit@refuse{picture does not fit portrait A4 at the declared type size. Text was not shrunk}%
+    \fi
+  \fi
   \ifnum\elfit@marksave=1 \sysml@marktracetrue\fi
   \typeout{ENDLEAF_FIT_SHIP}%
   \elfit@measure{#1}%
   \elfit@publishtype
   \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
-  \typeout{ENDLEAF_FIT shipped=\the\wd\elfit@picbox\space line=\the\linewidth\space high=\the\elfit@nath\space avail=\the\elfit@availht\space uniform=\elfit@uniform\space unit=\elfit@unit\space type=\elfit@shown}%
+  \ifelfit@needland
+    \edef\elfit@reportline{\the\elfit@landline}%
+  \else
+    \edef\elfit@reportline{\the\elfit@portline}%
+  \fi
+  \typeout{ENDLEAF_FIT shipped=\the\wd\elfit@picbox\space line=\elfit@reportline\space high=\the\elfit@nath\space avail=\the\elfit@availht\space uniform=\elfit@uniform\space unit=\elfit@unit\space type=\elfit@shown\space page=\elfit@page}%
   \leavevmode\box\elfit@picbox
 }
 
@@ -180,38 +258,54 @@
   \elfit@fitcanvas{#1}%
 }{}
 
+% Header plus canvas stay together after the page-size decision, so
+% the minipage uses the chosen linewidth. Do not open a portrait
+% minipage before the canvas is measured.
+\let\elfit@typeset\sysml@typeset
+\renewcommand{\sysml@typeset}{%
+  \noindent\begin{minipage}{\linewidth}%
+    \elfit@typeset
+  \end{minipage}%
+}
+
 % Do not collect the float body. \@float has already begun, so the
 % minipage opens in internal vertical mode. A # in the body stays a #.
 \def\figure{\@ifnextchar[\elfit@figopt{\elfit@figopt[\fps@figure]}}
 \def\elfit@figopt[#1]{%
+  \global\elfit@insidefloattrue
+  \global\elfit@thislandfalse
   \elfit@figure[#1]%
   \noindent\minipage{\linewidth}%
 }
 % \let keeps the source scan clean: a defined name must not start
 % with end. The expansion is the same: close the minipage, then the float.
+% newpage ends the current portrait text page without shipping floats.
+% Landscape geometry then applies to the deferred float page.
 \def\elfit@closefigure{%
   \endminipage
   \elfit@endfigure
+  \ifelfit@thisland
+    \newpage
+    \elfit@setlandscape
+    \clearpage
+    \elfit@setportrait
+    \global\elfit@thislandfalse
+  \fi
+  \global\elfit@insidefloatfalse
 }
 \let\endfigure\elfit@closefigure
 \def\table{\@ifnextchar[\elfit@tabopt{\elfit@tabopt[\fps@table]}}
 \def\elfit@tabopt[#1]{%
+  \global\elfit@insidefloattrue
   \elfit@table[#1]%
   \noindent\minipage{\linewidth}%
 }
 \def\elfit@closetable{%
   \endminipage
   \elfit@endtable
+  \global\elfit@insidefloatfalse
 }
 \let\endtable\elfit@closetable
-
-% A bare sysmlfigure is not a float. The hooks wrap the header and
-% the canvas without collecting the body.
-\AddToHook{env/sysmlfigure/before}{%
-  \gdef\elfit@shown{}%
-  \noindent\begin{minipage}{\linewidth}%
-}
-\AddToHook{env/sysmlfigure/after}{\end{minipage}}
 
 % Plain pictures are not fitted. circuitikz is \let to \tikzpicture
 % after that name is defined, so point it at this wrapper.

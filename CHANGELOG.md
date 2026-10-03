@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-10-03
+
+* ENDLEAF-R49. Vendored Endleaf `prototypes/endleaf-fit/endleaf-fit.tex`
+  and `prototypes/endleaf-fit/sysml-preamble.tex` at
+  `59178c12e760140162f9fe18021766ee7628f73f` (PR 55) to
+  `colophon/share/tex/latex/colophon-v1/endleaf-fit.tex` and
+  `colophon/share/templates/owned/sysml/preamble.tex`. A sysml canvas
+  wider than the portrait A4 text line at the declared body size is
+  landscape A4, and type stays at that size. 7 pt is a floor, not a
+  fit target. The millimetre unit is not shrunk. If the canvas still
+  will not fit, the render is an error. The sysml preamble does not
+  wrap the body in a portrait minipage (that group restored portrait
+  page size at shipout). Neither file is a package, so
+  `packageSetHash` stays
+  `73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb166b98`.
+
 ## 2026-10-01
 
 * Shared type stack `endleaf-type.tex`: TeX Gyre Pagella body, Heros
