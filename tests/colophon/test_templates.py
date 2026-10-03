@@ -89,6 +89,10 @@ def test_preambles_use_only_the_allowlist():
             assert "\\documentclass[10pt,a4paper]{article}" in text
         elif template_id == "sysml":
             assert "\\documentclass[a4paper]{article}" in text
+            assert "\\input{endleaf-fit.tex}" in text
+            after_begin = text.split("\\begin{document}", 1)[1]
+            assert "\\begin{minipage}" not in after_begin
+            assert "\\pdfpagewidth=" not in after_begin
         elif template_id == "document-shell":
             assert "\\documentclass[10pt]{article}" in text
         else:

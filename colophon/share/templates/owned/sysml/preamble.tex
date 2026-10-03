@@ -1,9 +1,11 @@
 % ENDLEAF-R27. Server-owned preamble for templateId sysml.
 % The caller sends the body only. This file is not a request field.
-% ENDLEAF-R39-KEEP: the body is one minipage, so the sysmlfigure header
-% and the sysmlcanvas stay on one page. ENDLEAF-R39-WIDTH fits a wide
-% canvas in endleaf-fit.tex. The page is A4. The line stays the article
-% default, about 345 pt.
+% ENDLEAF-R39-KEEP: endleaf-fit.tex wraps the sysmlfigure header and
+% the sysmlcanvas in a kernel minipage after the page-size decision.
+% Do not wrap the body in a portrait minipage here: that group would
+% restore portrait \pdfpagewidth at shipout, and it would freeze
+% \linewidth before the canvas is measured. ENDLEAF-R49: the template
+% owns A4 portrait vs landscape. Callers do not send \pdfpagewidth.
 \documentclass[a4paper]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
@@ -13,7 +15,5 @@
 \input{endleaf-fit.tex}
 \newcommand{\EndleafLane}{__LANE__}
 \begin{document}
-\noindent\begin{minipage}{\linewidth}
 __BODY__
-\end{minipage}
 \end{document}

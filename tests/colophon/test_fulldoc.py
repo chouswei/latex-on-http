@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""ENDLEAF-R39. fulldoc is PDF only, at most 16 pages, and wide canvases fit."""
+"""ENDLEAF-R39 and ENDLEAF-R49. fulldoc is PDF only; wide sysml is landscape A4."""
 
 import io
 import json
@@ -43,8 +43,11 @@ _PACKAGE_SET_HASH = "73d55216488d240edccd26168576fcb402ce10794e04a3ef5ee8aec2bb1
 _FIT = re.compile(
     r"ENDLEAF_FIT shipped=([0-9.]+)pt line=([0-9.]+)pt "
     r"high=([0-9.]+)pt avail=([0-9.]+)pt "
-    r"uniform=([0-9.]+) unit=([0-9.]+) type=([0-9.]+)"
+    r"uniform=([0-9.]+) unit=([0-9.]+) type=([0-9.]+) "
+    r"page=(portrait|landscape)"
 )
+_ENDLEAF_FIT_BLOB = "b6640796f07f070df86506810bd94e1a03186840"
+_ENDLEAF_SYSML_PREAMBLE_BLOB = "a738db49384fef3c3f7e3b99ee88143eea088b61"
 _BOX = re.compile(
     r"SYSMLBOX\s+(\S+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)"
 )
@@ -101,11 +104,58 @@ def test_page_cap_message():
     assert fulldoc_page_count(b"not a pdf", "Output written on job.pdf (2 pages).") == 2
 
 
-def test_sysml_preamble_keeps_the_body_in_one_minipage():
+def test_vendored_fit_matches_endleaf_r49():
+    fit_blob = subprocess.check_output(
+        ["git", "hash-object", str(_FIT_TEX)],
+        text=True,
+    ).strip()
+    preamble = _OWNED / "sysml" / "preamble.tex"
+    preamble_blob = subprocess.check_output(
+        ["git", "hash-object", str(preamble)],
+        text=True,
+    ).strip()
+    assert fit_blob == _ENDLEAF_FIT_BLOB
+    assert preamble_blob == _ENDLEAF_SYSML_PREAMBLE_BLOB
+
+
+def test_endleaf_fit_landscapes_at_declared_type_and_refuses_crush():
+    text = _FIT_TEX.read_text(encoding="utf-8")
+    assert "ENDLEAF-R49" in text
+    assert r"\AtBeginDocument" in text
+    assert r"\elfit@portline" in text
+    assert r"\elfit@landpw=\paperheight" in text
+    assert r"\elfit@landph=\paperwidth" in text
+    assert r"\elfit@setlandscape" in text
+    assert r"\pdfpagewidth" in text
+    assert r"page=\elfit@page" in text
+    assert r"\elfit@uniform{1}" in text
+    assert r"\xdef\elfit@shown{\elfit@bodyreq}" in text
+    assert "7pt is a floor, not a fit target" in text
+    assert r"\PackageError{endleaf}" in text
+    assert "Text was not shrunk" in text
+    assert r"\elfit@sfloor" not in text
+    assert "coordshrink" not in text
+    assert r"\resizebox" not in text
+    assert "ENDLEAF_WIDE_PICTURE" in text
+    assert r"\RenewDocumentEnvironment{figure}" not in text
+    assert r"\RenewDocumentEnvironment{table}" not in text
+    assert r"\def\figure" in text
+    assert r"\newpage" in text
+    assert r"\clearpage" in text
+    assert r"renewcommand{\sysml@typeset}" in text
+    assert r"\begin{minipage}{\linewidth}" in text
+
+
+def test_sysml_preamble_does_not_freeze_portrait_minipage():
     text = (_OWNED / "sysml" / "preamble.tex").read_text(encoding="utf-8")
-    assert "\\noindent\\begin{minipage}{\\linewidth}" in text
-    assert text.index("\\begin{minipage}") < text.index("__BODY__")
-    assert text.index("__BODY__") < text.index("\\end{minipage}")
+    assert r"\documentclass[a4paper]{article}" in text
+    assert r"\input{endleaf-fit.tex}" in text
+    assert "__BODY__" in text
+    after_begin = text.split(r"\begin{document}", 1)[1]
+    assert "__BODY__" in after_begin
+    assert r"\begin{minipage}" not in after_begin
+    assert r"\pdfpagewidth=" not in after_begin
+    assert r"\end{document}" in after_begin
 
 
 def _xelatex(tmp_path, name, tex):
@@ -184,7 +234,7 @@ def _fit(log):
     found = _FIT.search(_unwrap(log))
     assert found, _unwrap(log)[-2000:]
     shipped, line, high, avail, uniform, unit, type_size = (
-        float(item) for item in found.groups()
+        float(item) for item in found.groups()[:7]
     )
     return {
         "shipped": shipped,
@@ -195,7 +245,23 @@ def _fit(log):
         "unit": unit,
         "type": type_size,
         "type_text": found.group(7),
+        "page": found.group(8),
     }
+
+
+def _page_size(pdf, page=1):
+    info = subprocess.run(
+        ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert info.returncode == 0, info.stderr
+    for line in info.stdout.splitlines():
+        if line.startswith("Page size:"):
+            parts = line.split()
+            return float(parts[2]), float(parts[4])
+    raise AssertionError(info.stdout)
 
 
 def _shipped_boxes(log):
@@ -268,10 +334,15 @@ def test_fulldoc_fixture_compiles(tmp_path):
     assert "參數" in text
     assert "配置" in text
     fit = _fit(log)
-    assert fit["type"] >= 7
+    assert fit["uniform"] == pytest.approx(1, abs=0.01)
+    assert fit["unit"] == pytest.approx(1, abs=0.001)
+    assert fit["type"] == pytest.approx(10, abs=0.05)
+    assert fit["type_text"] == "10"
+    assert fit["page"] == "landscape"
     assert fit["shipped"] <= fit["line"] + 0.2
     assert fit["high"] <= fit["avail"] + 0.2
     assert re.search(rf"type\s+{re.escape(fit['type_text'])}\s*pt", text)
+    assert "type 7 pt" not in text
     assert pages >= 2
     _assert_float_page_stacks_at_the_top(pdf)
     fonts = subprocess.run(
@@ -294,17 +365,25 @@ def test_fulldoc_fixture_compiles(tmp_path):
 
 
 def _assert_float_page_stacks_at_the_top(pdf):
-    """Figure 2 and Figure 3 share the top of page 2, with a fixed gap."""
-    _width, height, words = _bbox_words(pdf, 2)
-    captions = []
-    for index, word in enumerate(words):
-        if word["text"] != "Figure" or index + 1 >= len(words):
-            continue
-        number = words[index + 1]["text"].rstrip(":")
-        if number in {"2", "3"}:
-            captions.append(word["yMin"])
+    """Figure 2 and Figure 3 share the top of a portrait float page."""
+    pages = _pages(pdf)
+    found = None
+    for page in range(1, pages + 1):
+        _width, height, words = _bbox_words(pdf, page)
+        captions = []
+        for index, word in enumerate(words):
+            if word["text"] != "Figure" or index + 1 >= len(words):
+                continue
+            number = words[index + 1]["text"].rstrip(":")
+            if number in {"2", "3"}:
+                captions.append(word["yMin"])
+        if len(captions) >= 2:
+            found = (height, captions, [word["text"] for word in words])
+            break
+    assert found is not None
+    height, captions, labels = found
     assert captions == sorted(captions)
-    assert len(captions) >= 2, [word["text"] for word in words]
+    assert len(captions) >= 2, labels
     assert captions[0] < 220
     assert max(captions) < height * 0.45
     assert captions[-1] - captions[0] < 180
@@ -326,7 +405,7 @@ def _assert_labels_clear_outlines(boxes):
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
-def test_wide_sysml_canvas_fits_the_line(tmp_path):
+def test_wide_sysml_canvas_is_landscape_at_declared_type(tmp_path):
     body = "\\makeatletter\\sysml@marktracetrue\\makeatother\n" + (
         _REVIEW / "wide-175.tex"
     ).read_text(encoding="utf-8")
@@ -337,36 +416,89 @@ def test_wide_sysml_canvas_fits_the_line(tmp_path):
     fit = _fit(log)
     assert fit["shipped"] <= fit["line"] + 0.2
     assert fit["high"] <= fit["avail"] + 0.2
-    assert fit["uniform"] == pytest.approx(0.7, abs=0.01)
-    assert fit["unit"] > 0.9
-    assert fit["type"] == pytest.approx(7, abs=0.05)
-    assert fit["type_text"] == "7"
+    assert fit["uniform"] == pytest.approx(1, abs=0.01)
+    assert fit["unit"] == pytest.approx(1, abs=0.001)
+    assert fit["type"] == pytest.approx(10, abs=0.05)
+    assert fit["type_text"] == "10"
+    assert fit["page"] == "landscape"
     assert _pages(pdf) == 1
+    width, height = _page_size(pdf)
+    assert width > height
+    assert width == pytest.approx(841.89, abs=1)
+    assert height == pytest.approx(595.28, abs=1)
     text = _text(pdf)
     assert "參數" in text
-    assert re.search(r"type\s+7\s*pt", text)
-    assert "type 10" not in text
+    assert re.search(r"type\s+10\s*pt", text)
+    assert "type 7 pt" not in text
     _assert_labels_clear_outlines(_shipped_boxes(log))
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
-def test_sysml_header_and_canvas_stay_together(tmp_path):
-    body = (_REVIEW / "tall-split.tex").read_text(encoding="utf-8")
+def test_narrow_sysml_canvas_stays_portrait_at_declared_type(tmp_path):
+    body = (
+        "\\begin{sysmlfigure}[view={narrow}, revision={keep}, "
+        "overrides={none}, depth={1}, body size={10}]\n"
+        "\\begin{sysmlcanvas}\n"
+        "\\sysmlpart{N.box}{8}{8}{18}{18}\n"
+        "\\sysmllabel[name]{17}{14}{幫浦}\n"
+        "\\end{sysmlcanvas}\n"
+        "\\end{sysmlfigure}\n"
+    )
     tex = compose("sysml", "Weft", body, _OWNED)
-    pdf, log = _xelatex(tmp_path, "tall.tex", tex)
-    assert "Overfull \\vbox" not in log
+    pdf, log = _xelatex(tmp_path, "narrow.tex", tex)
     assert "Overfull \\hbox" not in log
+    assert "Overfull \\vbox" not in log
     assert _pages(pdf) == 1
     fit = _fit(log)
-    assert fit["high"] <= fit["avail"] + 0.2
-    assert fit["uniform"] < 1
+    assert fit["page"] == "portrait"
+    assert fit["uniform"] == pytest.approx(1, abs=0.01)
     assert fit["unit"] == pytest.approx(1, abs=0.001)
-    assert fit["type"] >= 7
+    assert fit["type"] == pytest.approx(10, abs=0.05)
+    assert fit["type_text"] == "10"
+    width, height = _page_size(pdf)
+    assert height > width
+    assert width == pytest.approx(595.28, abs=1)
+    assert height == pytest.approx(841.89, abs=1)
     text = _text(pdf)
     assert "View" in text
     assert "幫浦" in text
-    assert "末端" in text
-    assert re.search(rf"type\s+{re.escape(fit['type_text'])}\s*pt", text)
+    assert re.search(r"type\s+10\s*pt", text)
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_tall_sysml_canvas_refuses_instead_of_crush(tmp_path):
+    body = (_REVIEW / "tall-split.tex").read_text(encoding="utf-8")
+    tex = compose("sysml", "Weft", body, _OWNED)
+    if not _type_ready():
+        tex = tex.replace("\\input{endleaf-type.tex}\n", "")
+    (tmp_path / "tall.tex").write_text(tex, encoding="utf-8")
+    env = os.environ.copy()
+    env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
+    completed = subprocess.run(
+        [
+            "xelatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "-file-line-error",
+            "tall.tex",
+        ],
+        cwd=tmp_path,
+        check=False,
+        timeout=180,
+        capture_output=True,
+        env=env,
+    )
+    log_path = tmp_path / "tall.log"
+    log = (
+        log_path.read_text(encoding="utf-8", errors="replace")
+        if log_path.is_file()
+        else completed.stdout.decode("utf-8", "replace")
+    )
+    assert completed.returncode != 0, log[-2000:]
+    unwrapped = _unwrap(log)
+    assert "Text was not shrunk" in unwrapped
+    assert "does not fit portrait A4 at the declared type size" in unwrapped
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")

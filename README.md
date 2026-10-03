@@ -47,8 +47,11 @@ Human-facing PDFs then `\input{endleaf-type.tex}` after fontspec and xeCJK.
 Body and headings are TeX Gyre Pagella (`tgpagella`), 10 pt on `fulldoc`
 and `document-shell`. Diagram and UI labels are TeX Gyre Heros (`tgheros`).
 Canvas tokens and mono are TeX Gyre Cursor (`tgcursor`). Figure labels stay
-at or above 7 pt. zh-TW still uses xeCJK with Noto Sans CJK TC; this worker
-does not add a bilingual playbook.
+at or above 7 pt. A sysml canvas wider than the portrait A4 text line at
+the declared body size is landscape A4 at that size; 7 pt is a floor, not
+a fit target. The template owns that geometry (`endleaf-fit.tex`). Callers
+do not send `\pdfpagewidth`. zh-TW still uses xeCJK with Noto Sans CJK TC;
+this worker does not add a bilingual playbook.
 
 ### Type stack (Keeper / Devicor)
 
@@ -380,7 +383,9 @@ Each `templateId` is a server-owned asset under
 `\input{endleaf-type.tex}`, and `\input{colophon-v1-preamble.tex}`, except
 `document-shell`, which is `\documentclass[10pt]{article}`, and `sysml` and
 `fulldoc`, which use `\documentclass[a4paper]{article}` (`fulldoc` adds
-`10pt`). `fulldoc` does not input that shared
+`10pt`). `sysml` and `fulldoc` input `endleaf-fit.tex`. A sysml canvas
+wider than the portrait line at the declared type size is landscape A4
+at that size. `fulldoc` does not input that shared
 preamble: it loads the sold packages named in its own preamble and refuses
 `html` and `docx` (`outputFormat`). A fulldoc PDF of more than 16 pages is
 `failCapHit`. Those packages are the allowlist.
