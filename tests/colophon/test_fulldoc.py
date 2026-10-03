@@ -38,7 +38,9 @@ def _kind_fixtures():
     return module
 
 
-_CJK_TOKENS_PRESENT = _kind_fixtures()._cjk_tokens_present
+_KIND_FIXTURES = _kind_fixtures()
+_CJK_TOKENS_PRESENT = _KIND_FIXTURES._cjk_tokens_present
+_BODY_TYPE_ERROR = _KIND_FIXTURES._body_type_error
 _OWNED = _ROOT / "colophon/share/templates/owned"
 _KINDS = _ROOT / "tests/colophon/fixtures/kinds"
 _REVIEW = _ROOT / "tests/colophon/fixtures/review"
@@ -99,6 +101,51 @@ def test_cjk_tokens_tolerate_pdftotext_breaks():
     assert not _CJK_TOKENS_PRESENT("置\n配見圖 1", "配置")
     assert not _CJK_TOKENS_PRESENT("幫監測", "幫浦")
     assert not _CJK_TOKENS_PRESENT("參見", "參數")
+
+
+_PDFONTS_HEADER = (
+    "name                                 type              encoding         "
+    "emb sub uni object ID",
+    "------------------------------------ ----------------- ---------------- "
+    "--- --- --- ---------",
+)
+_PDFONTS_PAGELLA = (
+    "SQMVLL+TeXGyrePagella-Regular-Identity-H CID Type 0C       Identity-H"
+    "       yes yes yes      5  0"
+)
+_PDFONTS_CMMI = (
+    "QXLMBR+CMMI10                        Type 1C           Builtin"
+    "          yes yes yes     19  0"
+)
+_PDFONTS_CMR7 = (
+    "NWVKSU+CMR7                          Type 1C           Builtin"
+    "          yes yes yes     20  0"
+)
+_PDFONTS_CMR10 = (
+    "AAAAAA+CMR10                         Type 1            Builtin"
+    "          yes yes yes      1  0"
+)
+_PDFONTS_LMROMAN = (
+    "BAAAAA+LMRoman10-Regular             CID Type 0C       Identity-H"
+    "       yes yes yes      3  0"
+)
+
+
+def test_body_type_allows_cmr7_math_not_cmr10_or_latin_modern():
+    math_ok = _BODY_TYPE_ERROR(
+        list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_CMMI, _PDFONTS_CMR7]
+    )
+    assert math_ok is None
+    body_cmr = _BODY_TYPE_ERROR(
+        list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_CMR10]
+    )
+    assert body_cmr and "Computer Modern" in body_cmr
+    no_pagella = _BODY_TYPE_ERROR(list(_PDFONTS_HEADER) + [_PDFONTS_CMR7])
+    assert no_pagella and "Pagella" in no_pagella
+    latin = _BODY_TYPE_ERROR(
+        list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_LMROMAN]
+    )
+    assert latin and "Latin Modern" in latin
 
 
 def test_fulldoc_html_and_docx_are_refused():
@@ -378,16 +425,15 @@ def test_fulldoc_fixture_compiles(tmp_path):
         text=True,
     )
     assert fonts.returncode == 0, fonts.stderr
-    rows = fonts.stdout.splitlines()[2:]
-    assert rows
-    blob = fonts.stdout.lower().replace("-", "").replace(" ", "")
+    rows = fonts.stdout.splitlines()
     if typed:
-        assert "pagella" in blob
-        for banned in ("cmr", "lmroman", "latinmodernroman"):
-            assert banned not in blob, fonts.stdout
-    for row in rows:
-        # name and type vary in width. emb sub uni sit before the object id.
-        assert row.split()[-5] == "yes", row
+        problem = _BODY_TYPE_ERROR(rows)
+        assert problem is None, fonts.stdout
+    else:
+        assert rows[2:]
+        for row in rows[2:]:
+            # name and type vary in width. emb sub uni sit before the object id.
+            assert row.split()[-5] == "yes", row
 
 
 def _assert_float_page_stacks_at_the_top(pdf):

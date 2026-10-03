@@ -175,6 +175,41 @@ def _pdf_pages(pdf):
     sys.exit("pdfinfo did not report Pages")
 
 
+# CMR7 is script-size math. CMR10, CMR12, and a bare cmr are body type.
+_CMR_BODY = re.compile(r"cmr(?![5-9])")
+
+
+def _fonts_blob(rows):
+    return "\n".join(rows).lower().replace("-", "").replace(" ", "")
+
+
+def _body_type_error(lines):
+    """Return an error if body type is Computer Modern or Latin Modern.
+
+    A font name may contain cmr only when the next character is one
+    digit 5-9 (CMR7). Pagella is required. lmroman and
+    latinmodernroman still fail.
+    """
+    if len(lines) < 3 or "emb" not in lines[0]:
+        return f"pdffonts output is unreadable: {lines!r}"
+    rows = lines[2:]
+    if not rows:
+        return "PDF has no fonts"
+    for row in rows:
+        # name and type vary in width. emb sub uni sit before the object id.
+        if row.split()[-5] != "yes":
+            return f"font is not embedded: {row}"
+    blob = _fonts_blob(rows)
+    if "pagella" not in blob:
+        return "PDF body is not TeX Gyre Pagella:\n" + "\n".join(lines)
+    if "lmroman" in blob or "latinmodernroman" in blob or _CMR_BODY.search(blob):
+        return (
+            "PDF still uses Computer Modern or Latin Modern Roman:\n"
+            + "\n".join(lines)
+        )
+    return None
+
+
 def _assert_fonts_embedded(name, pdf):
     path = Path("/tmp") / f"endleaf-fonts-{name}.pdf"
     path.write_bytes(pdf)
@@ -190,26 +225,11 @@ def _assert_fonts_embedded(name, pdf):
     if completed.returncode != 0:
         sys.exit(completed.stderr.decode("utf-8", "replace") or "pdffonts failed")
     lines = completed.stdout.decode("utf-8", "replace").splitlines()
-    if len(lines) < 3 or "emb" not in lines[0]:
-        sys.exit(f"{name} pdffonts output is unreadable: {lines!r}")
-    rows = lines[2:]
-    if not rows:
-        sys.exit(f"{name} PDF has no fonts")
-    for row in rows:
-        # name and type vary in width. emb sub uni sit before the object id.
-        if row.split()[-5] != "yes":
-            sys.exit(f"{name} font is not embedded: {row}")
-    blob = "\n".join(rows).lower().replace("-", "").replace(" ", "")
-    for banned in ("cmr", "lmroman", "latinmodernroman"):
-        if banned in blob:
-            sys.exit(
-                f"{name} PDF still uses Computer Modern or Latin Modern Roman:\n"
-                + "\n".join(lines)
-            )
-    if "pagella" not in blob:
-        sys.exit(
-            f"{name} PDF body is not TeX Gyre Pagella:\n" + "\n".join(lines)
-        )
+    problem = _body_type_error(lines)
+    if problem:
+        sys.exit(f"{name} {problem}")
+    print(f"{name} pdffonts", file=sys.stderr)
+    print("\n".join(lines), file=sys.stderr)
 
 
 def _assert_fulldoc(name, pdf, err):
