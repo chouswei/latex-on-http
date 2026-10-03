@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """ENDLEAF-R39 and ENDLEAF-R49. fulldoc is PDF only; wide sysml is landscape A4."""
 
+import importlib.util
 import io
 import json
 import os
@@ -27,6 +28,17 @@ from colophon.templates import compose
 from tests.colophon.conftest import valid_body
 
 _ROOT = Path(__file__).resolve().parents[2]
+
+
+def _kind_fixtures():
+    path = _ROOT / "container/run_kind_fixtures.py"
+    spec = importlib.util.spec_from_file_location("endleaf_kind_fixtures_fulldoc", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_CJK_TOKENS_PRESENT = _kind_fixtures()._cjk_tokens_present
 _OWNED = _ROOT / "colophon/share/templates/owned"
 _KINDS = _ROOT / "tests/colophon/fixtures/kinds"
 _REVIEW = _ROOT / "tests/colophon/fixtures/review"
@@ -72,6 +84,21 @@ def _type_ready():
 
 def test_package_set_hash_is_unchanged():
     assert package_set_hash(package_set()) == _PACKAGE_SET_HASH
+
+
+def test_cjk_tokens_tolerate_pdftotext_breaks():
+    extracted = "配\n置見圖 1"
+    assert _CJK_TOKENS_PRESENT(extracted, "配置")
+    assert _CJK_TOKENS_PRESENT("配 置見圖 1", "配置")
+    assert _CJK_TOKENS_PRESENT("配置見圖 1", "配置")
+    assert _CJK_TOKENS_PRESENT("幫\n浦監測", "幫浦")
+    assert _CJK_TOKENS_PRESENT("參 數", "參數")
+    assert not _CJK_TOKENS_PRESENT("配見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("置見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("配設見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("置\n配見圖 1", "配置")
+    assert not _CJK_TOKENS_PRESENT("幫監測", "幫浦")
+    assert not _CJK_TOKENS_PRESENT("參見", "參數")
 
 
 def test_fulldoc_html_and_docx_are_refused():
@@ -330,9 +357,8 @@ def test_fulldoc_fixture_compiles(tmp_path):
     pages = _pages(pdf)
     assert 1 <= pages <= 16
     text = _text(pdf)
-    assert "幫浦" in text
-    assert "參數" in text
-    assert "配置" in text
+    for needle in ("幫浦", "參數", "配置"):
+        assert _CJK_TOKENS_PRESENT(text, needle), text
     fit = _fit(log)
     assert fit["uniform"] == pytest.approx(1, abs=0.01)
     assert fit["unit"] == pytest.approx(1, abs=0.001)

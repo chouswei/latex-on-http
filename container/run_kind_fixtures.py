@@ -114,6 +114,16 @@ def _pdf_text(pdf):
     return text.replace("m²", "m2").replace("m^2", "m2")
 
 
+def _cjk_tokens_present(text, needle):
+    """True when each needle glyph appears in order.
+
+    pdftotext -raw may insert a newline or space between CJK characters.
+    A missing or replaced glyph still fails.
+    """
+    pattern = r"\s*".join(re.escape(ch) for ch in needle)
+    return re.search(pattern, text) is not None
+
+
 _CREDIT = {
     "Creator": "Endleaf by InkMirage (endleaf.inkmirage.xyz)",
     "Producer": "Endleaf by InkMirage; XeTeX",
@@ -210,7 +220,7 @@ def _assert_fulldoc(name, pdf, err):
         sys.exit(f"{name} page count {pages} is outside 1..16")
     text = _pdf_text(pdf)
     for needle in ("幫浦", "參數", "配置"):
-        if needle not in text:
+        if not _cjk_tokens_present(text, needle):
             sys.exit(f"{name} PDF text missing {needle}: {text!r}")
     # Captions number on the first pass. ?? is an unresolved \ref.
     if "??" in text or not re.search(r"圖\s*1", text) or not re.search(r"表\s*1", text):
@@ -264,7 +274,7 @@ def _compile(path, *, image, podman):
         _assert_floorplan(path.name, stdout)
     if path.name == "sysml.tex":
         text = _pdf_text(stdout)
-        if "幫浦" not in text:
+        if not _cjk_tokens_present(text, "幫浦"):
             sys.exit(f"{path.name} PDF text missing 幫浦: {text!r}")
     if path.name == "fulldoc.tex":
         _assert_fulldoc(path.name, stdout, err)
