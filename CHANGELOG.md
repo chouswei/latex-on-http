@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+* sysml-tikz item text stays page-upright when a connector is written
+  right to left. `decorations.markings` rotate the canvas to the
+  segment, and `endleaf-fit` sets `transform shape`, so the node was
+  rotating with the path. The mark stays; the rotation is dropped.
+  The printed `sysmlfigure` header is a title and optional revision
+  id. view, overrides, depth, and body size stay worker keys and are
+  not printed. Fit still uses the declared type size. Fonts, package
+  set, `packageSetHash`, quotas, and ENDLEAF-R49 page-size rules are
+  unchanged.
 * ENDLEAF-R49. Vendored Endleaf `prototypes/endleaf-fit/endleaf-fit.tex`
   and `prototypes/endleaf-fit/sysml-preamble.tex` at
   `59178c12e760140162f9fe18021766ee7628f73f` (PR 55) to

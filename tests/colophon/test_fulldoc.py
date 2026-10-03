@@ -414,8 +414,10 @@ def test_fulldoc_fixture_compiles(tmp_path):
     assert fit["page"] == "landscape"
     assert fit["shipped"] <= fit["line"] + 0.2
     assert fit["high"] <= fit["avail"] + 0.2
-    assert re.search(rf"type\s+{re.escape(fit['type_text'])}\s*pt", text)
+    assert not re.search(r"type\s+\d+\s*pt", text)
     assert "type 7 pt" not in text
+    assert "View" not in text
+    assert "overrides" not in text
     assert pages >= 2
     _assert_float_page_stacks_at_the_top(pdf)
     fonts = subprocess.run(
@@ -500,8 +502,10 @@ def test_wide_sysml_canvas_is_landscape_at_declared_type(tmp_path):
     assert height == pytest.approx(595.28, abs=1)
     text = _text(pdf)
     assert "參數" in text
-    assert re.search(r"type\s+10\s*pt", text)
+    assert not re.search(r"type\s+10\s*pt", text)
     assert "type 7 pt" not in text
+    assert "View" not in text
+    assert "overrides" not in text
     _assert_labels_clear_outlines(_shipped_boxes(log))
 
 
@@ -532,9 +536,11 @@ def test_narrow_sysml_canvas_stays_portrait_at_declared_type(tmp_path):
     assert width == pytest.approx(595.28, abs=1)
     assert height == pytest.approx(841.89, abs=1)
     text = _text(pdf)
-    assert "View" in text
+    assert "View" not in text
+    assert "overrides" not in text
+    assert "keep" in text
     assert "幫浦" in text
-    assert re.search(r"type\s+10\s*pt", text)
+    assert not re.search(r"type\s+10\s*pt", text)
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")

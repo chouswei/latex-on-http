@@ -97,10 +97,13 @@ compile service.
   `scale=` and tikzscale do not change it. Labels use `siunitx`. The style
   file is pure TeX.
 - `sysml-tikz.sty` is installed in the local texmf tree the same way.
-  It is the Endleaf file `prototypes/sysml-layout/sysml-tikz.sty` at
-  commit `65baacff166cdee7b3393bc27a01e5d80ad1262f`
-  (sha256 `aa1d42ababc4d4e813f1943fa89a11fee021ae0a491715a2d5b6933a17315952`),
-  under the LaTeX Project Public License 1.3c. Its only `\RequirePackage` is `tikz`.
+  It started as the Endleaf file `prototypes/sysml-layout/sysml-tikz.sty` at
+  commit `65baacff166cdee7b3393bc27a01e5d80ad1262f`.
+  This worker copy (sha256
+  `d8c0caffec0a19c144e3ae54952bf6a55026ea336316aa84503cecc7a4d591e7`)
+  keeps item text page-upright on a reversed path and prints a title
+  plus optional revision id on the figure header.
+  It remains under the LaTeX Project Public License 1.3c. Its only `\RequirePackage` is `tikz`.
   The TikZ libraries `fit`, `backgrounds`, `decorations.markings`,
   `shapes.geometric`, and `shapes.multipart` come from `pgf`. A document
   loads it with `\usepackage{sysml-tikz}`. The shared preamble does that,
