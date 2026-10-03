@@ -18,7 +18,7 @@
 %% parts, route connections, or scale type below 7 pt.
 %%
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{sysml-tikz}[2026/09/29 v0.5 SysML interconnection drawing]
+\ProvidesPackage{sysml-tikz}[2026/10/03 v0.5 SysML interconnection drawing]
 
 \RequirePackage{tikz}
 \usetikzlibrary{positioning,calc,fit,backgrounds,arrows.meta,decorations.markings,shapes.geometric,shapes.multipart}
@@ -55,6 +55,7 @@
   body size/.initial=7,
   depth cut/.initial={},
   view/.initial={},
+  title/.initial={},
   revision/.initial={},
   overrides/.initial={},
   depth/.initial={},
@@ -709,21 +710,34 @@
     \fi
   \fi
 }
+%% decorations.markings rotate the canvas to the segment. endleaf-fit
+%% then sets transform shape so type can scale with the picture. That
+%% combination rotates the node with the path: a right-to-left run
+%% draws the string upside down. Keep the mark; drop the rotation.
+\newcommand{\sysml@keepupright}{%
+  \pgftransformresetnontranslations
+}
 %% Upright equals sign, centred on the mark. fill=white gaps the stroke.
 %% The glyph is not rotated: a quarter turn would draw bars as ||.
 \newcommand{\sysml@placeequals}{%
-  \node[sysml edge label] (sysml@lab) at (0,0) {=};%
-  \def\sysml@side{centre}%
-  \def\sysml@fill{1}%
-  \sysml@tracelabel{bind}%
-  \sysml@pushnode{edge}{sysml@lab}%
+  \begingroup
+    \sysml@keepupright
+    \node[sysml edge label] (sysml@lab) at (0,0) {=};%
+    \def\sysml@side{centre}%
+    \def\sysml@fill{1}%
+    \sysml@tracelabel{bind}%
+    \sysml@pushnode{edge}{sysml@lab}%
+  \endgroup
 }
 %% Text stays upright. A horizontal segment keeps it on the line.
 %% A vertical segment puts it to the right, with no fill.
+%% A path written the other way keeps the same place and the same
+%% page-upright glyph.
 \newcommand{\sysml@placetext}[2]{%
   \begingroup
     \pgfmathsetmacro{\sysml@c}{abs(cos(\pgfdecoratedangle))}%
     \pgfmathsetmacro{\sysml@s}{abs(sin(\pgfdecoratedangle))}%
+    \sysml@keepupright
     \ifsysml@centreonly
       \def\sysml@side{centre}%
       \def\sysml@fill{1}%
@@ -752,9 +766,18 @@
       \pgfpointtransformed{\pgfpointanchor{sysml@lab}{center}}%
       \edef\sysml@lx{\the\pgf@x}%
       \edef\sysml@ly{\the\pgf@y}%
+      \pgfpointtransformed{\pgfpointanchor{sysml@lab}{west}}%
+      \edef\sysml@wx{\the\pgf@x}%
+      \pgfpointtransformed{\pgfpointanchor{sysml@lab}{east}}%
+      \edef\sysml@ex{\the\pgf@x}%
+      \ifdim\sysml@ex>\sysml@wx
+        \def\sysml@upright{1}%
+      \else
+        \def\sysml@upright{0}%
+      \fi
       \pgfmathsetmacro{\sysml@mang}{\pgfdecoratedangle}%
       \typeout{SYSMLMARK #1 rot=0 side=\sysml@side\space x=\sysml@mx\space y=\sysml@my\space ang=\sysml@mang}%
-      \typeout{SYSMLLAB #1 fill=\sysml@fill\space lx=\sysml@lx\space ly=\sysml@ly}%
+      \typeout{SYSMLLAB #1 fill=\sysml@fill\space lx=\sysml@lx\space ly=\sysml@ly\space wx=\sysml@wx\space ex=\sysml@ex\space upright=\sysml@upright}%
     \endgroup
   \fi
 }
@@ -937,12 +960,27 @@
   \par\noindent{\fontsize{7}{9}\selectfont n hidden = collapsed parts (not SysML notation)\par}%
 }
 
+%% Human face: title and optional revision id. view, overrides,
+%% depth, and body size stay keys for the worker and are not printed.
+\newcommand{\sysml@heading}{%
+  \pgfkeysgetvalue{/sysml/title}{\sysml@title}%
+  \pgfkeysgetvalue{/sysml/revision}{\sysml@rev}%
+  \ifx\sysml@title\@empty
+    \ifx\sysml@rev\@empty
+    \else
+      \texttt{\sysml@rev}%
+    \fi
+  \else
+    \sysml@title
+    \ifx\sysml@rev\@empty
+    \else
+      \quad\texttt{\sysml@rev}%
+    \fi
+  \fi
+}
 \newcommand{\sysmlstamp}{%
   \par\noindent{\fontsize{7}{9}\selectfont
-    View \texttt{\pgfkeysvalueof{/sysml/view}}\quad
-    rev \texttt{\pgfkeysvalueof{/sysml/revision}}\quad
-    overrides \texttt{\pgfkeysvalueof{/sysml/overrides}}\quad
-    depth \texttt{\pgfkeysvalueof{/sysml/depth}}\par}%
+    \sysml@heading\par}%
 }
 
 \newcommand{\sysml@depthcutmessage}{%
@@ -967,11 +1005,7 @@
     \fi
   \fi
   {\fontsize{7}{9}\selectfont
-    View \texttt{\pgfkeysvalueof{/sysml/view}}\quad
-    rev \texttt{\pgfkeysvalueof{/sysml/revision}}\quad
-    overrides \texttt{\pgfkeysvalueof{/sysml/overrides}}\quad
-    depth \texttt{\pgfkeysvalueof{/sysml/depth}}\quad
-    type \texttt{\sysml@body}\,pt\par}%
+    \sysml@heading\par}%
 }
 
 \newcommand{\sysml@warntext}{%

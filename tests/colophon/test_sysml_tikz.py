@@ -51,9 +51,14 @@ def test_allowlist_accepts_sysml_tikz():
     assert "\\input{endleaf-type.tex}" in shell
 
 
-# Byte-identical to Endleaf prototypes/sysml-layout/sysml-tikz.sty
-# at 65baacff166cdee7b3393bc27a01e5d80ad1262f.
-_ENDLEAF_STY_SHA256 = "aa1d42ababc4d4e813f1943fa89a11fee021ae0a491715a2d5b6933a17315952"
+# Worker copy of Endleaf prototypes/sysml-layout/sysml-tikz.sty
+# at 65baacff166cdee7b3393bc27a01e5d80ad1262f, with upright item
+# text and a human sysmlfigure header.
+_ENDLEAF_STY_SHA256 = "d8c0caffec0a19c144e3ae54952bf6a55026ea336316aa84503cecc7a4d591e7"
+_LAB = re.compile(
+    r"SYSMLLAB\s+(\S+)\s+fill=\S+\s+lx=\S+\s+ly=\S+\s+"
+    r"wx=\S+\s+ex=\S+\s+upright=([01])"
+)
 
 
 def test_vendored_style_matches_endleaf_and_requires_only_tikz():
@@ -76,6 +81,20 @@ def test_vendored_style_matches_endleaf_and_requires_only_tikz():
         assert "\\" + name in text
     for name in _ENVS:
         assert "\\newenvironment{" + name + "}" in text
+
+
+def test_style_keeps_item_text_upright_and_hides_header_chrome():
+    text = _STY.read_text(encoding="utf-8")
+    assert r"\newcommand{\sysml@keepupright}" in text
+    assert r"\pgftransformresetnontranslations" in text
+    assert text.count(r"\sysml@keepupright") >= 3
+    assert r"\newcommand{\sysml@heading}" in text
+    assert r"title/.initial={}" in text
+    assert r"View \texttt{\pgfkeysvalueof{/sysml/view}}" not in text
+    assert r"overrides \texttt{\pgfkeysvalueof{/sysml/overrides}}" not in text
+    assert r"depth \texttt{\pgfkeysvalueof{/sysml/depth}}" not in text
+    assert r"type \texttt{\sysml@body}" not in text
+    assert r"body size/.code" in text
 
 
 def test_sysml_kind_fixture_uses_sty_macros():
@@ -180,3 +199,115 @@ def test_sysml_kind_fixture_compiles(tmp_path):
         )
         assert extracted.returncode == 0
         assert "幫浦" in extracted.stdout
+        assert "View" not in extracted.stdout
+        assert "overrides" not in extracted.stdout
+        assert not re.search(r"type\s+\d+\s*pt", extracted.stdout)
+
+
+def _unwrap_log(log):
+    pieces = []
+    pending = ""
+    for line in log.splitlines():
+        pending = pending + line if pending else line
+        if len(line) < 79:
+            pieces.append(pending)
+            pending = ""
+    if pending:
+        pieces.append(pending)
+    return "\n".join(pieces)
+
+
+def _shipped_item_upright(log):
+    text = _unwrap_log(log)
+    start = text.rfind("ENDLEAF_FIT_SHIP")
+    if start < 0:
+        start = 0
+    return _LAB.findall(text[start:])
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_flow_item_stays_upright_when_path_is_reversed(tmp_path):
+    body = (
+        "\\makeatletter\\sysml@marktracetrue\\makeatother\n"
+        "\\begin{sysmlfigure}[title={leftFrontMount}, revision={vehicle-C2}, "
+        "overrides={none}, depth={1}, body size={10}]\n"
+        "\\begin{sysmlcanvas}\n"
+        "\\sysmlpart{L.box}{8}{8}{20}{12}\n"
+        "\\sysmlport{L.out}{28}{14}{EAST}{30}{8}{out}{out}\n"
+        "\\sysmlpart{R.box}{80}{8}{20}{12}\n"
+        "\\sysmlport{R.in}{80}{14}{WEST}{68}{8}{in}{in}\n"
+        "\\sysmlflow[from=L.out, to=R.in, item=ltrTorque]{L.flow}"
+        "{(29.6,14) -- (78.4,14)}\n"
+        "\\sysmlpart{RL.box}{8}{40}{20}{12}\n"
+        "\\sysmlport{RL.out}{28}{46}{EAST}{30}{40}{out}{out}\n"
+        "\\sysmlpart{RR.box}{80}{40}{20}{12}\n"
+        "\\sysmlport{RR.in}{80}{46}{WEST}{68}{40}{in}{in}\n"
+        "\\sysmlflow[from=RL.out, to=RR.in, item=transferredTorque]{R.flow}"
+        "{(78.4,46) -- (29.6,46)}\n"
+        "\\end{sysmlcanvas}\n"
+        "\\end{sysmlfigure}\n"
+    )
+    tex = compose("sysml", "Weft", body, _OWNED)
+    if not _cjk_ready():
+        tex = (
+            tex.replace("\\usepackage{fontspec}\n", "")
+            .replace("\\usepackage{xeCJK}\n", "")
+            .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+            .replace("\\input{endleaf-type.tex}\n", "")
+        )
+    elif shutil.which("kpsewhich"):
+        gyre = subprocess.run(
+            ["kpsewhich", "texgyrepagella-regular.otf"],
+            check=False,
+            capture_output=True,
+        )
+        if gyre.returncode != 0 or not gyre.stdout.strip():
+            tex = tex.replace("\\input{endleaf-type.tex}\n", "")
+    (tmp_path / "flow.tex").write_text(tex, encoding="utf-8")
+    env = os.environ.copy()
+    env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
+    completed = subprocess.run(
+        [
+            "xelatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "-cnf-line=openin_any=p",
+            "flow.tex",
+        ],
+        cwd=tmp_path,
+        check=False,
+        timeout=120,
+        capture_output=True,
+        env=env,
+    )
+    log_path = tmp_path / "flow.log"
+    log = (
+        log_path.read_text(encoding="utf-8", errors="replace")
+        if log_path.is_file()
+        else completed.stdout.decode("utf-8", "replace")
+    )
+    assert completed.returncode == 0, log[-1500:]
+    items = [kind for kind, _upright in _shipped_item_upright(log) if kind == "item"]
+    upright = [
+        flag for kind, flag in _shipped_item_upright(log) if kind == "item"
+    ]
+    assert items == ["item", "item"], log[-2000:]
+    assert upright == ["1", "1"], log[-2000:]
+    if shutil.which("pdftotext"):
+        extracted = subprocess.run(
+            ["pdftotext", "-raw", str(tmp_path / "flow.pdf"), "-"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert extracted.returncode == 0
+        text = extracted.stdout
+        assert "ltrTorque" in text
+        assert "transferredTorque" in text
+        assert "leftFrontMount" in text
+        assert "vehicle-C2" in text
+        assert "View" not in text
+        assert "overrides" not in text
+        assert "depth" not in text
+        assert not re.search(r"type\s+10\s*pt", text)
