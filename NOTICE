@@ -100,9 +100,12 @@ compile service.
   It started as the Endleaf file `prototypes/sysml-layout/sysml-tikz.sty` at
   commit `65baacff166cdee7b3393bc27a01e5d80ad1262f`.
   This worker copy (sha256
-  `d8c0caffec0a19c144e3ae54952bf6a55026ea336316aa84503cecc7a4d591e7`)
+  `ee94b2a9cb136c04d2f7549316d3e74cadc59e61f227f4a48efef2630bd8c4bf`)
   keeps item text page-upright on a reversed path and prints a title
-  plus optional revision id on the figure header.
+  plus optional revision id on the figure header. A flow item that
+  cannot sit clear of both ports is
+  `Package sysml-tikz Error: flow item cannot sit clear of both ports`
+  (SYSMLTIKZ-R32-CLEAR from Endleaf PR 58). The mark is not drawn.
   It remains under the LaTeX Project Public License 1.3c. Its only `\RequirePackage` is `tikz`.
   The TikZ libraries `fit`, `backgrounds`, `decorations.markings`,
   `shapes.geometric`, and `shapes.multipart` come from `pgf`. A document

@@ -563,12 +563,18 @@
     \fi
   \repeat
 }
+%% TikZ nullfont zeros an \hbox inside the canvas. Measure the same
+%% node the mark will use (SYSMLTIKZ-R32-CLEAR).
 \newcommand{\sysml@measuretext}[1]{%
-  \pgfinterruptpicture
-    \setbox0=\hbox{\sysml@font{\sysml@body}#1}%
-  \endpgfinterruptpicture
-  \pgfmathsetmacro{\sysml@labwd}{\wd0+2*\sysml@labelsep}%
-  \pgfmathsetmacro{\sysml@labht}{\ht0+\dp0+2*\sysml@labelsep}%
+  \node[sysml edge label, overlay, opacity=0] (sysml@meas) at (-200,-200) {#1};%
+  \pgfpointdiff
+    {\pgfpointanchor{sysml@meas}{south west}}%
+    {\pgfpointanchor{sysml@meas}{north east}}%
+  \pgfmathsetmacro{\sysml@labwd}{\pgf@x}%
+  \pgfmathsetmacro{\sysml@labht}{\pgf@y}%
+  \ifsysml@marktrace
+    \typeout{SYSMLMEAS labwd=\sysml@labwd\space labht=\sysml@labht}%
+  \fi
 }
 \newcommand{\sysml@candbox}{%
   \pgfmathsetmacro{\sysml@hw}{\sysml@labwd/2}%
@@ -710,6 +716,13 @@
     \fi
   \fi
 }
+%% SYSMLTIKZ-R32-CLEAR. A failed search must not emit the mark.
+\newcommand{\sysml@demandclear}{%
+  \ifsysml@accept
+  \else
+    \PackageError{sysml-tikz}{flow item cannot sit clear of both ports}{Lengthen the connector or shorten the item. Do not glue the word to a port.}%
+  \fi
+}
 %% decorations.markings rotate the canvas to the segment. endleaf-fit
 %% then sets transform shape so type can scale with the picture. That
 %% combination rotates the node with the path: a right-to-left run
@@ -800,7 +813,10 @@
   \pgfkeysgetvalue{/sysml/connection/item}{\sysml@item}%
   \ifx\sysml@item\@empty\else
     \sysml@choosefrac{\sysml@item}%
-    \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+    \sysml@demandclear
+    \ifsysml@accept
+      \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+    \fi
   \fi
 }
 %% Mid-line triangle at 0.5. Text, when present, sits at the middle of
@@ -812,12 +828,15 @@
     \sysml@addtriangle
   \else
     \sysml@choosefrac{\sysml@item}%
-    \ifdim\sysml@frac pt<0.5pt
-      \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
-      \sysml@addtriangle
-    \else
-      \sysml@addtriangle
-      \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+    \sysml@demandclear
+    \ifsysml@accept
+      \ifdim\sysml@frac pt<0.5pt
+        \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+        \sysml@addtriangle
+      \else
+        \sysml@addtriangle
+        \sysml@addlabel{\sysml@frac}{item}{\sysml@item}%
+      \fi
     \fi
   \fi
 }

@@ -52,9 +52,19 @@ def test_allowlist_accepts_sysml_tikz():
 
 
 # Worker copy of Endleaf prototypes/sysml-layout/sysml-tikz.sty
-# at 65baacff166cdee7b3393bc27a01e5d80ad1262f, with upright item
-# text and a human sysmlfigure header.
-_ENDLEAF_STY_SHA256 = "d8c0caffec0a19c144e3ae54952bf6a55026ea336316aa84503cecc7a4d591e7"
+# fence SYSMLTIKZ-R32-CLEAR from Endleaf PR 58
+# (cursor/flow-item-port-clear-b4ef), on the upright-item and
+# human-header worker file.
+_ENDLEAF_STY_SHA256 = "ee94b2a9cb136c04d2f7549316d3e74cadc59e61f227f4a48efef2630bd8c4bf"
+_PT_PER_MM = 72.27 / 25.4
+_BOX = re.compile(
+    r"SYSMLBOX (\S+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)"
+)
+_ITEM_MARK = re.compile(
+    r"SYSMLMARK item rot=0 side=inline x=(-?[\d.]+)pt y=(-?[\d.]+)pt"
+)
+_ORIGIN = re.compile(r"SYSMLORIGIN x=(-?[\d.]+)pt y=(-?[\d.]+)pt")
+_REVIEW = _ROOT / "tests/colophon/fixtures/review"
 _LAB = re.compile(
     r"SYSMLLAB\s+(\S+)\s+fill=\S+\s+lx=\S+\s+ly=\S+\s+"
     r"wx=\S+\s+ex=\S+\s+upright=([01])"
@@ -95,6 +105,17 @@ def test_style_keeps_item_text_upright_and_hides_header_chrome():
     assert r"depth \texttt{\pgfkeysvalueof{/sysml/depth}}" not in text
     assert r"type \texttt{\sysml@body}" not in text
     assert r"body size/.code" in text
+
+
+def test_style_fails_a_flow_item_that_cannot_clear_both_ports():
+    text = _STY.read_text(encoding="utf-8")
+    assert "SYSMLTIKZ-R32-CLEAR" in text
+    assert "flow item cannot sit clear of both ports" in text
+    assert r"\newcommand{\sysml@demandclear}" in text
+    assert "sysml edge label, overlay, opacity=0" in text
+    assert r"\setbox0=\hbox{\sysml@font" not in text
+    assert r"\pgfinterruptpicture" not in text
+    assert text.count(r"\sysml@demandclear") >= 3
 
 
 def test_sysml_kind_fixture_uses_sty_macros():
@@ -311,3 +332,161 @@ def test_flow_item_stays_upright_when_path_is_reversed(tmp_path):
         assert "overrides" not in text
         assert "depth" not in text
         assert not re.search(r"type\s+10\s*pt", text)
+
+
+def _standalone_sysml_tex(body):
+    return (
+        "\\documentclass{article}\n"
+        "\\usepackage{sysml-tikz}\n"
+        "\\pagestyle{empty}\n"
+        "\\begin{document}\n"
+        "\\makeatletter\\sysml@marktracetrue\\makeatother\n"
+        "\\begin{sysmlfigure}[title={item clear}, body size={7}]\n"
+        "\\begin{sysmlcanvas}\n"
+        f"{body}\n"
+        "\\end{sysmlcanvas}\n"
+        "\\end{sysmlfigure}\n"
+        "\\end{document}\n"
+    )
+
+
+def _run_xelatex(tmp_path, name, tex, halt=True):
+    (tmp_path / name).write_text(tex, encoding="utf-8")
+    env = os.environ.copy()
+    env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
+    command = [
+        "xelatex",
+        "-no-shell-escape",
+        "-interaction=nonstopmode",
+        "-cnf-line=openin_any=p",
+        name,
+    ]
+    if halt:
+        command.insert(4, "-halt-on-error")
+    completed = subprocess.run(
+        command,
+        cwd=tmp_path,
+        check=False,
+        timeout=120,
+        capture_output=True,
+        env=env,
+    )
+    log_path = tmp_path / Path(name).with_suffix(".log")
+    log = (
+        log_path.read_text(encoding="utf-8", errors="replace")
+        if log_path.is_file()
+        else completed.stdout.decode("utf-8", "replace")
+    )
+    return completed, log
+
+
+def _parse_boxes(log):
+    boxes = []
+    for line in _unwrap_log(log).splitlines():
+        match = _BOX.search(line)
+        if match is None:
+            continue
+        boxes.append(
+            {
+                "kind": match.group(1),
+                "x1": float(match.group(2)),
+                "y1": float(match.group(3)),
+                "x2": float(match.group(4)),
+                "y2": float(match.group(5)),
+            }
+        )
+    return boxes
+
+
+def _overlaps(first, second):
+    overlap_w = min(first["x2"], second["x2"]) - max(first["x1"], second["x1"])
+    overlap_h = min(first["y2"], second["y2"]) - max(first["y1"], second["y1"])
+    return overlap_w > 0.4 and overlap_h > 0.4
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_flow_item_that_clears_both_ports_still_compiles(tmp_path):
+    body = (
+        "\\sysmlpart{leftFrontWheel}{12}{28}{28}{16}\n"
+        "\\sysmlport{leftFrontWheel.hub}{40}{36}{EAST}{30}{24}{hub0}{inout}\n"
+        "\\sysmlpart{frontAxle}{78}{28}{36}{16}\n"
+        "\\sysmlport{frontAxle.left}{78}{36}{WEST}{80}{24}{leftMountingPoint0}{inout}\n"
+        "\\sysmlflow[from=frontAxle.left, to=leftFrontWheel.hub, "
+        "item=transferredTorque]{vehicle.front.left}{(76.4,36) -- (41.6,36)}\n"
+        "\\sysmlpart{M0.tank}{12}{56}{20}{12}\n"
+        "\\sysmlport{M0.tank.out}{32}{62}{EAST}{34}{57}{out}{out}\n"
+        "\\sysmlpart{M0.pump}{62}{56}{20}{12}\n"
+        "\\sysmlport{M0.pump.in}{62}{62}{WEST}{50}{57}{in}{in}\n"
+        "\\sysmlflow[from=M0.tank.out, to=M0.pump.in, at=mid, item=lvl]"
+        "{M0.flow}{(33.6,62) -- (60.4,62)}\n"
+    )
+    completed, log = _run_xelatex(
+        tmp_path, "clear.tex", _standalone_sysml_tex(body)
+    )
+    assert completed.returncode == 0, log[-1500:]
+    assert "Missing character" not in log
+    assert "flow item cannot sit clear of both ports" not in log
+    measured = re.search(r"SYSMLMEAS labwd=([0-9.]+)", _unwrap_log(log))
+    assert measured is not None
+    assert float(measured.group(1)) > 1, measured.group(0)
+    boxes = _parse_boxes(log)
+    edges = [box for box in boxes if box["kind"] == "edge"]
+    ports = [box for box in boxes if box["kind"] == "port"]
+    assert len(edges) >= 2, f"edge marks {len(edges)}"
+    assert len(ports) == 4
+    for edge in edges:
+        for port in ports:
+            assert not _overlaps(edge, port), "item covers a port"
+    item = _ITEM_MARK.search(_unwrap_log(log))
+    origin = _ORIGIN.search(_unwrap_log(log))
+    assert item is not None
+    assert origin is not None
+    mid_x = (76.4 + 41.6) / 2
+    item_x_mm = (float(item.group(1)) - float(origin.group(1))) / _PT_PER_MM
+    assert abs(item_x_mm - mid_x) < 1.2, f"C2 item at {item_x_mm}, expected {mid_x}"
+    if shutil.which("pdftotext"):
+        extracted = subprocess.run(
+            ["pdftotext", "-raw", str(tmp_path / "clear.pdf"), "-"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert extracted.returncode == 0
+        text = extracted.stdout
+        assert "transferredTorque" in text
+        assert "vehicle.front.left" not in text
+        assert "M0.flow" not in text
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_flow_item_that_cannot_clear_both_ports_is_a_render_error(tmp_path):
+    body = (
+        "\\sysmlpart{L}{10}{20}{20}{12}\n"
+        "\\sysmlport{L.p}{30}{26}{EAST}{22}{18}{hub0}{inout}\n"
+        "\\sysmlpart{R}{42}{20}{20}{12}\n"
+        "\\sysmlport{R.p}{42}{26}{WEST}{44}{18}{leftMountingPoint0}{inout}\n"
+        "\\sysmlflow[from=R.p, to=L.p, item=transferredTorque]"
+        "{short.flow}{(40.4,26) -- (31.6,26)}\n"
+    )
+    completed, log = _run_xelatex(
+        tmp_path, "short.tex", _standalone_sysml_tex(body)
+    )
+    assert completed.returncode != 0
+    assert "Package sysml-tikz Error: flow item cannot sit clear of both ports" in log
+    assert "SYSMLMARK item " not in log
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_review_path_fixtures_still_compile(tmp_path):
+    for name in ("midpoint-paths.tex", "v2-lines.tex"):
+        tex = (_REVIEW / name).read_text(encoding="utf-8")
+        if not _cjk_ready():
+            tex = (
+                tex.replace("\\usepackage{fontspec}\n", "")
+                .replace("\\usepackage{xeCJK}\n", "")
+                .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+                .replace("\\setmainfont{DejaVu Sans}\n", "")
+            )
+        completed, log = _run_xelatex(tmp_path, name, tex)
+        assert completed.returncode == 0, log[-1500:]
+        assert "flow item cannot sit clear of both ports" not in log
