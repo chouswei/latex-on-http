@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-10-04
+
+* Vendored Endleaf SYSMLTIKZ-R32-CLEAR into `sysml-tikz.sty` (PR 58,
+  `cursor/flow-item-port-clear-b4ef`). The style now measures the same
+  `sysml edge label` node the mark will use. A 0 pt `\setbox0` under
+  `\pgfinterruptpicture` (TikZ nullfont) no longer accepts a seat and
+  then glues the real word to a port. If that box cannot sit clear of
+  both ports, the job is
+  `Package sysml-tikz Error: flow item cannot sit clear of both ports`
+  and the mark is not drawn. No warning, no shrink, no glue. Connection
+  names stay off the edge. A gap that does clear both ports still
+  compiles, including the vehicle C2 `transferredTorque` case and
+  `at=mid`. Fonts, package set, `packageSetHash`, quotas,
+  landscape-at-declared-size, the 7 pt floor, upright item text, and
+  the human header are unchanged. sha256
+  `ee94b2a9cb136c04d2f7549316d3e74cadc59e61f227f4a48efef2630bd8c4bf`.
+
 ## 2026-10-03
 
 * sysml-tikz item text stays page-upright when a connector is written
