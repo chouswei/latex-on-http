@@ -10,6 +10,21 @@
   does not keep the driver default (often letter). Any other value is
   `rejectInvalidInput` field `pageSize` with a one-line message.
   Shell-escape stays off. `packageSetHash` is unchanged.
+* `sysml-tikz.sty` v0.6 (Endleaf ENDLEAF-R55, SYSMLTIKZ-R33). A sheet
+  whose text overlaps is a render error, not an ok PDF. At the end of
+  each picture the style checks every stereotype, name, type, port
+  label and edge label against other text (1 mm gutter on one row),
+  port squares (1 pt clear), part outlines, other connectors and end
+  heads, and every connector against port squares. The first hit is
+  one line, `Package sysml-tikz Error: layout_overlap: <a> on <b>
+  (+N more)` or `line_into_port: line <name> into port <id>`. Empty
+  `lx` and `ly` on `\sysmlport` put the label outside the part beside
+  the square (SYSMLTIKZ-R33-OUTSIDE). Regression fixtures
+  `tests/colophon/fixtures/sysml/ei-source-*.tex`. Fonts, package set,
+  `packageSetHash`, quotas and page geometry are unchanged. sha256
+  `84b3ad643c5ec84c0bb8af57f1043abbc1793129d0ecf12bd66517254bf09d56`.
+* `colophon/diagnostics.py` joins a TeX error line that the log broke
+  at 79 characters, so `errorText` carries the whole one-line message.
 
 ## 2026-10-04
 

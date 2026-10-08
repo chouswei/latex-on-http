@@ -182,3 +182,12 @@ def test_success_header_exposes_the_memory_mode(config, switch_path, monitor, au
     response = app.test_client().post("/v1/jobs", json=valid_body(), headers=auth)
     record = json.loads(response.headers["X-Endleaf-Job"])
     assert record["memory"] == {"peak": 100, "mode": "cgroup"}
+
+
+def test_first_tex_error_joins_a_wrapped_package_error():
+    head = "./job.tex:90: Package sysml-tikz Error: layout_overlap: label of S.drv.fil on b"
+    assert len(head) == 79
+    log = head + "\nox S.drv (+5 more).\n\nSee the sysml-tikz package documentation.\n"
+    found = first_tex_error(log)
+    assert found["line"] == 90
+    assert found["message"].endswith("label of S.drv.fil on box S.drv (+5 more).")

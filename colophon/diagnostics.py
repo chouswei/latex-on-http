@@ -11,11 +11,29 @@ _TEX_LINE = re.compile(r"^(.+?):(\d+):\s+(.+)$", re.MULTILINE)
 _LINE_IN_MESSAGE = re.compile(r"\bline\s+(\d+)\b", re.IGNORECASE)
 
 
+# TeX breaks log lines at max_print_line (79). A longer error message
+# continues on the next line; join it so errorText is the whole line.
+_TEX_WRAP = 79
+
+
+def _unwrap(text):
+    pieces = []
+    pending = ""
+    for line in text.splitlines():
+        pending = pending + line if pending else line
+        if len(line) != _TEX_WRAP:
+            pieces.append(pending)
+            pending = ""
+    if pending:
+        pieces.append(pending)
+    return "\n".join(pieces)
+
+
 def first_tex_error(text):
     """Return the first TeX file:line error, or ``None``."""
     if not text:
         return None
-    for match in _TEX_LINE.finditer(text):
+    for match in _TEX_LINE.finditer(_unwrap(text)):
         message = match.group(3).strip()
         if "Warning" in message:
             continue

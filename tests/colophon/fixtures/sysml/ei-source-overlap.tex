@@ -1,0 +1,77 @@
+% Regression (SYSMLTIKZ-R33-FENCE): a live sheet the service returned as ok.
+% Stereotype on top-edge port labels, a type name run into a side port
+% label, and a port label across the part outline. Must be a render error.
+\begin{sysmlfigure}[title={EI source power interconnect}, body size={8}]
+\begin{sysmlcanvas}
+% crate hub
+\sysmlpart{S.hub}{62.6}{0}{33.7}{23.5}
+\sysmllabel[keyword]{79.4}{2}{\sysmlguillemets{part}}
+\sysmllabel[name]{79.4}{6.5}{crateEthernetHub}
+\sysmllabel[type]{79.4}{12}{CrateEthernetHub}
+\sysmlport{S.hub.toMs}{70.9}{23.5}{SOUTH}{66.8}{16.6}{toMs}{inout}
+\sysmlport{S.hub.toDrv}{87.8}{23.5}{SOUTH}{83.2}{16.6}{toDrv}{inout}
+% ms controller
+\sysmlpart{S.ms}{0}{29.9}{26.7}{57.8}
+\sysmllabel[keyword]{13.3}{31.6}{\sysmlguillemets{part}}
+\sysmllabel[name]{13.3}{36}{msController}
+\sysmllabel[type]{13.3}{41.5}{MsController}
+\sysmlport{S.ms.eth}{9.0}{29.9}{NORTH}{10.2}{22.6}{eth}{inout}
+\sysmlport{S.ms.cmd}{26.7}{51.2}{EAST}{18.5}{49.8}{cmd}{out}
+\sysmlport{S.ms.iHeat}{26.7}{61.9}{EAST}{16.2}{60.5}{iHeat}{in}
+\sysmlport{S.ms.vWire}{26.7}{72.4}{EAST}{16.2}{71.0}{vWire}{in}
+\sysmlport{S.ms.iEm}{26.7}{83.0}{EAST}{18.5}{81.6}{iEm}{in}
+% driver
+\sysmlpart{S.drv}{55.8}{29.9}{57.8}{102.4}
+\sysmllabel[keyword]{84.7}{31.6}{\sysmlguillemets{part}}
+\sysmllabel[name]{84.7}{36}{eiTungstenWirePowerDriver}
+\sysmllabel[type]{84.7}{41.5}{EiTungstenWirePowerDriver}
+\sysmlport{S.drv.eth}{87.8}{29.9}{NORTH}{89.4}{24.6}{eth}{inout}
+\sysmlport{S.drv.cmd}{55.8}{51.2}{WEST}{59.5}{49.8}{cmd}{in}
+\sysmlport{S.drv.iHeat}{55.8}{61.9}{WEST}{59.5}{60.5}{iHeat}{out}
+\sysmlport{S.drv.vWire}{55.8}{72.4}{WEST}{59.5}{71.0}{vWire}{out}
+\sysmlport{S.drv.iEm}{55.8}{83.0}{WEST}{59.5}{81.6}{iEm}{out}
+\sysmlport{S.drv.rs485}{55.8}{121.7}{WEST}{59.5}{120.3}{rs485}{inout}
+\sysmlport{S.drv.fil}{57.8}{132.3}{SOUTH}{54.6}{125.4}{fil}{out}
+\sysmlport{S.drv.emI}{70.7}{132.3}{SOUTH}{68.6}{125.4}{emI}{in}
+\sysmlport{S.drv.hBias}{83.5}{132.3}{SOUTH}{79.6}{125.4}{hBias}{in}
+\sysmlport{S.drv.tBias}{96.4}{132.3}{SOUTH}{92.8}{125.4}{tBias}{in}
+\sysmlport{S.drv.hvCom}{108.8}{132.3}{SOUTH}{104.0}{125.4}{hvCom}{inout}
+% rs485 lane
+\sysmlpart{S.lane}{0}{102.9}{33.2}{27.7}
+\sysmllabel[keyword]{16.6}{104.6}{\sysmlguillemets{part}}
+\sysmllabel[name]{16.6}{109}{vacuumRs485Lane}
+\sysmllabel[type]{16.6}{114.5}{VacuumRs485Lane}
+\sysmlport{S.lane.rs485}{33.2}{121.7}{EAST}{21.3}{120.3}{rs485}{inout}
+% ion source
+\sysmlpart{S.ion}{0}{145.5}{53.6}{21.6}
+\sysmllabel[keyword]{27.2}{147.6}{\sysmlguillemets{part}}
+\sysmllabel[name]{27.2}{151.6}{electronImpactIonSource}
+\sysmllabel[type]{27.2}{157.6}{ElectronImpactIonSource}
+\sysmlport{S.ion.fil}{9.4}{145.5}{NORTH}{7.8}{148.0}{fil}{in}
+\sysmlport{S.ion.emI}{40.8}{145.5}{NORTH}{35.7}{148.0}{emI}{out}
+\sysmlport{S.ion.e}{53.6}{150.6}{EAST}{43.4}{148.6}{e-}{out}
+\sysmlport{S.ion.eCol}{53.6}{160.3}{EAST}{43.4}{158.9}{eCol}{in}
+% optics
+\sysmlpart{S.opt}{68.5}{145.5}{51.3}{23.3}
+\sysmllabel[keyword]{94.2}{147.6}{\sysmlguillemets{part}}
+\sysmllabel[name]{94.2}{151.6}{hvdcUnitLitIonOptics}
+\sysmllabel[type]{94.2}{157.6}{HvdcUnitLitIonOptics}
+\sysmlport{S.opt.hBias}{83.5}{145.5}{NORTH}{79.1}{148.0}{hBias}{out}
+\sysmlport{S.opt.tBias}{96.4}{145.5}{NORTH}{93.0}{148.0}{tBias}{out}
+\sysmlport{S.opt.hvCom}{108.8}{145.5}{NORTH}{104.5}{148.0}{hvCom}{inout}
+% connectors
+\sysmlconnection[from=S.hub.toMs, to=S.ms.eth]{c1}{(70.9,25.1) -- (70.9,26.7) -- (9.0,26.7) -- (9.0,28.3)}
+\sysmlconnection[from=S.hub.toDrv, to=S.drv.eth]{c2}{(87.8,25.1) -- (87.8,28.3)}
+\sysmlflow[from=S.ms.cmd, to=S.drv.cmd]{f1}{(28.3,51.2) -- (54.2,51.2)}
+\sysmlflow[from=S.drv.iHeat, to=S.ms.iHeat]{f2}{(54.2,61.9) -- (28.3,61.9)}
+\sysmlflow[from=S.drv.vWire, to=S.ms.vWire]{f3}{(54.2,72.4) -- (28.3,72.4)}
+\sysmlflow[from=S.drv.iEm, to=S.ms.iEm]{f4}{(54.2,83.0) -- (28.3,83.0)}
+\sysmlconnection[from=S.lane.rs485, to=S.drv.rs485]{c3}{(34.8,121.7) -- (54.2,121.7)}
+\sysmlconnection[directed, from=S.drv.fil, to=S.ion.fil]{c4}{(57.8,133.9) -- (57.8,137.7) -- (9.4,137.7) -- (9.4,143.9)}
+\sysmlflow[from=S.ion.emI, to=S.drv.emI]{f5}{(40.8,143.9) -- (40.8,140.8) -- (70.7,140.8) -- (70.7,133.9)}
+\sysmlflow[from=S.opt.hBias, to=S.drv.hBias]{f6}{(83.5,143.9) -- (83.5,133.9)}
+\sysmlflow[from=S.opt.tBias, to=S.drv.tBias]{f7}{(96.4,143.9) -- (96.4,133.9)}
+\sysmlconnection[from=S.opt.hvCom, to=S.drv.hvCom]{c5}{(108.8,143.9) -- (108.8,133.9)}
+\sysmlflow[from=S.ion.e, to=S.ion.eCol]{f8}{(55.2,150.6) -- (60.5,150.6) -- (60.5,160.3) -- (55.2,160.3)}
+\end{sysmlcanvas}
+\end{sysmlfigure}
