@@ -6,7 +6,7 @@
 % restore portrait \pdfpagewidth at shipout, and it would freeze
 % \linewidth before the canvas is measured. ENDLEAF-R49: the template
 % owns A4 portrait vs landscape. Callers do not send \pdfpagewidth.
-\documentclass[a4paper]{article}
+\documentclass[__PAPER__]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
 \setCJKmainfont{Noto Sans CJK TC}

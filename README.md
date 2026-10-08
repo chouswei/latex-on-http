@@ -319,7 +319,7 @@ gate still reads `X-Colophon-Job`.
 | `rejectBusy` | 429, `Retry-After` | `refused` | none when the worker is already busy |
 | `rejectLoadShed` | 429, `Retry-After` | `refused` | `reason` (`loadavg`, `mem`, `stale`, `unreadable`) and `load` (the `GET /v1/host-load` object; `busy` is `false`) |
 | `rejectKillSwitch` | 403 | `refused` | `readable`, `engaged` |
-| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `templateId`, `body`, `compiler`, `documentclass`, `preamble`, `directlua`, `write18`, `openin`, `fences`, `mermaid`, `d2`, and the other source-policy reasons) |
+| `rejectInvalidInput` | 400 | `refused` | `field` (`lane`, `outputFormat`, `templateId`, `body`, `compiler`, `pageSize`, `documentclass`, `preamble`, `directlua`, `write18`, `openin`, `fences`, `mermaid`, `d2`, and the other source-policy reasons). `pageSize` also carries a one-line `message`. |
 | `rejectSpawnFail` | 500 | `refused` | none |
 | `rejectRenderError` | 422 | `renderError` | `diagnostic` when the sandbox reported one: `engine`, `message`, `file`, `line`, `fence` |
 | `failTimeout` | 408 | `failTimeout` | none |
@@ -368,23 +368,24 @@ ENDLEAF-R27. `POST /v1/jobs` accepts a JSON object with these fields:
 | `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, `floorplan`, `sysml`, or `fulldoc` |
 | `body` | yes | A non-empty string. The document body only. |
 | `compiler` | no | Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
+| `pageSize` | no | Omitted, `a4`, or `letter`. Omitted means `a4`. Any other value is HTTP 400 `error` `rejectInvalidInput` `field` `pageSize` with a one-line `message`. |
 
 `input` and `inputKind` are not fields. Keys the gate also sends (`jobId`,
 `limits`, `shellEscape`, `networkEnabled`, `readOnlyRoot`, `runsAsRoot`,
 `retentionMode`) are ignored. The worker owns those limits.
 
-There is no document-class field and no class-option field. The caller does
-not pick the class or send a preamble. An unknown `templateId` is HTTP 400
-`error` `rejectInvalidInput` `field` `templateId`.
+There is no document-class field. The caller does not pick the class or
+send a preamble. `pageSize` is the only class paper option. An unknown
+`templateId` is HTTP 400 `error` `rejectInvalidInput` `field` `templateId`.
 
 Each `templateId` is a server-owned asset under
 `colophon/share/templates/owned/<templateId>/`. The preamble is
-`\documentclass{article}` with no options, fontspec, xeCJK, Noto Sans CJK TC,
+`\documentclass` `article` with the job paper option (`a4paper` or
+`letterpaper`), fontspec, xeCJK, Noto Sans CJK TC,
 `\input{endleaf-type.tex}`, and `\input{colophon-v1-preamble.tex}`, except
-`document-shell`, which is `\documentclass[10pt]{article}`, and `sysml` and
-`fulldoc`, which use `\documentclass[a4paper]{article}` (`fulldoc` adds
-`10pt`). `sysml` and `fulldoc` input `endleaf-fit.tex`. A sysml canvas
-wider than the portrait line at the declared type size is landscape A4
+`document-shell` and `fulldoc`, which also set `10pt`. `sysml` and
+`fulldoc` input `endleaf-fit.tex`. A sysml canvas
+wider than the portrait line at the declared type size is landscape
 at that size. `fulldoc` does not input that shared
 preamble: it loads the sold packages named in its own preamble and refuses
 `html` and `docx` (`outputFormat`). A fulldoc PDF of more than 16 pages is

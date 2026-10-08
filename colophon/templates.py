@@ -105,13 +105,24 @@ def owned_root(root=None):
     return Path(root)
 
 
-def compose(template_id, lane, body, root=None):
+_PAPER = {"a4": "a4paper", "letter": "letterpaper"}
+
+
+def compose(template_id, lane, body, root=None, page_size="a4"):
     """Preamble plus body. ``root`` defaults to the image share directory."""
     path = owned_root(root) / template_id / "preamble.tex"
     text = path.read_text(encoding="utf-8")
     # fulldoc's locked preamble has no lane stamp. Other templates have one.
-    if text.count("__LANE__") > 1 or text.count("__BODY__") != 1:
+    if (
+        text.count("__LANE__") > 1
+        or text.count("__BODY__") != 1
+        or text.count("__PAPER__") != 1
+    ):
         raise ValueError("preamble")
+    paper = _PAPER.get(page_size)
+    if paper is None:
+        raise ValueError("pageSize")
+    text = text.replace("__PAPER__", paper, 1)
     if "__LANE__" in text:
         text = text.replace("__LANE__", lane, 1)
     return text.replace("__BODY__", body, 1)

@@ -20,9 +20,13 @@ _CONTENT_TYPES = {
 
 
 class JobRejected(ValueError):
-    def __init__(self, reason):
+    def __init__(self, reason, message=None):
         self.reason = reason
-        super().__init__(reason)
+        self.message = message
+        super().__init__(message or reason)
+
+
+PAGE_SIZES = ("a4", "letter")
 
 
 @dataclass(frozen=True)
@@ -32,6 +36,7 @@ class JobSpec:
     output_format: str
     lane: str
     template_id: str = "document-shell"
+    page_size: str = "a4"
 
     @property
     def content_type(self):
@@ -74,6 +79,9 @@ def parse_job(payload):
     reject_forbidden_source(source)
     if any(marker in source for marker in _RAW_PREAMBLE):
         raise JobRejected("preamble")
+    page_size = payload.get("pageSize", "a4")
+    if page_size not in PAGE_SIZES:
+        raise JobRejected("pageSize", "pageSize must be a4 or letter")
     asset = TEMPLATES[template_id]
     return JobSpec(
         source=source,
@@ -81,4 +89,5 @@ def parse_job(payload):
         output_format=output_format,
         lane=lane,
         template_id=template_id,
+        page_size=page_size,
     )

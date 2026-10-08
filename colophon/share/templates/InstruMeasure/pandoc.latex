@@ -1,4 +1,4 @@
-\documentclass[10pt]{article}
+\documentclass[10pt,$papersize$paper]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
 \setCJKmainfont{Noto Sans CJK TC}

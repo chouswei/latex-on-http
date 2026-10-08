@@ -222,7 +222,7 @@ def test_endleaf_fit_landscapes_at_declared_type_and_refuses_crush():
 
 def test_sysml_preamble_does_not_freeze_portrait_minipage():
     text = (_OWNED / "sysml" / "preamble.tex").read_text(encoding="utf-8")
-    assert r"\documentclass[a4paper]{article}" in text
+    assert r"\documentclass[__PAPER__]{article}" in text
     assert r"\input{endleaf-fit.tex}" in text
     assert "__BODY__" in text
     after_begin = text.split(r"\begin{document}", 1)[1]
