@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from colophon.templates import ALLOWED_PACKAGES, compose
+from tests.colophon.test_page_size import _A4, _LETTER, _mediabox_pt
 
 _ROOT = Path(__file__).resolve().parents[2]
 _OWNED = _ROOT / "colophon/share/templates/owned"
@@ -497,8 +498,8 @@ def test_review_path_fixtures_still_compile(tmp_path):
 _SYSML_FIXTURES = _ROOT / "tests/colophon/fixtures/sysml"
 
 
-def _compose_sysml(_tmp_path, body):
-    tex = compose("sysml", "Weft", body, _OWNED)
+def _compose_sysml(_tmp_path, body, page_size="a4"):
+    tex = compose("sysml", "Weft", body, _OWNED, page_size=page_size)
     if not _cjk_ready():
         tex = (
             tex.replace("\\usepackage{fontspec}\n", "")
@@ -551,12 +552,24 @@ def test_owner_overlap_sheet_names_each_reported_fault(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
-def test_owner_sheet_laid_out_clean_still_compiles(tmp_path):
+@pytest.mark.parametrize(
+    "page_size,paper,expected",
+    (("a4", "a4paper", _A4), ("letter", "letterpaper", _LETTER)),
+)
+def test_owner_sheet_laid_out_clean_still_compiles(
+    tmp_path, page_size, paper, expected
+):
     body = (_SYSML_FIXTURES / "ei-source-clean.tex").read_text(encoding="utf-8")
-    completed, log = _run_xelatex(tmp_path, "job.tex", _compose_sysml(tmp_path, body))
+    tex = _compose_sysml(tmp_path, body, page_size=page_size)
+    assert f"\\documentclass[{paper}]{{article}}" in tex
+    assert "__PAPER__" not in tex
+    completed, log = _run_xelatex(tmp_path, "job.tex", tex)
     assert completed.returncode == 0, _unwrap_log(log)[-1500:]
     assert "layout_overlap" not in log
     assert "line_into_port" not in log
+    width, height = _mediabox_pt((tmp_path / "job.pdf").read_bytes())
+    assert width == pytest.approx(expected[0], abs=0.05)
+    assert height == pytest.approx(expected[1], abs=0.05)
 
 
 _TWO = (
