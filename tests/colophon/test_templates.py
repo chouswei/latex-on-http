@@ -86,18 +86,18 @@ def test_preambles_use_only_the_allowlist():
     for template_id in TEMPLATE_IDS:
         text = (_ROOT / template_id / "preamble.tex").read_text(encoding="utf-8")
         if template_id == "fulldoc":
-            assert "\\documentclass[10pt,a4paper]{article}" in text
+            assert "\\documentclass[10pt,__PAPER__]{article}" in text
         elif template_id == "sysml":
-            assert "\\documentclass[a4paper]{article}" in text
+            assert "\\documentclass[__PAPER__]{article}" in text
             assert "\\input{endleaf-fit.tex}" in text
             after_begin = text.split("\\begin{document}", 1)[1]
             assert "\\begin{minipage}" not in after_begin
             assert "\\pdfpagewidth=" not in after_begin
         elif template_id == "document-shell":
-            assert "\\documentclass[10pt]{article}" in text
+            assert "\\documentclass[10pt,__PAPER__]{article}" in text
         else:
-            assert "\\documentclass{article}" in text
-            assert "\\documentclass[" not in text
+            assert "\\documentclass[__PAPER__]{article}" in text
+        assert text.count("__PAPER__") == 1
         assert "\\usepackage{fontspec}" in text
         assert "\\input{endleaf-type.tex}" in text
         assert text.index("\\setCJKmainfont{Noto Sans CJK TC}") < text.index(
@@ -184,6 +184,8 @@ def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
         sample = "Hello from the document shell."
     tex = compose(template_id, "InstruMeasure", sample, _ROOT)
     assert re.search(r"\\documentclass(?:\[[^\]]*\])?\{article\}", tex)
+    assert "a4paper" in tex
+    assert "__PAPER__" not in tex
     if template_id == "fulldoc":
         assert "\\newcommand{\\EndleafLane}" not in tex
     else:

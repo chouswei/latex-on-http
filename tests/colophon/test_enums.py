@@ -15,6 +15,42 @@ def test_known_enums_accepted():
     assert job.template_id == "document-shell"
     assert job.input_kind == "markdown"
     assert job.source == "Hello"
+    assert job.page_size == "a4"
+
+
+def test_pagesize_letter_is_accepted():
+    job = parse_job(valid_body(pageSize="letter"))
+    assert job.page_size == "letter"
+
+
+def test_pagesize_explicit_a4_is_accepted():
+    job = parse_job(valid_body(pageSize="a4"))
+    assert job.page_size == "a4"
+
+
+@pytest.mark.parametrize("value", ["A4", "legal", "a5", "", None, 4])
+def test_pagesize_invalid_is_rejected(value):
+    with pytest.raises(JobRejected) as caught:
+        parse_job(valid_body(pageSize=value))
+    assert caught.value.reason == "pageSize"
+    assert caught.value.message
+    assert "\n" not in caught.value.message
+
+
+def test_http_rejects_invalid_pagesize(client, auth, runner):
+    response = client.post(
+        "/v1/jobs",
+        json=valid_body(pageSize="legal"),
+        headers=auth,
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"] == "rejectInvalidInput"
+    assert body["field"] == "pageSize"
+    assert body["result"] == "refused"
+    assert body["message"]
+    assert "\n" not in body["message"]
+    assert runner.calls == []
 
 
 @pytest.mark.parametrize(

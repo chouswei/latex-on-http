@@ -127,6 +127,8 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
             "--pdf-engine-opt=-cnf-line=openout_any=p",
             "--template",
             _template(job.lane, "pandoc.latex"),
+            "-V",
+            f"papersize={job.page_size}",
             "-o",
             output,
         ]

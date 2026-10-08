@@ -98,7 +98,10 @@ def create_app(config, switch, monitor, supervisor):
         try:
             job = parse(payload)
         except JobRejected as exc:
-            return None, _error("rejectInvalidInput", extra={"field": exc.reason})
+            extra = {"field": exc.reason}
+            if exc.message:
+                extra["message"] = exc.message
+            return None, _error("rejectInvalidInput", extra=extra)
         decision = monitor.decision()
         if decision is not None:
             report = monitor.report(busy=False)

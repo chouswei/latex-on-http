@@ -26,6 +26,23 @@ def _flat(plan):
     return " ".join(" ".join(command) for command in plan.commands)
 
 
+def test_pandoc_pdf_always_passes_papersize():
+    plan = build_render_plan(_job())
+    command = plan.commands[0]
+    assert "-V" in command
+    assert "papersize=a4" in command
+    letter = build_render_plan(
+        JobSpec(
+            source="Hello",
+            input_kind="markdown",
+            output_format="pdf",
+            lane="Weft",
+            page_size="letter",
+        )
+    )
+    assert "papersize=letter" in letter.commands[0]
+
+
 def test_xelatex_shell_escape_is_off():
     plan = build_render_plan(_job())
     flat = _flat(plan)

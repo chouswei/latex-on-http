@@ -5,6 +5,12 @@
 % Endleaf engine preamble v1. The TeX wrapper, the Pandoc template, and
 % TikZ diagram blocks all input this file. A package that is only installed
 % is not reachable until it is named here.
+% Honour the class paper option. XeLaTeX/xdvipdfmx otherwise keeps the
+% engine default (often letter). Kernel only; not a package.
+\ifdefined\pdfpagewidth
+  \pdfpagewidth=\paperwidth
+  \pdfpageheight=\paperheight
+\fi
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap}
 \usepackage{circuitikz}

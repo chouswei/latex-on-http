@@ -61,7 +61,8 @@ _FIT = re.compile(
     r"page=(portrait|landscape)"
 )
 _ENDLEAF_FIT_BLOB = "b6640796f07f070df86506810bd94e1a03186840"
-_ENDLEAF_SYSML_PREAMBLE_BLOB = "a738db49384fef3c3f7e3b99ee88143eea088b61"
+# Sysml preamble is the R49 vendor plus __PAPER__ for job pageSize.
+_ENDLEAF_SYSML_PREAMBLE_BLOB = "3b38c57495eb15afc7233c7758c5865d84616716"
 _BOX = re.compile(
     r"SYSMLBOX\s+(\S+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)"
 )
@@ -222,7 +223,7 @@ def test_endleaf_fit_landscapes_at_declared_type_and_refuses_crush():
 
 def test_sysml_preamble_does_not_freeze_portrait_minipage():
     text = (_OWNED / "sysml" / "preamble.tex").read_text(encoding="utf-8")
-    assert r"\documentclass[a4paper]{article}" in text
+    assert r"\documentclass[__PAPER__]{article}" in text
     assert r"\input{endleaf-fit.tex}" in text
     assert "__BODY__" in text
     after_begin = text.split(r"\begin{document}", 1)[1]
