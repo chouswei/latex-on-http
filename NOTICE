@@ -168,5 +168,37 @@ Third-party pieces added with this fork
   `endleaf-type.tex`; that file is not a TeX package and does not change
   `packageSetHash`.
 
+- The typed first-error cause table in `colophon/tex_log.py`
+  (ENDLEAF-R57-CAUSE) is Endleaf's own wording. Its choice of patterns
+  is adapted from `latex-rescue/references/error-catalog.md` in
+  awesome-latex-skills (https://github.com/Calix-L/awesome-latex-skills),
+  Copyright (c) 2026 awesome-latex-skills contributors, MIT License:
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+- After a successful TeX PDF render the job record may carry
+  `texWarnings` (`overfull`, `underfull`, `undefinedRef`,
+  `undefinedCite`), only when one count is above zero. A render error's
+  diagnostic may carry `cause`, one of eleven codes. Only counts and the
+  code leave the sandbox, never log text. A TeX body that uses `\ref`,
+  `\pageref`, `\eqref`, `\cite` or `\tableofcontents` runs XeLaTeX
+  twice; other bodies run once.
+
 Busy and load-shed responses use `Retry-After: 10`. Request bodies above
 16 MiB are refused.
