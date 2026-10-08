@@ -14,6 +14,7 @@ from colophon.enums import JobRejected, parse_job
 from colophon.limits import OUTPUT_CAP_BYTES
 from colophon.pdf_pages import fulldoc_page_count, fulldoc_page_failure
 from colophon.settings import setting
+from colophon.tex_log import count_tex_warnings, tex_warn_line
 from colophon.templates import compose
 from colophon.render_plan import RenderPlanError, build_render_plan
 
@@ -165,6 +166,16 @@ def render_to_stdout(payload_bytes):
                     # The fixture asserts this. The log is deleted below.
                     overfull = log.count("Overfull \\hbox")
                     sys.stderr.write(f"ENDLEAF_OVERFULL {overfull}\n")
+            # ENDLEAF-R57-WARN. Counts only, and only for the TeX path:
+            # Pandoc compiles in its own directory, so /tmp has no log.
+            if (
+                status == "ok"
+                and job.input_kind == "tex"
+                and job.output_format == "pdf"
+            ):
+                line = tex_warn_line(count_tex_warnings(log))
+                if line is not None:
+                    sys.stderr.write(line + "\n")
         except (OSError, RenderPlanError):
             diagnostic = first_tex_error(_collect_logs())
             status = "render_error"

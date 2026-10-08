@@ -245,6 +245,9 @@ def _assert_fulldoc(name, pdf, err):
     # Captions number on the first pass. ?? is an unresolved \ref.
     if "??" in text or not re.search(r"圖\s*1", text) or not re.search(r"表\s*1", text):
         sys.exit(f"{name} PDF cross-references are unresolved: {text!r}")
+    # ENDLEAF-R57-CITE. thebibliography resolves on the second pass.
+    if "[?]" in text or "[1]" not in text:
+        sys.exit(f"{name} PDF citation is unresolved: {text!r}")
     _assert_fonts_embedded(name, pdf)
 
 

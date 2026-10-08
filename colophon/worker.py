@@ -145,6 +145,7 @@ def create_app(config, switch, monitor, supervisor):
                     job.source, job.input_kind, job.output_format
                 ),
                 memory_mode=outcome.memory_mode,
+                tex_warnings=getattr(outcome, "tex_warnings", None),
             ),
             separators=(",", ":"),
         )

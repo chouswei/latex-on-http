@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-10-08 (ENDLEAF-R57)
+
+The requirements live in the Endleaf model
+(`sysml-models/models/requirements-endleaf.sysml`). This entry records
+the worker side before the code that satisfies it.
+
+* ENDLEAF-R57-PASSES: the second identical XeLaTeX pass also runs when
+  a TeX PDF body uses `\eqref`, `\cite` or `\tableofcontents`, not
+  only `\ref` / `\pageref`. Live 2026-10-08 a fulldoc body with
+  `\cite` and `thebibliography` but no `\ref` rendered `[?]`; the same
+  body with one `\ref` rendered `[1]`. No bibliography program runs.
+* ENDLEAF-R57-WARN: after a successful TeX PDF render the sandbox counts
+  Overfull and Underfull boxes, undefined references and undefined
+  citations in the final log. The job record carries `texWarnings`
+  (`overfull`, `underfull`, `undefinedRef`, `undefinedCite`) only when
+  one is above zero. Markdown jobs (Pandoc) carry none.
+* ENDLEAF-R57-CAUSE: a render error's first diagnostic gets
+  `diagnostic.cause`, one of eleven codes, from a pattern table adapted
+  in our own words from the awesome-latex-skills error catalog (MIT;
+  see NOTICE). No match leaves `cause` unset.
+* ENDLEAF-R57-CITE: the fulldoc example and kind fixture cite one
+  `thebibliography` entry; the fixture asserts `[1]` and no `[?]`.
+* No new TeX package. `packageSetHash` is unchanged.
+
 ## 2026-10-08 (ENDLEAF-R56)
 
 * ENDLEAF-R56-WIRE (Endleaf requirements): every field the HTTP worker

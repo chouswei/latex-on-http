@@ -31,10 +31,12 @@ def _template(lane, name):
 # cannot select another binary. The sandbox runs this with cwd /tmp.
 XELATEX_BIN = "/usr/local/bin/xelatex-nonescape"
 
-# \ref and \pageref read the aux file. One XeLaTeX run writes it and
-# leaves ?? in the PDF. A control word such as \refstepcounter does not
-# match: the next character after \ref must not be a letter.
-_AUX_REF = re.compile(r"\\(?:page)?ref(?![A-Za-z])")
+# \ref, \pageref and \eqref read the aux file, \cite reads the
+# \bibcite lines thebibliography writes there (ENDLEAF-R57-PASSES), and
+# \tableofcontents reads job.toc. One XeLaTeX run writes those files and
+# leaves ?? or [?] in the PDF. A control word such as \refstepcounter or
+# \citep does not match: the next character must not be a letter.
+_AUX_REF = re.compile(r"\\(?:(?:page|eq)?ref|cite|tableofcontents)(?![A-Za-z])")
 
 
 def xelatex_argv(tex_name):
@@ -77,7 +79,8 @@ def _pandoc_base(source_path, job):
 
 
 def source_needs_aux_pass(source):
-    """True when a TeX body contains ``\\ref`` or ``\\pageref``.
+    """True when a TeX body uses ``\\ref``, ``\\pageref``, ``\\eqref``,
+    ``\\cite`` or ``\\tableofcontents``.
 
     The sandbox writes ``job.aux`` beside ``job.tex``. A second identical
     XeLaTeX command reads that file. Bodies without those commands stay

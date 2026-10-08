@@ -324,6 +324,20 @@ def _fit(log):
     }
 
 
+# pdfinfo without -f/-l prints "Page size:". With -f N -l N, poppler
+# 24+ prints "Page    N size:" (same numbers). Accept both.
+_PAGE_SIZE_LINE = re.compile(
+    r"^Page(?:\s+\d+)?\s+size:\s+([0-9.]+)\s+x\s+([0-9.]+)"
+)
+
+
+def test_pdfinfo_page_size_line_accepts_numbered_and_plain():
+    plain = _PAGE_SIZE_LINE.match("Page size:  595.28 x 841.89 pts (A4)")
+    numbered = _PAGE_SIZE_LINE.match("Page    1 size:  841.89 x 595.28 pts (A4)")
+    assert plain.groups() == ("595.28", "841.89")
+    assert numbered.groups() == ("841.89", "595.28")
+
+
 def _page_size(pdf, page=1):
     info = subprocess.run(
         ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)],
@@ -333,9 +347,9 @@ def _page_size(pdf, page=1):
     )
     assert info.returncode == 0, info.stderr
     for line in info.stdout.splitlines():
-        if line.startswith("Page size:"):
-            parts = line.split()
-            return float(parts[2]), float(parts[4])
+        match = _PAGE_SIZE_LINE.match(line)
+        if match:
+            return float(match.group(1)), float(match.group(2))
     raise AssertionError(info.stdout)
 
 

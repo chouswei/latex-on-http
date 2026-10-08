@@ -25,6 +25,7 @@ def job_record(
     diagnostic=None,
     warnings=None,
     memory_mode=None,
+    tex_warnings=None,
 ):
     memory = {"peak": memory_peak}
     if memory_mode in ("cgroup", "rlimit"):
@@ -39,4 +40,7 @@ def job_record(
         record["diagnostic"] = diagnostic
     if warnings:
         record["warnings"] = warnings
+    # ENDLEAF-R57-WARN. The key is absent on a clean render.
+    if tex_warnings and any(tex_warnings.values()):
+        record["texWarnings"] = dict(tex_warnings)
     return record

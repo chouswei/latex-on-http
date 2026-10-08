@@ -7,6 +7,8 @@ import json
 import re
 from pathlib import Path
 
+from colophon.tex_log import error_cause
+
 _TEX_LINE = re.compile(r"^(.+?):(\d+):\s+(.+)$", re.MULTILINE)
 _LINE_IN_MESSAGE = re.compile(r"\bline\s+(\d+)\b", re.IGNORECASE)
 
@@ -37,14 +39,25 @@ def first_tex_error(text):
         message = match.group(3).strip()
         if "Warning" in message:
             continue
-        return {
+        found = {
             "engine": "tex",
             "message": message[:400],
             "file": Path(match.group(1)).name,
             "line": int(match.group(2)),
             "fence": None,
         }
+        _add_cause(found)
+        return found
     return None
+
+
+def _add_cause(diagnostic):
+    """ENDLEAF-R57-CAUSE. ``cause`` is set only when the table matches."""
+    if "cause" in diagnostic:
+        return
+    cause = error_cause(diagnostic.get("message"))
+    if cause is not None:
+        diagnostic["cause"] = cause
 
 
 def _fill_line(diagnostic):
@@ -59,6 +72,7 @@ def _fill_line(diagnostic):
     diagnostic.setdefault("fence", None)
     diagnostic.setdefault("engine", None)
     diagnostic["message"] = str(message)[:400]
+    _add_cause(diagnostic)
     return diagnostic
 
 

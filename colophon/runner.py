@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from colophon.cgroup_caps import CpuControllerMissing
 from colophon.diagnostics import parse_stderr
 from colophon.enums import job_payload
+from colophon.tex_log import parse_tex_warnings
 from colophon.limits import (
     OUTPUT_CAP_BYTES,
     STDERR_KEEP_BYTES,
@@ -45,6 +46,8 @@ class Outcome:
     pids_peak: int | None = None
     memory_mode: str | None = None
     diagnostic: dict | None = None
+    # ENDLEAF-R57-WARN. Present only when a count is above zero.
+    tex_warnings: dict | None = None
 
     @property
     def ok(self):
@@ -360,6 +363,7 @@ def make_podman_runner(config, switch):
                 memory_peak=meters.get("memoryPeak"),
                 pids_peak=meters.get("pidsPeak"),
                 memory_mode=meters.get("memoryMode"),
+                tex_warnings=parse_tex_warnings(stderr),
             )
         finally:
             done.set()
