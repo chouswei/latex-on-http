@@ -15,10 +15,11 @@
 %% This work has the LPPL maintenance status `author-maintained'.
 %%
 %% This file draws at coordinates it is given. It does not place
-%% parts, route connections, or scale type below 7 pt.
+%% parts, route connections, or scale type below 7 pt. It refuses a
+%% sheet whose text overlaps (SYSMLTIKZ-R33-FENCE).
 %%
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{sysml-tikz}[2026/10/03 v0.5 SysML interconnection drawing]
+\ProvidesPackage{sysml-tikz}[2026/10/08 v0.6 SysML interconnection drawing]
 
 \RequirePackage{tikz}
 \usetikzlibrary{positioning,calc,fit,backgrounds,arrows.meta,decorations.markings,shapes.geometric,shapes.multipart}
@@ -75,6 +76,13 @@
 %% Regression fixture sets this. Production pictures stay quiet.
 \newif\ifsysml@marktrace
 \def\sysml@marks{}
+\def\sysml@nextname{}
+\newcount\sysml@lineid
+\newcount\sysml@segcount
+\newcount\sysml@oj
+\newcount\sysml@hitcount
+\newif\ifsysml@ov
+\newif\ifsysml@segskip
 \newcount\sysml@obscount
 \newcount\sysml@npt
 \newcount\sysml@oi
@@ -164,6 +172,7 @@
 }
 
 \newcommand{\sysmlpart}[5]{%
+  \edef\sysml@nextname{box \detokenize{#1}}%
   \draw[sysml usage] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
   \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
 }
@@ -171,17 +180,32 @@
   \draw[sysml frame] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
 }
 \newcommand{\sysmldef}[5]{%
+  \edef\sysml@nextname{box \detokenize{#1}}%
   \draw[sysml def] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
   \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
 }
 \newcommand{\sysmlref}[5]{%
+  \edef\sysml@nextname{box \detokenize{#1}}%
   \draw[sysml ref] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
   \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
 }
 
 \newcommand{\sysmllabel}[4][]{%
   \node[sysml #1] (sysml@tlab) at (#2,#3) {#4};%
+  \sysml@labelname{#1}{#2}{#3}{#4}%
   \sysml@pushnode{text}{sysml@tlab}%
+}
+%% Error names stay short: name and type print their text, other
+%% lines print the kind and the anchor (SYSMLTIKZ-R33-FENCE).
+\newcommand{\sysml@labelname}[4]{%
+  \def\sysml@lk{#1}\def\sysml@lkname{name}\def\sysml@lktype{type}%
+  \ifx\sysml@lk\sysml@lkname
+    \edef\sysml@nextname{name \detokenize{#4}}%
+  \else\ifx\sysml@lk\sysml@lktype
+    \edef\sysml@nextname{type \detokenize{#4}}%
+  \else
+    \edef\sysml@nextname{\detokenize{#1} at #2,#3}%
+  \fi\fi
 }
 
 %% Direction glyph inside the square. Tips sit 1.15 mm from the centre.
@@ -244,10 +268,35 @@
   \sysml@effectivedir{#9}%
   \sysml@rememberport{#2}{#3}{#4}{#5}{\sysml@effdir}%
   \draw[sysml port] ($(#3,#4)+(-1.6,-1.6)$) rectangle ($(#3,#4)+(1.6,1.6)$);%
+  \edef\sysml@nextname{port \detokenize{#2}}%
   \sysml@recordxy{#3-1.6}{#4-1.6}{3.2}{3.2}{port}%
   \sysml@portdir{#5}{\sysml@effdir}{#3}{#4}%
-  \node[sysml port label] (sysml@plab) at (#6,#7) {\sysml@shownlabel};%
+  \if\relax\detokenize{#6}\relax
+    \sysml@autoportlabel{#5}{#3}{#4}%
+  \else
+    \node[sysml port label] (sysml@plab) at (#6,#7) {\sysml@shownlabel};%
+  \fi
+  \edef\sysml@nextname{label of \detokenize{#2}}%
   \sysml@pushnode{plab}{sysml@plab}%
+}
+%% SYSMLTIKZ-R33-OUTSIDE. Empty lx and ly put the label outside the
+%% part, beside the square: 0.6 mm clear of the line that meets the
+%% square, and on EAST or WEST 1.9 mm above it so an end head fits.
+%% It never shares a row with the stereotype, name or type lines.
+\newcommand{\sysml@autoportlabel}[3]{%
+  \edef\sysml@aside{#1}%
+  \def\sysml@east{EAST}\def\sysml@west{WEST}%
+  \def\sysml@north{NORTH}\def\sysml@south{SOUTH}%
+  \ifx\sysml@aside\sysml@south
+    \node[sysml port label, anchor=north west] (sysml@plab) at ($(#2,#3)+(2.2,0.6)$) {\sysml@shownlabel};%
+  \else\ifx\sysml@aside\sysml@west
+    \node[sysml port label, anchor=south east] (sysml@plab) at ($(#2,#3)+(-2.2,-1.9)$) {\sysml@shownlabel};%
+  \else\ifx\sysml@aside\sysml@east
+    \node[sysml port label, anchor=south west] (sysml@plab) at ($(#2,#3)+(2.2,-1.9)$) {\sysml@shownlabel};%
+  \else
+    \node[sysml port label, anchor=south west] (sysml@plab) at ($(#2,#3)+(2.2,-0.6)$) {\sysml@shownlabel};%
+  \fi
+  \fi\fi
 }
 \newcommand{\sysml@absorbtilde}[1]{%
   \gdef\sysml@rest{}%
@@ -406,6 +455,8 @@
 \newcommand{\sysml@pathendisto}[1]{%
   \sysml@alongpathtrue
   \sysml@capturepath{#1}%
+  \global\advance\sysml@lineid by 1\relax
+  \sysml@recordsegments{#1}%
   \ifsysml@gotend
     \edef\sysml@xkey{sysml@pex@\sysml@toid}%
     \edef\sysml@ykey{sysml@pey@\sysml@toid}%
@@ -442,6 +493,38 @@
     \edef\sysml@drawstyle{#1 end}%
   \else
     \edef\sysml@drawstyle{#1 start}%
+  \fi
+  \sysml@recordhead
+}
+%% SYSMLTIKZ-R33-FENCE. An end head is 3.2 mm long and at most 2.6 mm
+%% wide. Its box is an obstacle, so a port label cannot sit on it.
+\newcommand{\sysml@recordhead}{%
+  \ifnum\sysml@npt>1\relax
+    \ifsysml@alongpath
+      \edef\sysml@hta{\the\sysml@npt}%
+      \edef\sysml@htb{\the\numexpr\sysml@npt-1\relax}%
+    \else
+      \def\sysml@hta{1}\def\sysml@htb{2}%
+    \fi
+    \pgfmathsetmacro{\sysml@htx}{\csname sysml@ax@\sysml@hta\endcsname}%
+    \pgfmathsetmacro{\sysml@hty}{\csname sysml@ay@\sysml@hta\endcsname}%
+    \pgfmathsetmacro{\sysml@hdx}{\csname sysml@ax@\sysml@htb\endcsname-\sysml@htx}%
+    \pgfmathsetmacro{\sysml@hdy}{\csname sysml@ay@\sysml@htb\endcsname-\sysml@hty}%
+    \pgfmathsetmacro{\sysml@hl}{veclen(\sysml@hdx,\sysml@hdy)}%
+    \ifdim\sysml@hl pt>0.5pt
+      \pgfmathsetmacro{\sysml@hux}{\sysml@hdx/\sysml@hl}%
+      \pgfmathsetmacro{\sysml@huy}{\sysml@hdy/\sysml@hl}%
+      \pgfmathsetmacro{\sysml@hbx}{\sysml@htx+9.105*\sysml@hux}%
+      \pgfmathsetmacro{\sysml@hby}{\sysml@hty+9.105*\sysml@huy}%
+      \pgfmathsetmacro{\sysml@hwx}{3.7*abs(\sysml@huy)}%
+      \pgfmathsetmacro{\sysml@hwy}{3.7*abs(\sysml@hux)}%
+      \pgfmathsetmacro{\sysml@hxa}{min(\sysml@htx,\sysml@hbx-\sysml@hwx,\sysml@hbx+\sysml@hwx)}%
+      \pgfmathsetmacro{\sysml@hxb}{max(\sysml@htx,\sysml@hbx-\sysml@hwx,\sysml@hbx+\sysml@hwx)}%
+      \pgfmathsetmacro{\sysml@hya}{min(\sysml@hty,\sysml@hby-\sysml@hwy,\sysml@hby+\sysml@hwy)}%
+      \pgfmathsetmacro{\sysml@hyb}{max(\sysml@hty,\sysml@hby-\sysml@hwy,\sysml@hby+\sysml@hwy)}%
+      \edef\sysml@nextname{head of \detokenize\expandafter{\sysml@edgename}}%
+      \sysml@pushabs{head}{\sysml@hxa}{\sysml@hya}{\sysml@hxb}{\sysml@hyb}%
+    \fi
   \fi
 }
 %% TikZ node pos= is the fraction of the last segment only. A mid
@@ -496,6 +579,13 @@
   \expandafter\xdef\csname sysml@osy@\the\sysml@obscount\endcsname{\sysml@nb}%
   \expandafter\xdef\csname sysml@onx@\the\sysml@obscount\endcsname{\sysml@nc}%
   \expandafter\xdef\csname sysml@ony@\the\sysml@obscount\endcsname{\sysml@nd}%
+  \expandafter\xdef\csname sysml@on@\the\sysml@obscount\endcsname{\sysml@nextname}%
+  \def\sysml@pk{#1}\def\sysml@edgeword{edge}%
+  \ifx\sysml@pk\sysml@edgeword
+    \expandafter\xdef\csname sysml@oo@\the\sysml@obscount\endcsname{\the\sysml@lineid}%
+  \else
+    \expandafter\xdef\csname sysml@oo@\the\sysml@obscount\endcsname{0}%
+  \fi
   \ifsysml@marktrace
     \typeout{SYSMLBOX #1 \sysml@na\space\sysml@nb\space\sysml@nc\space\sysml@nd}%
   \fi
@@ -739,6 +829,7 @@
     \def\sysml@side{centre}%
     \def\sysml@fill{1}%
     \sysml@tracelabel{bind}%
+    \edef\sysml@nextname{text on \detokenize\expandafter{\sysml@edgename}}%
     \sysml@pushnode{edge}{sysml@lab}%
   \endgroup
 }
@@ -767,6 +858,7 @@
       \fi
     \fi
     \sysml@tracelabel{#1}%
+    \edef\sysml@nextname{text on \detokenize\expandafter{\sysml@edgename}}%
     \sysml@pushnode{edge}{sysml@lab}%
   \endgroup
 }
@@ -965,6 +1057,253 @@
   \sysml@addlabel{\sysml@frac}{allocate}{\sysmlguillemets{allocate}}%
   \expandafter\sysml@drawpath\expandafter{\sysml@drawstyle}{#3}%
 }
+
+%% SYSMLTIKZ-R33-FENCE. Every connector keeps its written segments.
+%% A path with |- or -| is not split into segments here; it is drawn
+%% as written and skips the line checks below.
+\newcommand{\sysml@recordsegments}[1]{%
+  \sysml@segskipfalse
+  \edef\sysml@pathstr{\detokenize{#1}}%
+  \expandafter\sysml@hasbar\sysml@pathstr|\sysml@nil
+  \ifsysml@segskip\else
+    \ifnum\sysml@npt>1\relax
+      \sysml@oi=1\relax
+      \loop
+      \ifnum\sysml@oi<\sysml@npt
+        \edef\sysml@next{\the\numexpr\sysml@oi+1\relax}%
+        \global\advance\sysml@segcount by 1\relax
+        \expandafter\xdef\csname sysml@sa@\the\sysml@segcount\endcsname{%
+          \csname sysml@ax@\the\sysml@oi\endcsname}%
+        \expandafter\xdef\csname sysml@sb@\the\sysml@segcount\endcsname{%
+          \csname sysml@ay@\the\sysml@oi\endcsname}%
+        \expandafter\xdef\csname sysml@sc@\the\sysml@segcount\endcsname{%
+          \csname sysml@ax@\sysml@next\endcsname}%
+        \expandafter\xdef\csname sysml@sd@\the\sysml@segcount\endcsname{%
+          \csname sysml@ay@\sysml@next\endcsname}%
+        \expandafter\xdef\csname sysml@so@\the\sysml@segcount\endcsname{\the\sysml@lineid}%
+        \expandafter\xdef\csname sysml@sn@\the\sysml@segcount\endcsname{%
+          line \detokenize\expandafter{\sysml@edgename}}%
+        \advance\sysml@oi by 1\relax
+      \repeat
+    \fi
+  \fi
+}
+\def\sysml@hasbar#1|#2\sysml@nil{%
+  \if\relax\detokenize{#2}\relax\else\sysml@segskiptrue\fi
+}
+%% Rectangles #1..#4 and #5..#8 (pt numbers). Overlap more than
+%% 0.4 pt on both axes is a cover; a shared edge is not.
+\newcommand{\sysml@rectover}[8]{%
+  \sysml@ovfalse
+  \sysml@owa=#3pt\relax
+  \ifdim#7pt<\sysml@owa \sysml@owa=#7pt\relax\fi
+  \sysml@owb=#1pt\relax
+  \ifdim#5pt>\sysml@owb \sysml@owb=#5pt\relax\fi
+  \advance\sysml@owa by -\sysml@owb
+  \ifdim\sysml@owa>0.4pt
+    \sysml@owa=#4pt\relax
+    \ifdim#8pt<\sysml@owa \sysml@owa=#8pt\relax\fi
+    \sysml@owb=#2pt\relax
+    \ifdim#6pt>\sysml@owb \sysml@owb=#6pt\relax\fi
+    \advance\sysml@owa by -\sysml@owb
+    \ifdim\sysml@owa>0.4pt \sysml@ovtrue\fi
+  \fi
+}
+%% Text #1..#4 crosses the outline of part #5..#8: it covers the part
+%% and also reaches more than 0.4 pt outside it.
+\newcommand{\sysml@straddle}[8]{%
+  \sysml@rectover{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}%
+  \ifsysml@ov
+    \sysml@ovfalse
+    \ifdim\dimexpr#1pt+0.4pt\relax<#5pt \sysml@ovtrue\fi
+    \ifdim\dimexpr#2pt+0.4pt\relax<#6pt \sysml@ovtrue\fi
+    \ifdim\dimexpr#3pt-0.4pt\relax>#7pt \sysml@ovtrue\fi
+    \ifdim\dimexpr#4pt-0.4pt\relax>#8pt \sysml@ovtrue\fi
+  \fi
+}
+%% Segment #1..#4 (pt dimens) meets rectangle #5..#8 (pt numbers)
+%% shrunk by #9 on every side.
+\newcommand{\sysml@segrect}[9]{%
+  \sysml@ovfalse
+  \dimen@=#1\relax \dimen@ii=#3\relax
+  \ifdim\dimen@>\dimen@ii \dimen@=#3\relax \dimen@ii=#1\relax\fi
+  \ifdim\dimen@<\dimexpr#7pt-#9\relax
+   \ifdim\dimen@ii>\dimexpr#5pt+#9\relax
+    \dimen@=#2\relax \dimen@ii=#4\relax
+    \ifdim\dimen@>\dimen@ii \dimen@=#4\relax \dimen@ii=#2\relax\fi
+    \ifdim\dimen@<\dimexpr#8pt-#9\relax
+     \ifdim\dimen@ii>\dimexpr#6pt+#9\relax
+      \sysml@ovtrue
+     \fi
+    \fi
+   \fi
+  \fi
+  \ifsysml@ov
+    \sysml@absdiff{#1}{#3}\sysml@sdx
+    \sysml@absdiff{#2}{#4}\sysml@sdy
+    \ifdim\sysml@sdx>0.1pt
+      \ifdim\sysml@sdy>0.1pt
+        \sysml@diagside{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}%
+      \fi
+    \fi
+  \fi
+}
+%% A slanted segment misses the box when all four corners lie on one
+%% side of its line. Units of 100 pt keep pgfmath in range.
+\newcommand{\sysml@diagside}[9]{%
+  \pgfmathsetmacro{\sysml@ux}{(#3-#1)/100}%
+  \pgfmathsetmacro{\sysml@uy}{(#4-#2)/100}%
+  \pgfmathsetmacro{\sysml@xa}{#1/100}%
+  \pgfmathsetmacro{\sysml@ya}{#2/100}%
+  \pgfmathsetmacro{\sysml@ins}{#9/100}%
+  \def\sysml@pos{0}\def\sysml@neg{0}%
+  \sysml@corner{#5/100+\sysml@ins}{#6/100+\sysml@ins}%
+  \sysml@corner{#7/100-\sysml@ins}{#6/100+\sysml@ins}%
+  \sysml@corner{#5/100+\sysml@ins}{#8/100-\sysml@ins}%
+  \sysml@corner{#7/100-\sysml@ins}{#8/100-\sysml@ins}%
+  \ifnum\sysml@pos=0 \sysml@ovfalse\fi
+  \ifnum\sysml@neg=0 \sysml@ovfalse\fi
+}
+\newcommand{\sysml@corner}[2]{%
+  \pgfmathsetmacro{\sysml@cr}{\sysml@ux*((#2)-\sysml@ya)-\sysml@uy*((#1)-\sysml@xa)}%
+  \ifdim\sysml@cr pt>0pt \def\sysml@pos{1}\fi
+  \ifdim\sysml@cr pt<0pt \def\sysml@neg{1}\fi
+}
+\newcommand{\sysml@obs}[2]{\csname sysml@o#1@#2\endcsname}
+%% #1 is the typed code, #2 the pair. The first hit names the error.
+\newcommand{\sysml@flaghit}[2]{%
+  \global\advance\sysml@hitcount by 1\relax
+  \ifsysml@marktrace\typeout{SYSMLHIT #1: #2}\fi
+  \ifnum\sysml@hitcount=1\relax
+    \xdef\sysml@firsthit{#1: #2}%
+  \fi
+}
+\newcommand{\sysml@istext}[2]{%
+  \edef\sysml@tk{#1}\def\sysml@tt{text}\def\sysml@tp{plab}\def\sysml@te{edge}%
+  \def#2{0}%
+  \ifx\sysml@tk\sysml@tt\def#2{1}\fi
+  \ifx\sysml@tk\sysml@tp\def#2{1}\fi
+  \ifx\sysml@tk\sysml@te\def#2{2}\fi
+}
+%% One pass at the end of each picture. Text on text, text on a port
+%% square, text across a part outline, text on another connector, and
+%% a line into a port square are render errors, not an ok PDF. The
+%% message is one line: the first pair and how many more.
+\newcommand{\sysml@canvascheck}{%
+  \global\sysml@hitcount=0\relax
+  \gdef\sysml@firsthit{}%
+  \def\sysml@pt{port}\def\sysml@pp{part}\def\sysml@ph{head}%
+  \sysml@oi=0\relax
+  \loop
+  \ifnum\sysml@oi<\sysml@obscount
+    \advance\sysml@oi by 1\relax
+    \edef\sysml@ia{\sysml@obs{sx}{\the\sysml@oi}}%
+    \edef\sysml@ib{\sysml@obs{sy}{\the\sysml@oi}}%
+    \edef\sysml@ic{\sysml@obs{nx}{\the\sysml@oi}}%
+    \edef\sysml@id{\sysml@obs{ny}{\the\sysml@oi}}%
+    \edef\sysml@iown{\sysml@obs{o}{\the\sysml@oi}}%
+    %% Two texts on one row keep a 1 mm gutter, so words never run
+    %% together. Stacked lines only must not overlap.
+    \pgfmathsetmacro{\sysml@iwa}{\sysml@ia-1.6}%
+    \pgfmathsetmacro{\sysml@iwc}{\sysml@ic+1.6}%
+    \sysml@istext{\sysml@obs{k}{\the\sysml@oi}}\sysml@itext
+    \ifnum\sysml@itext>0\relax
+      {%
+      \sysml@oj=0\relax
+      \loop
+      \ifnum\sysml@oj<\sysml@obscount
+        \advance\sysml@oj by 1\relax
+        \ifnum\sysml@oj=\sysml@oi\else
+          \edef\sysml@jk{\sysml@obs{k}{\the\sysml@oj}}%
+          \sysml@istext{\sysml@jk}\sysml@jtext
+          \sysml@ovfalse
+          \ifnum\sysml@jtext>0\relax
+            \ifnum\sysml@oj>\sysml@oi\relax
+              \sysml@rectover{\sysml@iwa}{\sysml@ib}{\sysml@iwc}{\sysml@id}%
+                {\sysml@obs{sx}{\the\sysml@oj}}{\sysml@obs{sy}{\the\sysml@oj}}%
+                {\sysml@obs{nx}{\the\sysml@oj}}{\sysml@obs{ny}{\the\sysml@oj}}%
+            \fi
+          \else\ifx\sysml@jk\sysml@pt
+            %% Text keeps 1 pt clear of a port square; a flow item is
+            %% already placed clear by SYSMLTIKZ-R32-CLEAR.
+            \ifnum\sysml@itext=1\relax
+              \pgfmathsetmacro{\sysml@pga}{\sysml@ia-1.4}%
+              \pgfmathsetmacro{\sysml@pgb}{\sysml@ib-1.4}%
+              \pgfmathsetmacro{\sysml@pgc}{\sysml@ic+1.4}%
+              \pgfmathsetmacro{\sysml@pgd}{\sysml@id+1.4}%
+            \else
+              \let\sysml@pga\sysml@ia\let\sysml@pgb\sysml@ib
+              \let\sysml@pgc\sysml@ic\let\sysml@pgd\sysml@id
+            \fi
+            \sysml@rectover{\sysml@pga}{\sysml@pgb}{\sysml@pgc}{\sysml@pgd}%
+              {\sysml@obs{sx}{\the\sysml@oj}}{\sysml@obs{sy}{\the\sysml@oj}}%
+              {\sysml@obs{nx}{\the\sysml@oj}}{\sysml@obs{ny}{\the\sysml@oj}}%
+          \else\ifx\sysml@jk\sysml@ph
+            \ifnum\sysml@itext=1\relax
+              \sysml@rectover{\sysml@ia}{\sysml@ib}{\sysml@ic}{\sysml@id}%
+                {\sysml@obs{sx}{\the\sysml@oj}}{\sysml@obs{sy}{\the\sysml@oj}}%
+                {\sysml@obs{nx}{\the\sysml@oj}}{\sysml@obs{ny}{\the\sysml@oj}}%
+            \fi
+          \else\ifx\sysml@jk\sysml@pp
+            \ifnum\sysml@itext=1\relax
+              \sysml@straddle{\sysml@ia}{\sysml@ib}{\sysml@ic}{\sysml@id}%
+                {\sysml@obs{sx}{\the\sysml@oj}}{\sysml@obs{sy}{\the\sysml@oj}}%
+                {\sysml@obs{nx}{\the\sysml@oj}}{\sysml@obs{ny}{\the\sysml@oj}}%
+            \fi
+          \fi\fi\fi\fi
+          \ifsysml@ov
+            \sysml@flaghit{layout_overlap}{\sysml@obs{n}{\the\sysml@oi} on \sysml@obs{n}{\the\sysml@oj}}%
+          \fi
+        \fi
+      \repeat
+      }%
+      {%
+      \sysml@k=0\relax
+      \loop
+      \ifnum\sysml@k<\sysml@segcount
+        \advance\sysml@k by 1\relax
+        \edef\sysml@sown{\csname sysml@so@\the\sysml@k\endcsname}%
+        \ifx\sysml@sown\sysml@iown\else
+          \sysml@segrect
+            {\csname sysml@sa@\the\sysml@k\endcsname}{\csname sysml@sb@\the\sysml@k\endcsname}%
+            {\csname sysml@sc@\the\sysml@k\endcsname}{\csname sysml@sd@\the\sysml@k\endcsname}%
+            {\sysml@ia}{\sysml@ib}{\sysml@ic}{\sysml@id}{0.4pt}%
+          \ifsysml@ov
+            \sysml@flaghit{layout_overlap}{\sysml@obs{n}{\the\sysml@oi} on \csname sysml@sn@\the\sysml@k\endcsname}%
+          \fi
+        \fi
+      \repeat
+      }%
+    \else
+      \edef\sysml@ik{\sysml@obs{k}{\the\sysml@oi}}%
+      \ifx\sysml@ik\sysml@pt
+        {%
+        \sysml@k=0\relax
+        \loop
+        \ifnum\sysml@k<\sysml@segcount
+          \advance\sysml@k by 1\relax
+          \sysml@segrect
+            {\csname sysml@sa@\the\sysml@k\endcsname}{\csname sysml@sb@\the\sysml@k\endcsname}%
+            {\csname sysml@sc@\the\sysml@k\endcsname}{\csname sysml@sd@\the\sysml@k\endcsname}%
+            {\sysml@ia}{\sysml@ib}{\sysml@ic}{\sysml@id}{0.85pt}%
+          \ifsysml@ov
+            \sysml@flaghit{line_into_port}{\csname sysml@sn@\the\sysml@k\endcsname\space into \sysml@obs{n}{\the\sysml@oi}}%
+          \fi
+        \repeat
+        }%
+      \fi
+    \fi
+  \repeat
+  \global\sysml@obscount=0\relax
+  \global\sysml@segcount=0\relax
+  \ifnum\sysml@hitcount>0\relax
+    \ifnum\sysml@hitcount>1\relax
+      \xdef\sysml@firsthit{\sysml@firsthit\space(+\the\numexpr\sysml@hitcount-1\relax\space more)}%
+    \fi
+    \PackageError{sysml-tikz}{\sysml@firsthit}{Move one of the two, or grow the part. Empty lx and ly put a port label outside the part. Do not shrink type.}%
+  \fi
+}
+\tikzset{every picture/.append style={execute at end picture={\sysml@canvascheck}}}
 
 %% Collapse count, bottom-right inside the owner. Not a header line.
 \newcommand{\sysmlbadge}[3]{%

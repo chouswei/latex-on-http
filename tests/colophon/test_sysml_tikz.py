@@ -52,10 +52,10 @@ def test_allowlist_accepts_sysml_tikz():
 
 
 # Worker copy of Endleaf prototypes/sysml-layout/sysml-tikz.sty
-# fence SYSMLTIKZ-R32-CLEAR from Endleaf PR 58
-# (cursor/flow-item-port-clear-b4ef), on the upright-item and
-# human-header worker file.
-_ENDLEAF_STY_SHA256 = "ee94b2a9cb136c04d2f7549316d3e74cadc59e61f227f4a48efef2630bd8c4bf"
+# fence SYSMLTIKZ-R32-CLEAR from Endleaf PR 58, on the upright-item and
+# human-header worker file, plus the SYSMLTIKZ-R33-FENCE text-overlap
+# fence and SYSMLTIKZ-R33-OUTSIDE port labels (ENDLEAF-R55).
+_ENDLEAF_STY_SHA256 = "84b3ad643c5ec84c0bb8af57f1043abbc1793129d0ecf12bd66517254bf09d56"
 _PT_PER_MM = 72.27 / 25.4
 _BOX = re.compile(
     r"SYSMLBOX (\S+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)"
@@ -490,3 +490,125 @@ def test_review_path_fixtures_still_compile(tmp_path):
         completed, log = _run_xelatex(tmp_path, name, tex)
         assert completed.returncode == 0, log[-1500:]
         assert "flow item cannot sit clear of both ports" not in log
+
+
+# SYSMLTIKZ-R33-FENCE. Owner sheet the live service returned as ok on
+# 2026-10-08: overlapping text is a typed render error, not an ok PDF.
+_SYSML_FIXTURES = _ROOT / "tests/colophon/fixtures/sysml"
+
+
+def _compose_sysml(_tmp_path, body):
+    tex = compose("sysml", "Weft", body, _OWNED)
+    if not _cjk_ready():
+        tex = (
+            tex.replace("\\usepackage{fontspec}\n", "")
+            .replace("\\usepackage{xeCJK}\n", "")
+            .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
+            .replace("\\input{endleaf-type.tex}\n", "")
+        )
+    return tex
+
+
+def _fence_hits(tmp_path, body):
+    """Run without halting and with traces on, so every hit is logged."""
+    tex = _standalone_sysml_tex(body)
+    completed, log = _run_xelatex(tmp_path, "hits.tex", tex, halt=False)
+    return completed, re.findall(r"SYSMLHIT (.+)", _unwrap_log(log))
+
+
+def test_style_declares_the_overlap_fence():
+    text = _STY.read_text(encoding="utf-8")
+    assert "SYSMLTIKZ-R33-FENCE" in text
+    assert "SYSMLTIKZ-R33-OUTSIDE" in text
+    assert r"\newcommand{\sysml@canvascheck}" in text
+    assert "execute at end picture={\\sysml@canvascheck}" in text
+    assert "{layout_overlap}" in text
+    assert "{line_into_port}" in text
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_owner_overlap_sheet_is_a_render_error(tmp_path):
+    body = (_SYSML_FIXTURES / "ei-source-overlap.tex").read_text(encoding="utf-8")
+    completed, log = _run_xelatex(tmp_path, "job.tex", _compose_sysml(tmp_path, body))
+    assert completed.returncode != 0
+    text = _unwrap_log(log)
+    assert "Package sysml-tikz Error: layout_overlap: " in text
+    assert re.search(r"\(\+\d+ more\)", text)
+    assert not (tmp_path / "job.pdf").is_file()
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_owner_overlap_sheet_names_each_reported_fault(tmp_path):
+    body = (_SYSML_FIXTURES / "ei-source-overlap.tex").read_text(encoding="utf-8")
+    body = "\\makeatletter\\sysml@marktracetrue\\makeatother\n" + body
+    tex = _compose_sysml(tmp_path, body)
+    _completed, log = _run_xelatex(tmp_path, "job.tex", tex, halt=False)
+    hits = re.findall(r"SYSMLHIT (.+)", _unwrap_log(log))
+    assert "layout_overlap: keyword at 94.2,147.6 on label of S.opt.tBias" in hits
+    assert "layout_overlap: type ElectronImpactIonSource on label of S.ion.eCol" in hits
+    assert "layout_overlap: label of S.drv.fil on box S.drv" in hits
+    assert "layout_overlap: keyword at 13.3,31.6 on port S.ms.eth" in hits
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_owner_sheet_laid_out_clean_still_compiles(tmp_path):
+    body = (_SYSML_FIXTURES / "ei-source-clean.tex").read_text(encoding="utf-8")
+    completed, log = _run_xelatex(tmp_path, "job.tex", _compose_sysml(tmp_path, body))
+    assert completed.returncode == 0, _unwrap_log(log)[-1500:]
+    assert "layout_overlap" not in log
+    assert "line_into_port" not in log
+
+
+_TWO = (
+    "\\sysmlpart{A}{0}{0}{20}{14}"
+    "\\sysmlport{A.o}{20}{7}{EAST}{}{}{out}{out}"
+    "\\sysmlpart{B}{50}{0}{20}{14}"
+    "\\sysmlport{B.i}{50}{7}{WEST}{}{}{in}{in}\n"
+)
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_line_into_a_port_square_is_a_render_error(tmp_path):
+    body = _TWO + "\\sysmlflow[from=A.o, to=B.i]{f}{(21.6,7) -- (50,7)}\n"
+    _completed, hits = _fence_hits(tmp_path, body)
+    assert hits == ["line_into_port: line f into port B.i"]
+    body = _TWO + "\\sysmlflow[from=A.o, to=B.i]{f}{(21.6,7) -- (48.4,7)}\n"
+    completed, hits = _fence_hits(tmp_path, body)
+    assert hits == []
+    assert completed.returncode == 0
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_text_on_a_line_or_an_end_head_is_a_render_error(tmp_path):
+    body = _TWO + "\\sysmllabel[name]{35}{4}{Hello}\\sysmlconnection{c}{(35,1) -- (35,12)}\n"
+    _completed, hits = _fence_hits(tmp_path, body)
+    assert hits == ["layout_overlap: name Hello on line c"]
+    body = _TWO + "\\sysmllabel[name]{35}{4}{Hello}\\sysmlconnection{c}{(30,1) -- (40,12)}\n"
+    _completed, hits = _fence_hits(tmp_path, body)
+    assert hits == ["layout_overlap: name Hello on line c"]
+    body = (
+        _TWO.replace("{WEST}{}{}{in}", "{WEST}{44}{5.6}{in}")
+        + "\\sysmlflow[from=A.o, to=B.i]{f}{(21.6,7) -- (48.4,7)}\n"
+    )
+    _completed, hits = _fence_hits(tmp_path, body)
+    assert "layout_overlap: label of B.i on head of f" in hits
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
+def test_empty_label_point_puts_port_labels_outside_the_part(tmp_path):
+    body = (
+        "\\sysmlpart{A}{0}{10}{30}{14}"
+        "\\sysmllabel[keyword]{15}{13}{\\sysmlguillemets{part}}"
+        "\\sysmlport{A.n}{15}{10}{NORTH}{}{}{tBias}{in}"
+        "\\sysmlport{A.s}{15}{24}{SOUTH}{}{}{sOut}{out}"
+        "\\sysmlport{A.w}{0}{17}{WEST}{}{}{wIn}{in}"
+        "\\sysmlport{A.e}{30}{17}{EAST}{}{}{eOut}{out}\n"
+    )
+    completed, log = _run_xelatex(tmp_path, "auto.tex", _standalone_sysml_tex(body))
+    assert completed.returncode == 0, _unwrap_log(log)[-1500:]
+    boxes = _parse_boxes(log)
+    part = next(box for box in boxes if box["kind"] == "part")
+    labels = [box for box in boxes if box["kind"] == "plab"]
+    assert len(labels) == 4
+    for label in labels:
+        assert not _overlaps(label, part), label
