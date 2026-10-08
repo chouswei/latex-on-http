@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from colophon.enums import JobSpec
 from colophon.limits import SHARE_ROOT
 from colophon.notation import degrade_inline_notation
+from colophon.templates import PAPER_NAME
 
 
 class RenderPlanError(RuntimeError):
@@ -127,8 +128,17 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
             "--pdf-engine-opt=-cnf-line=openout_any=p",
             "--template",
             _template(job.lane, "pandoc.latex"),
+            # ENDLEAF-R56-SIZES. article has no a3paper; endleaf-page.tex
+            # resizes from a4 and turns the page for landscape.
             "-V",
-            f"papersize={job.page_size}",
+            f"papersize={'a4' if job.page_size == 'a3' else job.page_size}",
+            "-V",
+            f"endleafpaper={PAPER_NAME[job.page_size]}",
+            *(
+                ("-V", f"endleaforientation={job.orientation}")
+                if job.orientation is not None
+                else ()
+            ),
             "-o",
             output,
         ]

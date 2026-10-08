@@ -1,0 +1,52 @@
+{
+  "_comment": "ENDLEAF-R56-CONTRACT. Gate->worker POST /v1/jobs body. The Endleaf repo keeps the same file at endleaf_gate/tests/fixtures/worker-job-contract.json; keep them identical.",
+  "base": {
+    "jobId": "job-contract",
+    "lane": "Weft",
+    "outputFormat": "pdf",
+    "templateId": "circuits",
+    "body": "__EXAMPLE__",
+    "pageSize": "a4",
+    "limits": {
+      "cpu": 1.0,
+      "memMiB": 2048,
+      "wallSec": 60,
+      "outputMiB": 20
+    },
+    "shellEscape": false,
+    "networkEnabled": false,
+    "readOnlyRoot": true,
+    "runsAsRoot": false,
+    "retentionMode": "none"
+  },
+  "cases": [
+    {
+      "pageSize": "a4",
+      "orientation": "portrait"
+    },
+    {
+      "pageSize": "a4",
+      "orientation": "landscape"
+    },
+    {
+      "pageSize": "letter",
+      "orientation": "portrait"
+    },
+    {
+      "pageSize": "letter",
+      "orientation": "landscape"
+    },
+    {
+      "pageSize": "a3",
+      "orientation": "portrait"
+    },
+    {
+      "pageSize": "a3",
+      "orientation": "landscape"
+    },
+    {
+      "pageSize": "letter"
+    },
+    {}
+  ]
+}

@@ -105,10 +105,45 @@ def owned_root(root=None):
     return Path(root)
 
 
-_PAPER = {"a4": "a4paper", "letter": "letterpaper"}
+# article has no a3paper option. A3 starts from a4paper; endleaf-page.tex
+# resizes it.
+_PAPER = {"a4": "a4paper", "letter": "letterpaper", "a3": "a4paper"}
+PAPER_NAME = {"a4": "A4", "letter": "Letter", "a3": "A3"}
 
 
-def compose(template_id, lane, body, root=None, page_size="a4"):
+PAGE_HOOK = "\\AddToHook{class/article/after}{\\input{endleaf-page.tex}}"
+
+
+def paper_option(page_size="a4", orientation=None):
+    """ENDLEAF-R56-SIZES. Class paper option. ``ValueError`` if unknown.
+
+    Orientation is not a class option: article's ``landscape`` keeps the
+    345 pt prose line. endleaf-page.tex turns the page and widens the line.
+    """
+    paper = _PAPER.get(page_size)
+    if paper is None:
+        raise ValueError("pageSize")
+    if orientation not in (None, "portrait", "landscape"):
+        raise ValueError("orientation")
+    return paper
+
+
+def page_macros(page_size="a4", orientation=None):
+    """Lines before \\documentclass. endleaf-page.tex and endleaf-fit read them.
+
+    ``\\EndleafPaper`` names the page. ``\\EndleafOrientation`` is defined
+    only when the job named one; endleaf-fit then keeps that orientation
+    instead of choosing (ENDLEAF-R56-FIT).
+    """
+    paper_option(page_size, orientation)
+    lines = [f"\\def\\EndleafPaper{{{PAPER_NAME[page_size]}}}"]
+    if orientation is not None:
+        lines.append(f"\\def\\EndleafOrientation{{{orientation}}}")
+    lines.append(PAGE_HOOK)
+    return "\n".join(lines) + "\n"
+
+
+def compose(template_id, lane, body, root=None, page_size="a4", orientation=None):
     """Preamble plus body. ``root`` defaults to the image share directory."""
     path = owned_root(root) / template_id / "preamble.tex"
     text = path.read_text(encoding="utf-8")
@@ -119,10 +154,8 @@ def compose(template_id, lane, body, root=None, page_size="a4"):
         or text.count("__PAPER__") != 1
     ):
         raise ValueError("preamble")
-    paper = _PAPER.get(page_size)
-    if paper is None:
-        raise ValueError("pageSize")
-    text = text.replace("__PAPER__", paper, 1)
+    paper = paper_option(page_size, orientation)
+    text = page_macros(page_size, orientation) + text.replace("__PAPER__", paper, 1)
     if "__LANE__" in text:
         text = text.replace("__LANE__", lane, 1)
     return text.replace("__BODY__", body, 1)
