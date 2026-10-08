@@ -121,6 +121,7 @@ RUN set -eu; \
     kpsewhich tikzlibraryshapes.multipart.code.tex; \
     kpsewhich colophon-v1-preamble.tex; \
     kpsewhich endleaf-type.tex; \
+    kpsewhich endleaf-page.tex; \
     kpsewhich texgyrepagella-regular.otf; \
     kpsewhich texgyreheros-regular.otf; \
     kpsewhich texgyrecursor-regular.otf; \
