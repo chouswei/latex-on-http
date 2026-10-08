@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 2026-10-08 (ENDLEAF-R56)
+
+* ENDLEAF-R56-WIRE (Endleaf requirements): every field the HTTP worker
+  parses reaches the sandbox parse. Live 2026-10-08 the runner rebuilt
+  the sandbox stdin from body, templateId, outputFormat and lane only,
+  so `pageSize` never reached the render and every PDF was A4. The
+  runner now sends `colophon.enums.job_payload(job)`, the inverse of
+  `parse_job`.
+* ENDLEAF-R56-SIZES: `pageSize` takes `a3` as well as `a4` (default)
+  and `letter`; optional `orientation` is `portrait` or `landscape`.
+  Bad values are one line: `pageSize must be a4, letter or a3` /
+  `orientation must be portrait or landscape`. New kernel file
+  `colophon-v1/endleaf-page.tex` runs at the end of the article class
+  (`\AddToHook{class/article/after}`), resizes A3 from the a4paper
+  layout, turns the page for landscape (paper and PDF page swap), keeps
+  the class margins and gives the extra paper to the text block.
+  Omitted orientation leaves A4 and Letter portrait as the class set
+  them. Not a package; `packageSetHash` is unchanged.
+* ENDLEAF-R56-FIT: `endleaf-fit.tex` names the size in its errors and,
+  when the job names an orientation, keeps that page and refuses a
+  canvas that does not fit instead of turning it. Omitted orientation
+  keeps the sysml auto-landscape rule on every size.
+* ENDLEAF-R56-CONTRACT: `tests/colophon/fixtures/contract/worker-job-contract.json`
+  is byte-identical to the Endleaf gate fixture. `tests/colophon/test_job_wire.py`
+  posts it to `POST /v1/jobs` through the real runner and checks the
+  PDF MediaBox for all six size and orientation pairs.
+
 ## 2026-10-08
 
 * Optional job field `pageSize`: `a4` (default) or `letter`. Owned
