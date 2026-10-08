@@ -5,9 +5,11 @@
 * Optional job field `pageSize`: `a4` (default) or `letter`. Owned
   preambles take `__PAPER__` (`a4paper` / `letterpaper`). Lane Pandoc
   templates take `$papersize$paper`, and the PDF plan always passes
-  `-V papersize=…`. Any other value is `rejectInvalidInput` field
-  `pageSize` with a one-line message. Shell-escape stays off.
-  `packageSetHash` is unchanged.
+  `-V papersize=…`. The shared engine preamble sets kernel
+  `\pdfpagewidth` / `\pdfpageheight` from the class paper so XeLaTeX
+  does not keep the driver default (often letter). Any other value is
+  `rejectInvalidInput` field `pageSize` with a one-line message.
+  Shell-escape stays off. `packageSetHash` is unchanged.
 
 ## 2026-10-04
 

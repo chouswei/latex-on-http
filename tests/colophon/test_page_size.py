@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Optional job pageSize. Default A4; letter is the other accepted value."""
 
-import os
 import re
 import shutil
 import subprocess
+import zlib
 from pathlib import Path
 
 import pytest
@@ -18,23 +18,11 @@ from tests.colophon.conftest import valid_body
 _ROOT = (
     Path(__file__).resolve().parents[2] / "colophon" / "share" / "templates" / "owned"
 )
-_TEXINPUTS = os.pathsep.join(
-    (
-        str(
-            Path(__file__).resolve().parents[2] / "colophon/share/tex/latex/colophon-v1"
-        ),
-        str(
-            Path(__file__).resolve().parents[2]
-            / "colophon/share/tex/latex/endleaf-floorplan"
-        ),
-        str(
-            Path(__file__).resolve().parents[2] / "colophon/share/tex/latex/sysml-tikz"
-        ),
-        str(Path(__file__).resolve().parents[2] / "vendor/pidcircuittikz"),
-        "",
-    )
-)
 _SHARE = Path(__file__).resolve().parents[2] / "colophon" / "share" / "templates"
+_PREAMBLE = (
+    Path(__file__).resolve().parents[2]
+    / "colophon/share/tex/latex/colophon-v1/colophon-v1-preamble.tex"
+)
 _MEDIA = re.compile(
     rb"/MediaBox\s*\[\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*\]"
 )
@@ -42,43 +30,42 @@ _A4 = (595.28, 841.89)
 _LETTER = (612.0, 792.0)
 
 
+def _inflate_pdf(data):
+    """XeLaTeX often zlib-compresses the page dict. Stdlib only; no pypdf."""
+    chunks = [data]
+    for raw in re.findall(rb"stream\r?\n(.+?)\r?\nendstream", data, flags=re.DOTALL):
+        try:
+            chunks.append(zlib.decompress(raw))
+        except zlib.error:
+            continue
+    return b"\n".join(chunks)
+
+
 def _mediabox_pt(data):
-    found = _MEDIA.search(data)
+    found = _MEDIA.search(_inflate_pdf(data))
     assert found is not None, data[:400]
     x0, y0, x1, y1 = (float(part) for part in found.groups())
     return (x1 - x0, y1 - y0)
 
 
-def _prepare(tex):
-    if shutil.which("kpsewhich"):
-        found = subprocess.run(
-            ["kpsewhich", "xeCJK.sty"],
-            check=False,
-            capture_output=True,
-        )
-        if found.returncode != 0:
-            tex = (
-                tex.replace("\\usepackage{fontspec}\n", "")
-                .replace("\\usepackage{xeCJK}\n", "")
-                .replace("\\setCJKmainfont{Noto Sans CJK TC}\n", "")
-                .replace("\\input{endleaf-type.tex}\n", "")
-            )
-        else:
-            gyre = subprocess.run(
-                ["kpsewhich", "texgyrepagella-regular.otf"],
-                check=False,
-                capture_output=True,
-            )
-            if gyre.returncode != 0 or not gyre.stdout.strip():
-                tex = tex.replace("\\input{endleaf-type.tex}\n", "")
-    return tex
+def _paper_probe(tex):
+    """Keep the composed class options. XeLaTeX needs the kernel page dims."""
+    found = re.search(r"\\documentclass(?:\[[^\]]*\])?\{article\}", tex)
+    assert found is not None, tex[:200]
+    assert "\\input{colophon-v1-preamble.tex}" in tex
+    return (
+        found.group(0)
+        + "\n\\ifdefined\\pdfpagewidth"
+        + "\n  \\pdfpagewidth=\\paperwidth"
+        + "\n  \\pdfpageheight=\\paperheight"
+        + "\n\\fi"
+        + "\n\\begin{document}\nHello.\n\\end{document}\n"
+    )
 
 
 def _compile(tmp_path, tex):
-    tex = _prepare(tex)
+    tex = _paper_probe(tex)
     (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
-    env = os.environ.copy()
-    env["TEXINPUTS"] = _TEXINPUTS + env.get("TEXINPUTS", "")
     completed = subprocess.run(
         [
             "xelatex",
@@ -91,7 +78,6 @@ def _compile(tmp_path, tex):
         check=False,
         timeout=90,
         capture_output=True,
-        env=env,
     )
     log = (tmp_path / "job.log").read_text(encoding="utf-8", errors="replace")
     assert completed.returncode == 0, log[-800:]
@@ -107,6 +93,9 @@ def _body(template_id):
 
 
 def test_compose_replaces_paper_placeholder():
+    shared = _PREAMBLE.read_text(encoding="utf-8")
+    assert "\\pdfpagewidth=\\paperwidth" in shared
+    assert "\\pdfpageheight=\\paperheight" in shared
     a4 = compose("circuits", "Weft", "x", _ROOT)
     assert "\\documentclass[a4paper]{article}" in a4
     letter = compose("circuits", "Weft", "x", _ROOT, page_size="letter")
