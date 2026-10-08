@@ -26,7 +26,11 @@ class JobRejected(ValueError):
         super().__init__(message or reason)
 
 
-PAGE_SIZES = ("a4", "letter")
+# ENDLEAF-R56-SIZES. a4 is the default. orientation is optional; omitted
+# keeps the template's own choice (sysml endleaf-fit may still turn a wide
+# canvas landscape).
+PAGE_SIZES = ("a4", "letter", "a3")
+ORIENTATIONS = ("portrait", "landscape")
 
 
 @dataclass(frozen=True)
@@ -37,6 +41,7 @@ class JobSpec:
     lane: str
     template_id: str = "document-shell"
     page_size: str = "a4"
+    orientation: str | None = None
 
     @property
     def content_type(self):
@@ -81,7 +86,10 @@ def parse_job(payload):
         raise JobRejected("preamble")
     page_size = payload.get("pageSize", "a4")
     if page_size not in PAGE_SIZES:
-        raise JobRejected("pageSize", "pageSize must be a4 or letter")
+        raise JobRejected("pageSize", "pageSize must be a4, letter or a3")
+    orientation = payload.get("orientation")
+    if orientation is not None and orientation not in ORIENTATIONS:
+        raise JobRejected("orientation", "orientation must be portrait or landscape")
     asset = TEMPLATES[template_id]
     return JobSpec(
         source=source,
@@ -90,4 +98,25 @@ def parse_job(payload):
         lane=lane,
         template_id=template_id,
         page_size=page_size,
+        orientation=orientation,
     )
+
+
+def job_payload(job):
+    """ENDLEAF-R56-WIRE. The sandbox stdin for ``job``.
+
+    ``parse_job(job_payload(job)) == job`` for every job ``parse_job``
+    returns. The runner must send this, never a hand-built dict, so a
+    new JobSpec field cannot be dropped between the HTTP worker and the
+    sandbox again.
+    """
+    payload = {
+        "body": job.source,
+        "templateId": job.template_id,
+        "outputFormat": job.output_format,
+        "lane": job.lane,
+        "pageSize": job.page_size,
+    }
+    if job.orientation is not None:
+        payload["orientation"] = job.orientation
+    return payload

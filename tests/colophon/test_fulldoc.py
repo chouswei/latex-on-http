@@ -60,7 +60,7 @@ _FIT = re.compile(
     r"uniform=([0-9.]+) unit=([0-9.]+) type=([0-9.]+) "
     r"page=(portrait|landscape)"
 )
-_ENDLEAF_FIT_BLOB = "b6640796f07f070df86506810bd94e1a03186840"
+_ENDLEAF_FIT_BLOB = "464cf4a56787ed8a4fa9b5fba94c352b00b426a5"
 # Sysml preamble is the R49 vendor plus __PAPER__ for job pageSize.
 _ENDLEAF_SYSML_PREAMBLE_BLOB = "3b38c57495eb15afc7233c7758c5865d84616716"
 _BOX = re.compile(

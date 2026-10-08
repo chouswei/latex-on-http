@@ -11,6 +11,11 @@
 % Caller \pdfpagewidth in the body is not the switch: a minipage
 % group would restore portrait at shipout.
 % Plain tikzpictures are not scaled; a wide one logs ENDLEAF_WIDE_PICTURE.
+% ENDLEAF-R56-FIT. The class paper option sets the size (A4, Letter or
+% A3); \EndleafPaper names it in errors. With no job orientation
+% (\EndleafOrientation undefined) the choice above is unchanged. With a
+% job orientation the page stays as the class set it, and a canvas that
+% does not fit that page is an error, never a silent turn.
 \NeedsTeXFormat{LaTeX2e}
 \makeatletter
 \newbox\elfit@picbox
@@ -38,6 +43,18 @@
 \newif\ifelfit@thisland
 \newif\ifelfit@landscaped
 \newif\ifelfit@insidefloat
+\newif\ifelfit@locked
+\ifdefined\EndleafPaper
+  \edef\elfit@papername{\EndleafPaper}
+\else
+  \def\elfit@papername{A4}
+\fi
+\ifdefined\EndleafOrientation
+  \elfit@lockedtrue
+  \edef\elfit@pagename{\EndleafOrientation}
+\else
+  \def\elfit@pagename{portrait}
+\fi
 \def\elfit@uniform{1}
 \def\elfit@unit{1}
 \def\elfit@shown{}
@@ -176,10 +193,10 @@
 \def\elfit@fitcheck{%
   \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
   \ifdim\wd\elfit@picbox>\linewidth
-    \elfit@refuse{picture does not fit A4 at the declared type size. Text was not shrunk}%
+    \elfit@refuse{picture does not fit \elfit@papername\space at the declared type size. Text was not shrunk}%
   \fi
   \ifdim\elfit@nath>\elfit@availht
-    \elfit@refuse{picture does not fit A4 at the declared type size. Text was not shrunk}%
+    \elfit@refuse{picture does not fit \elfit@papername\space at the declared type size. Text was not shrunk}%
   \fi
 }
 
@@ -212,7 +229,11 @@
   \elfit@reserve
   \elfit@measure{#1}%
   \ifdim\wd\elfit@picbox>\elfit@portline
-    \global\elfit@needlandtrue
+    \ifelfit@locked
+      \elfit@refuse{picture does not fit \elfit@pagename\space\elfit@papername\space at the declared type size. Text was not shrunk. Omit orientation to let Endleaf choose}%
+    \else
+      \global\elfit@needlandtrue
+    \fi
   \fi
   \ifelfit@needland
     \gdef\elfit@page{landscape}%
@@ -222,10 +243,10 @@
       \elfit@measure{#1}%
       \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
       \ifdim\wd\elfit@picbox>\elfit@landline
-        \elfit@refuse{picture does not fit landscape A4 at the declared type size. Text was not shrunk}%
+        \elfit@refuse{picture does not fit landscape \elfit@papername\space at the declared type size. Text was not shrunk}%
       \fi
       \ifdim\elfit@nath>\elfit@availht
-        \elfit@refuse{picture does not fit landscape A4 at the declared type size. Text was not shrunk}%
+        \elfit@refuse{picture does not fit landscape \elfit@papername\space at the declared type size. Text was not shrunk}%
       \fi
     \else
       \elfit@setlandscape
@@ -234,10 +255,10 @@
       \elfit@fitcheck
     \fi
   \else
-    \gdef\elfit@page{portrait}%
+    \xdef\elfit@page{\elfit@pagename}%
     \elfit@nath=\dimexpr\ht\elfit@picbox+\dp\elfit@picbox\relax
     \ifdim\elfit@nath>\elfit@availht
-      \elfit@refuse{picture does not fit portrait A4 at the declared type size. Text was not shrunk}%
+      \elfit@refuse{picture does not fit \elfit@pagename\space\elfit@papername\space at the declared type size. Text was not shrunk}%
     \fi
   \fi
   \ifnum\elfit@marksave=1 \sysml@marktracetrue\fi

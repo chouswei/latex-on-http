@@ -90,9 +90,11 @@ def _collect_logs():
     return "\n".join(chunks)
 
 
-def _wrap_tex(template_id, lane, body, page_size="a4"):
+def _wrap_tex(template_id, lane, body, page_size="a4", orientation=None):
     try:
-        return compose(template_id, lane, body, page_size=page_size)
+        return compose(
+            template_id, lane, body, page_size=page_size, orientation=orientation
+        )
     except (OSError, ValueError) as exc:
         raise RenderPlanError("wrapper") from exc
 
@@ -131,7 +133,13 @@ def render_to_stdout(payload_bytes):
                 Path(path).write_text(content, encoding="utf-8")
             if job.input_kind == "tex" and job.output_format == "pdf":
                 Path("/tmp/job.tex").write_text(
-                    _wrap_tex(job.template_id, job.lane, job.source, job.page_size),
+                    _wrap_tex(
+                        job.template_id,
+                        job.lane,
+                        job.source,
+                        job.page_size,
+                        job.orientation,
+                    ),
                     encoding="utf-8",
                 )
             for command in plan.commands:

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from colophon.cgroup_caps import CpuControllerMissing
 from colophon.diagnostics import parse_stderr
+from colophon.enums import job_payload
 from colophon.limits import (
     OUTPUT_CAP_BYTES,
     STDERR_KEEP_BYTES,
@@ -261,14 +262,8 @@ def make_podman_runner(config, switch):
     def runner(job, name, abort_event):
         if switch.read().blocks_jobs:
             return Outcome(kind="rejectKillSwitch")
-        payload = json.dumps(
-            {
-                "body": job.source,
-                "templateId": job.template_id,
-                "outputFormat": job.output_format,
-                "lane": job.lane,
-            }
-        ).encode("utf-8")
+        # ENDLEAF-R56-WIRE. Every parsed field reaches the sandbox parse.
+        payload = json.dumps(job_payload(job)).encode("utf-8")
         try:
             args = build_podman_run_args(
                 podman=config.podman,

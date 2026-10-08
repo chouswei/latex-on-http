@@ -107,9 +107,15 @@ def test_compose_replaces_paper_placeholder():
 
 
 def test_lane_pandoc_templates_use_papersize_variable():
+    # ENDLEAF-R56-SIZES: three page lines run before the class line.
     for lane in ("Weft", "InstruMeasure", "Investor"):
-        text = (_SHARE / lane / "pandoc.latex").read_text(encoding="utf-8")
-        assert text.splitlines()[0] == r"\documentclass[10pt,$papersize$paper]{article}"
+        lines = (_SHARE / lane / "pandoc.latex").read_text(encoding="utf-8").splitlines()
+        assert lines[0] == r"$if(endleafpaper)$\def\EndleafPaper{$endleafpaper$}$endif$"
+        assert lines[1] == (
+            r"$if(endleaforientation)$\def\EndleafOrientation{$endleaforientation$}$endif$"
+        )
+        assert lines[2] == r"\AddToHook{class/article/after}{\input{endleaf-page.tex}}"
+        assert lines[3] == r"\documentclass[10pt,$papersize$paper]{article}"
 
 
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")

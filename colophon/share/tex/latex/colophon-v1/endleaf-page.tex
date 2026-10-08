@@ -1,0 +1,52 @@
+% Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% ENDLEAF-R56-SIZES. Page size and orientation. Kernel only; not a
+% package, so packageSetHash does not change. The composer and the lane
+% Pandoc templates run this file at the end of the article class
+% (\AddToHook{class/article/after}). \EndleafPaper is A4, Letter or A3.
+% \EndleafOrientation is defined only when the job named one.
+% article has no a3paper option: A3 starts from the a4paper layout.
+% A3 or landscape keeps the class's physical margins and gives the extra
+% paper to the text block, the rule endleaf-fit uses for its own
+% landscape page. A4 and Letter portrait are left as the class set them.
+\ifdefined\EndleafPaper\else\def\EndleafPaper{A4}\fi
+\def\EndleafPageAthree{A3}
+\def\EndleafPageLandscape{landscape}
+\newif\ifEndleafPageResize
+\newdimen\EndleafPageW
+\newdimen\EndleafPageH
+\newdimen\EndleafPageL
+\newdimen\EndleafPageR
+\newdimen\EndleafPageT
+\newdimen\EndleafPageB
+\EndleafPageW=\paperwidth
+\EndleafPageH=\paperheight
+\ifx\EndleafPaper\EndleafPageAthree
+  \EndleafPageW=297mm
+  \EndleafPageH=420mm
+  \EndleafPageResizetrue
+\fi
+\ifdefined\EndleafOrientation
+  \ifx\EndleafOrientation\EndleafPageLandscape
+    \EndleafPageL=\EndleafPageW
+    \EndleafPageW=\EndleafPageH
+    \EndleafPageH=\EndleafPageL
+    \EndleafPageResizetrue
+  \fi
+\fi
+\ifEndleafPageResize
+  \EndleafPageL=\dimexpr 1in+\oddsidemargin\relax
+  \EndleafPageR=\dimexpr\paperwidth-\EndleafPageL-\textwidth\relax
+  \EndleafPageT=\dimexpr 1in+\topmargin+\headheight+\headsep\relax
+  \EndleafPageB=\dimexpr\paperheight-\EndleafPageT-\textheight\relax
+  \paperwidth=\EndleafPageW
+  \paperheight=\EndleafPageH
+  \textwidth=\dimexpr\paperwidth-\EndleafPageL-\EndleafPageR\relax
+  \textheight=\dimexpr\paperheight-\EndleafPageT-\EndleafPageB\relax
+  \evensidemargin=\oddsidemargin
+\fi
+\ifdefined\pdfpagewidth
+  \pdfpagewidth=\paperwidth
+  \pdfpageheight=\paperheight
+\fi

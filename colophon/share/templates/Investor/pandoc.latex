@@ -1,3 +1,6 @@
+$if(endleafpaper)$\def\EndleafPaper{$endleafpaper$}$endif$
+$if(endleaforientation)$\def\EndleafOrientation{$endleaforientation$}$endif$
+\AddToHook{class/article/after}{\input{endleaf-page.tex}}
 \documentclass[10pt,$papersize$paper]{article}
 \usepackage{fontspec}
 \usepackage{xeCJK}
