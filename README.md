@@ -307,7 +307,7 @@ gate still reads `X-Colophon-Job`.
 | `memory.peak` | integer or `null` | cgroup peak, when the sandbox reported one. |
 | `memory.mode` | string | `cgroup` or `rlimit`, only when the sandbox reported it. |
 | `pids.peak` | integer or `null` | cgroup pid peak. |
-| `warnings` | array of object | Present only when non-empty. Each object is `code`, `packages`, `message`. `code` `notationPdfOnly` means inline siunitx or mhchem was kept as source text for HTML or DOCX. `packages` lists `siunitx` and `mhchem` in order. The gate reads this array from `X-Colophon-Job` (also sent as `X-Endleaf-Job`). |
+| `warnings` | array of object | Present only when non-empty. Each object is `code`, `packages`, `message`. `code` `notationPdfOnly` means inline siunitx or mhchem was kept as source text for HTML or DOCX. `packages` lists `siunitx` and `mhchem` in order. `code` `layout_overhang` means a picture runs past the text line on a TeX PDF; `packages` names `sysml-tikz` or `tikz` and the PDF is still returned (ENDLEAF-R59-OVERHANG). The gate reads this array from `X-Colophon-Job` (also sent as `X-Endleaf-Job`). |
 
 `POST /v1/jobs` errors are JSON. The object always has `error`, `result`,
 `wallSec`, `memory` (`peak`, and `mode` only when reported), and `pids`
@@ -365,7 +365,7 @@ ENDLEAF-R27. `POST /v1/jobs` accepts a JSON object with these fields:
 | --- | --- | --- |
 | `lane` | yes | `InstruMeasure`, `Weft`, or `Investor` |
 | `outputFormat` | yes | `pdf`, `html`, or `docx` |
-| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, `floorplan`, `sysml`, or `fulldoc` |
+| `templateId` | yes | `document-shell`, `pidcircuit`, `circuits`, `plots`, `chemistry`, `gantt`, `floorplan`, `sysml`, `fulldoc`, `tikzcd`, `forest`, `automata`, `mindmap`, `tikztiming`, or `bytefield` |
 | `body` | yes | A non-empty string. The document body only. |
 | `compiler` | no | Omitted, or the string `xelatex`. Any other value, including `lualatex`, is HTTP 400 `error` `rejectInvalidInput` `field` `compiler`. |
 | `pageSize` | no | Omitted, `a4`, or `letter`. Omitted means `a4`. Any other value is HTTP 400 `error` `rejectInvalidInput` `field` `pageSize` with a one-line `message`. |
@@ -386,9 +386,14 @@ Each `templateId` is a server-owned asset under
 `document-shell` and `fulldoc`, which also set `10pt`. `sysml` and
 `fulldoc` input `endleaf-fit.tex`. A sysml canvas
 wider than the portrait line at the declared type size is landscape
-at that size. `fulldoc` does not input that shared
-preamble: it loads the sold packages named in its own preamble and refuses
-`html` and `docx` (`outputFormat`). A fulldoc PDF of more than 16 pages is
+at that size. Inside a fulldoc `figure` that canvas is a landscape float
+page of its own; text after the figure keeps flowing (ENDLEAF-R59-FLOAT).
+`fulldoc` does not input that shared
+preamble: it inputs `endleaf-kinds.tex`, the same kind packages less the
+unsold `tikz-3dplot` and `tikz-feynman` (ENDLEAF-R59-KINDS), and refuses
+`html` and `docx` (`outputFormat`). The six named kinds `tikzcd`, `forest`,
+`automata`, `mindmap`, `tikztiming` and `bytefield` use the circuits
+preamble (ENDLEAF-R59-TEMPLATES). A fulldoc PDF of more than 16 pages is
 `failCapHit`. Those packages are the allowlist.
 A ```` ```tikz ```` fence uses that same font block plus the allowlist, so
 zh-TW labels in the fence are in the PDF image embedded in HTML and DOCX.

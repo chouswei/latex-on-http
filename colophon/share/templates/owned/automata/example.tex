@@ -1,0 +1,10 @@
+% Reference caller body for templateId automata. The worker owns the preamble.
+% The automata library is preloaded.
+\begin{tikzpicture}[shorten >=1pt, node distance=2.2cm, on grid, auto]
+  \node[state, initial] (q0) {$q_0$};
+  \node[state, accepting, right=of q0] (q1) {$q_1$};
+  \path[->]
+    (q0) edge[loop above] node {0} ()
+    (q0) edge node {1} (q1)
+    (q1) edge[loop above] node {1} ();
+\end{tikzpicture}

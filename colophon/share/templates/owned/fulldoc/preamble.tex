@@ -1,6 +1,7 @@
 % ENDLEAF-R39. Server-owned preamble for templateId fulldoc.
 % The caller sends the body only. This file is not a request field.
-% No geometry, needspace, float, or caption. No unsold package.
+% No geometry, needspace, float, or caption. No unsold package
+% (tikz-3dplot and tikz-feynman stay out).
 % PIDcircuitTikZ replaces /tikz/at and /tikz/pos. Those two keys are
 % restored with the same kernel lines as colophon-v1-preamble.tex so
 % \node at and chemfig still place. That restoration is not a package.
@@ -9,19 +10,9 @@
 \usepackage{xeCJK}
 \setCJKmainfont{Noto Sans CJK TC}
 \input{endleaf-type.tex}
-\usepackage{tikz}
-\usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap,circuits.pid.ISO14617}
-\usepackage{sysml-tikz}
-\usepackage{circuitikz}
-\usepackage{siunitx}
-\usepackage{pgfplots}
-\pgfplotsset{compat=1.18}
-\usepackage{chemfig}
-\usepackage{mhchem}
-\usepackage{pgfgantt}
-\usepackage{tikz-dimline}
-\usepackage{tikzscale}
-\usepackage{endleaf-floorplan}
+% ENDLEAF-R59-KINDS. Every sold Figure kind, so a stored document's
+% Figure renders whatever kind it holds.
+\input{endleaf-kinds.tex}
 \setlength{\belowcaptionskip}{4pt}
 \makeatletter
 \tikzoption{at}{\tikz@scan@one@point\tikz@set@at#1}%

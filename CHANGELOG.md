@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-10-09 (ENDLEAF-R59)
+
+* ENDLEAF-R59-KINDS: `fulldoc` inputs the new `endleaf-kinds.tex`, so
+  `tikzcd`, `forest`, `tikztimingtable` and `bytefield` render inside a
+  fulldoc figure. The file is the colophon-v1 kind packages less the unsold
+  `tikz-3dplot` and `tikz-feynman`; a test keeps the two lists in step.
+  `packageSetHash` is unchanged. Cost: about +0.06 s per pass, no new fonts.
+* ENDLEAF-R59-TEMPLATES: owned templates `tikzcd`, `forest`, `automata`,
+  `mindmap`, `tikztiming` and `bytefield` (the circuits preamble).
+* ENDLEAF-R59-FLOAT: a landscape sysml canvas inside a fulldoc figure is a
+  page-only float shipped alone on a landscape page. No forced `\newpage` or
+  `\clearpage`, so the portrait page before it is filled with the text that
+  follows; later figures keep their order.
+* ENDLEAF-R59-OVERHANG: `ENDLEAF_OVERHANG` and `ENDLEAF_WIDE_PICTURE` log
+  lines become a `layout_overhang` entry in the job record `warnings`.
+* ENDLEAF-R59-TYPE: bytefield bit numbers are `\scriptsize` sans (7 pt, was
+  5 pt); pgfplots tick labels use the Endleaf sans (TeX Gyre Heros) digits.
+* Roll this worker before the gate that sends the six kinds as templates.
+
 ## 2026-10-09 (ENDLEAF-R58)
 
 * ENDLEAF-R58-BODYLINE: compose records the job.tex line where the caller's

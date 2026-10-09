@@ -11,6 +11,14 @@
 % Caller \pdfpagewidth in the body is not the switch: a minipage
 % group would restore portrait at shipout.
 % Plain tikzpictures are not scaled; a wide one logs ENDLEAF_WIDE_PICTURE.
+% ENDLEAF-R59-FLOAT. Inside a figure, a canvas that needs landscape makes
+% that float page-only: it is never set here, top or bottom on a portrait
+% page and never shares a float page. When it reaches the head of the
+% deferred list it ships alone on a landscape page; the next page is
+% portrait. Text after the figure keeps flowing: no forced page break.
+% ENDLEAF-R59-OVERHANG. A shipped canvas still wider than its line logs
+% ENDLEAF_OVERHANG; the worker turns that and ENDLEAF_WIDE_PICTURE into a
+% layout_overhang job warning.
 % ENDLEAF-R56-FIT. The class paper option sets the size (A4, Letter or
 % A3); \EndleafPaper names it in errors. With no job orientation
 % (\EndleafOrientation undefined) the choice above is unchanged. With a
@@ -44,6 +52,7 @@
 \newif\ifelfit@landscaped
 \newif\ifelfit@insidefloat
 \newif\ifelfit@locked
+\newif\ifelfit@shipland
 \ifdefined\EndleafPaper
   \edef\elfit@papername{\EndleafPaper}
 \else
@@ -272,6 +281,9 @@
     \edef\elfit@reportline{\the\elfit@portline}%
   \fi
   \typeout{ENDLEAF_FIT shipped=\the\wd\elfit@picbox\space line=\elfit@reportline\space high=\the\elfit@nath\space avail=\the\elfit@availht\space uniform=\elfit@uniform\space unit=\elfit@unit\space type=\elfit@shown\space page=\elfit@page}%
+  \ifdim\wd\elfit@picbox>\elfit@reportline\relax
+    \typeout{ENDLEAF_OVERHANG package=sysml-tikz width=\the\wd\elfit@picbox\space line=\elfit@reportline}%
+  \fi
   \leavevmode\box\elfit@picbox
 }
 
@@ -300,19 +312,82 @@
 }
 % \let keeps the source scan clean: a defined name must not start
 % with end. The expansion is the same: close the minipage, then the float.
-% newpage ends the current portrait text page without shipping floats.
-% Landscape geometry then applies to the deferred float page.
+% ENDLEAF-R59-FLOAT. A landscape canvas marks its float before \end@float
+% queues it: placement p only (24 = no "!" plus p), and the box is listed
+% so the float-page builders below treat it as landscape.
 \def\elfit@closefigure{%
   \endminipage
-  \elfit@endfigure
   \ifelfit@thisland
-    \newpage
-    \elfit@setlandscape
-    \clearpage
-    \elfit@setportrait
-    \global\elfit@thislandfalse
+    \elfit@markland
   \fi
+  \elfit@endfigure
+  \global\elfit@thislandfalse
   \global\elfit@insidefloatfalse
+}
+\def\elfit@landname#1{elfit@land@\string#1}
+\def\elfit@markland{%
+  \@tempcnta\count\@currbox
+  \divide\@tempcnta\@xxxii
+  \multiply\@tempcnta\@xxxii
+  \advance\@tempcnta 24\relax
+  \global\count\@currbox\@tempcnta
+  \expandafter\global\expandafter\let
+    \csname\expandafter\elfit@landname\@currbox\endcsname\@empty
+}
+% A landscape box never joins a portrait float page: it fails the width
+% test, so later figures wait behind it and the order is kept.
+\let\elfit@testwrongwidth\@testwrongwidth
+\def\@testwrongwidth#1{%
+  \elfit@testwrongwidth#1%
+  \expandafter\ifx\csname\elfit@landname#1\endcsname\@empty
+    \global\@testtrue
+  \fi
+}
+% When the head of the deferred list is a landscape box, the float page
+% is that box alone, centred on the landscape text block. \@makefcolumn
+% (\clearpage, \end{document}) calls this too.
+\def\elfit@headof\@elt#1#2\@nil{\def\elfit@head{#1}}
+\def\elfit@restof\@elt#1#2\@nil#3{\gdef#3{#2}}
+\let\elfit@tryfcolumn\@tryfcolumn
+\def\@tryfcolumn#1{%
+  \global\@fcolmadefalse
+  \ifx#1\@empty
+  \else
+    \expandafter\elfit@headof#1\@nil
+    \expandafter\ifx\csname\expandafter\elfit@landname\elfit@head\endcsname\@empty
+      \elfit@landcolumn#1%
+    \else
+      \elfit@tryfcolumn#1%
+    \fi
+  \fi
+}
+\def\elfit@landcolumn#1{%
+  \global\@fcolmadetrue
+  \global\setbox\@outputbox\vbox to\elfit@landth{%
+    \vskip\@fptop
+    \hbox to\elfit@landtw{\hfil\box\elfit@head\hfil}%
+    \vskip\@fpbot}%
+  \expandafter\elfit@restof#1\@nil#1%
+  \begingroup
+    \let\@elt\relax
+    \xdef\@freelist{\@freelist\@elt\elfit@head}%
+  \endgroup
+  \expandafter\global\expandafter\let
+    \csname\expandafter\elfit@landname\elfit@head\endcsname\relax
+  \global\elfit@shiplandtrue
+}
+% The page that carries a landscape float page ships landscape; the
+% geometry is portrait again before the next column starts.
+\let\elfit@outputpage\@outputpage
+\def\@outputpage{%
+  \ifelfit@shipland
+    \global\elfit@shiplandfalse
+    \elfit@setlandscape
+    \elfit@outputpage
+    \elfit@setportrait
+  \else
+    \elfit@outputpage
+  \fi
 }
 \let\endfigure\elfit@closefigure
 \def\table{\@ifnextchar[\elfit@tabopt{\elfit@tabopt[\fps@table]}}

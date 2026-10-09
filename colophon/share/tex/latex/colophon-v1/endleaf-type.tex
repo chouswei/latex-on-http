@@ -33,8 +33,28 @@
   BoldFont=*-bold,
   BoldItalicFont=*-bolditalic,
 ]
+% ENDLEAF-R59-TYPE. A math family in the Endleaf sans, so pgfplots tick
+% labels (math mode: digits, minus, 10^n) match the Heros axis labels
+% instead of falling back to Computer Modern. Body math is unchanged.
+\DeclareSymbolFont{endleafsans}{TU}{\sfdefault}{m}{n}
 \makeatletter
 \AtBeginDocument{%
+  % ENDLEAF-R59-TYPE. pgfplots: tick labels in the Endleaf sans, and
+  % siunitx units inside an axis follow the label font (text mode).
+  \@ifundefined{pgfplotsset}{}{%
+    \pgfplotsset{every axis/.append style={%
+      every tick label/.append style={%
+        execute at begin node={\everymath\expandafter{\the\everymath\fam\symendleafsans}}},%
+      execute at begin axis={\@ifundefined{sisetup}{}{\sisetup{mode=text}}}}}%
+  }%
+  % ENDLEAF-R59-TYPE. bytefield bit numbers default to \tiny (5 pt in a
+  % 10 pt document), under the 7 pt floor. \scriptsize is 7 pt; the
+  % automatic bit width is measured again at that size. Labels are the
+  % Endleaf sans like every other diagram.
+  \@ifundefined{bytefieldsetup}{}{%
+    \bytefieldsetup{bitformatting={\scriptsize\sffamily}, bitwidth=auto,
+      boxformatting={\centering\sffamily}}%
+  }%
   \@ifundefined{tikzset}{}{%
     \tikzset{every picture/.append style={font=\sffamily}}%
     \tikzset{every node/.append style={font=\sffamily}}%

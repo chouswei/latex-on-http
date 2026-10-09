@@ -143,7 +143,8 @@ def create_app(config, switch, monitor, supervisor):
                 outcome.pids_peak,
                 warnings=notation_warnings(
                     job.source, job.input_kind, job.output_format
-                ),
+                )
+                + list(getattr(outcome, "layout_warnings", ()) or ()),
                 memory_mode=outcome.memory_mode,
                 tex_warnings=getattr(outcome, "tex_warnings", None),
             ),

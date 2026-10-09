@@ -1,0 +1,12 @@
+% ENDLEAF-R59-TEMPLATES. Server-owned preamble for templateId bytefield.
+% The caller sends the body only. This file is not a request field.
+\documentclass[__PAPER__]{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\input{endleaf-type.tex}
+\input{colophon-v1-preamble.tex}
+\newcommand{\EndleafLane}{__LANE__}
+\begin{document}
+__BODY__
+\end{document}
