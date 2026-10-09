@@ -179,8 +179,19 @@ def _pdf_pages(pdf):
 _CMR_BODY = re.compile(r"cmr(?![5-9])")
 
 
+# A subset font name starts with a random six-letter tag (NCMRNR+TeXGyreCursor).
+# The tag is not part of the font name and may contain any letters, cmr included.
+_SUBSET_TAG = re.compile(r"^[A-Z]{6}\+")
+
+
+def font_name(row):
+    """The font name of a pdffonts row, without its subset tag."""
+    return _SUBSET_TAG.sub("", row.split()[0]) if row.split() else ""
+
+
 def _fonts_blob(rows):
-    return "\n".join(rows).lower().replace("-", "").replace(" ", "")
+    names = (font_name(row) for row in rows)
+    return "\n".join(names).lower().replace("-", "").replace(" ", "")
 
 
 def _body_type_error(lines):
