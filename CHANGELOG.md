@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-10-09 (ENDLEAF-R60)
+
+* ENDLEAF-R60-LAYOUT: `fulldoc` inputs the new `endleaf-layout.tex`. The
+  Endleaf gate puts zero-size marks in the body it compiles
+  (`\EndleafMark{id}{s|e|r}` in a paragraph or heading, `\EndleafVMark` at
+  a float's edges and around raw parts). At shipout each mark logs its page,
+  vertical position and orientation; a picture inside a float logs its
+  shipped size; the text block is logged once. The worker turns the final
+  pass's lines into a JSON map, deflates and base64url-encodes it (at most
+  12000 bytes; larger maps are dropped) and returns it in the
+  `X-Endleaf-Layout` response header. No header when the body has no marks.
+* The marks typeset nothing: a test shows the same text with and without
+  them. Kernel primitives only, so `packageSetHash` is unchanged.
+  `endleaf-fit.tex` is not edited (it stays the pinned vendored copy); the
+  layout file wraps its picture-closing macros after it is loaded.
+* Bodies from a gate with marks start with `\providecommand` fallbacks, so
+  they still compile on an older worker (no header then). Roll this worker
+  before the gate that reads the header.
+
 ## 2026-10-09 (ENDLEAF-R59)
 
 * ENDLEAF-R59-KINDS: `fulldoc` inputs the new `endleaf-kinds.tex`, so

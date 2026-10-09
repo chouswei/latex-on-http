@@ -1,0 +1,55 @@
+% ENDLEAF-R60-LAYOUT. Page layout map for fulldoc. Kernel primitives only;
+% this file is not a package, so packageSetHash does not change.
+% The gate puts \EndleafMark{id}{tag} into the body it compiles: tag s at a
+% part's start, e at its end, r before a \ref (id is then the label). At
+% shipout each mark logs its page and vertical position:
+%   ENDLEAF_MARK id tag page ypos-sp orientation
+% A picture inside a float logs its shipped size once, at compile time:
+%   ENDLEAF_PICBOX id width height
+% (endleaf-fit.tex is vendored and pinned, so this file wraps two of its
+% macros after it is loaded instead of editing it; input it after the fit.)
+% and the text block is logged once at \begin{document}:
+%   ENDLEAF_GEOM paperheight-sp texttop-sp textheight-sp linewidth-sp
+% The worker turns these lines into the layout map it returns with the PDF.
+% Nothing here changes what is typeset: a mark is a whatsit in horizontal
+% mode (a paragraph, a heading); \EndleafVMark is the same mark in vertical
+% mode, at the top and bottom of a float's minipage, where no page can
+% break, and around a raw LaTeX part.
+\makeatletter
+\def\ellay@cur{}
+\protected\def\EndleafMark#1#2{%
+  \ifvmode\ifinner\else\leavevmode\fi\fi
+  \xdef\ellay@cur{\detokenize{#1}}%
+  \pdfsavepos
+  \write-1{ENDLEAF_MARK \detokenize{#1} \detokenize{#2} \thepage\space\the\pdflastypos\space\elfit@page}%
+}
+% Vertical-mode marks: float edges (inside the float's minipage) and raw parts.
+\protected\def\EndleafVMark#1#2{%
+  \xdef\ellay@cur{\detokenize{#1}}%
+  \pdfsavepos
+  \write-1{ENDLEAF_MARK \detokenize{#1} \detokenize{#2} \thepage\space\the\pdflastypos\space\elfit@page}%
+}
+\def\ellay@picture#1{%
+  \ifelfit@insidefloat
+    \typeout{ENDLEAF_PICBOX \ellay@cur\space\the\wd#1\space\the\dimexpr\ht#1+\dp#1\relax}%
+  \fi
+}
+% A sysml canvas: its box is final once the type size is published.
+\let\ellay@publishtype\elfit@publishtype
+\def\elfit@publishtype{\ellay@publishtype\ellay@picture\elfit@picbox}
+% A plain tikz picture: the same steps as endleaf-fit.tex, with the log line.
+\def\elfit@closetizpicture{%
+    \elfit@endtikzpicture
+  \egroup
+  \ellay@picture\elfit@plainbox
+  \ifdim\wd\elfit@plainbox>\linewidth
+    \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\linewidth}%
+  \fi
+  \leavevmode\box\elfit@plainbox
+}
+\let\endtikzpicture\elfit@closetizpicture
+\let\endcircuitikz\endtikzpicture
+\AtBeginDocument{%
+  \typeout{ENDLEAF_GEOM \the\paperheight\space\the\dimexpr\paperheight-1in-\topmargin-\headheight-\headsep\relax\space\the\textheight\space\the\linewidth}%
+}
+\makeatother

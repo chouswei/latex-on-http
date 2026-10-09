@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from colophon.cgroup_caps import CpuControllerMissing
 from colophon.diagnostics import parse_stderr
+from colophon.layout_map import parse_layout_map
 from colophon.layout_warn import parse_layout
 from colophon.enums import job_payload
 from colophon.tex_log import parse_tex_warnings
@@ -51,6 +52,8 @@ class Outcome:
     tex_warnings: dict | None = None
     # ENDLEAF-R59-OVERHANG. layout_overhang warnings; empty when none.
     layout_warnings: tuple = ()
+    # ENDLEAF-R60-LAYOUT. Encoded page layout map; None when absent.
+    layout_map: str | None = None
 
     @property
     def ok(self):
@@ -368,6 +371,7 @@ def make_podman_runner(config, switch):
                 memory_mode=meters.get("memoryMode"),
                 tex_warnings=parse_tex_warnings(stderr),
                 layout_warnings=tuple(parse_layout(stderr)),
+                layout_map=parse_layout_map(stderr),
             )
         finally:
             done.set()

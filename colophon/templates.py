@@ -85,6 +85,7 @@ ALLOWED_INPUTS = frozenset(
         "endleaf-credit.tex",
         "endleaf-type.tex",
         "endleaf-kinds.tex",
+        "endleaf-layout.tex",
     }
 )
 
