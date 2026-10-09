@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-10-09 (ENDLEAF-R58)
+
+* ENDLEAF-R58-BODYLINE: compose records the job.tex line where the caller's
+  body starts. A TeX error inside the body is reported as `diagnostic.file`
+  `"body"` with `line` counted from the body's first line (1-based). An error
+  in the worker preamble, after the body or in another file keeps its file
+  (`job.tex`, …) and line unchanged. The Endleaf gate maps body lines of a
+  compiled Document to its parts; roll this worker before that gate.
+
 ## 2026-10-08 (ENDLEAF-R57)
 
 The requirements live in the Endleaf model
