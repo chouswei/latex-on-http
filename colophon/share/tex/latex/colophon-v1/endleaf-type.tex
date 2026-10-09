@@ -56,8 +56,14 @@
       boxformatting={\centering\sffamily}}%
   }%
   \@ifundefined{tikzset}{}{%
+    % ENDLEAF-R62-FONT. Nodes take the Endleaf sans ON TOP of the font in
+    % force: font= replaces the node font, so a plain every-node font=\sffamily
+    % threw away a picture-level font such as font=\large (the text stayed at
+    % 10 pt). "endleaf sans" appends \sffamily to the current node font.
+    \tikzset{endleaf sans/.code={%
+      \expandafter\def\expandafter\tikz@textfont\expandafter{\tikz@textfont\sffamily}}}%
     \tikzset{every picture/.append style={font=\sffamily}}%
-    \tikzset{every node/.append style={font=\sffamily}}%
+    \tikzset{every node/.append style={endleaf sans}}%
     \tikzset{every info/.append style={font=\small\sffamily}}%
   }%
   \@ifundefined{sysml@font}{}{%
