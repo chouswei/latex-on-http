@@ -34,14 +34,54 @@
     \typeout{ENDLEAF_PICBOX \ellay@cur\space\the\wd#1\space\the\dimexpr\ht#1+\dp#1\relax}%
   \fi
 }
-% A sysml canvas: its box is final once the type size is published.
+% ENDLEAF-R61-FIT. The smallest text size in force inside a picture: the
+% size each TikZ node's text starts in (after its font key) and every
+% \selectfont inside node text. A size switch inside node text, as in
+% {\large A}, still counts the node's starting size, so prefer the font key;
+% this errs small, never large, for text the picture sets. Math sub- and superscript sizes are not font
+% selections and are not seen. 99 means no text was seen. Each picture
+% logs, at compile time, its part (the last mark), kind, width, the line it
+% must fit and that smallest size:
+%   ENDLEAF_PICFIT id plain|sysml width line minsize
+% The worker turns a picture wider than its line into a layout_overhang
+% warning with the scale that fits and the text size at that scale.
+\newif\ifellay@incanvas
+\def\ellay@minfs{99}
+% TikZ selects fonts of its own outside node text; only node text counts.
+\AddToHook{selectfont}{\ifellay@innode\ellay@seen\fi}
+\def\ellay@picstart{\gdef\ellay@minfs{99}}
+\def\ellay@seen{\ifdim\f@size pt<\ellay@minfs pt\xdef\ellay@minfs{\f@size}\fi}
+\newif\ifellay@innode
+\tikzset{every text node part/.style={%
+  execute at begin node={\ellay@innodetrue\ellay@seen},
+  execute at end node={\ellay@innodefalse}}}
+\def\ellay@where{\ifx\ellay@cur\@empty -\else\ellay@cur\fi}
+\def\ellay@fit#1#2#3{%
+  \typeout{ENDLEAF_PICFIT \ellay@where\space #1 \the\wd#2\space\the\dimexpr#3\relax\space\ellay@minfs}%
+}
+% A sysml canvas: its box is final once the type size is published. The
+% plain pictures inside a canvas are part of it and do not log on their own.
+\let\ellay@fitcanvas\elfit@fitcanvas
+\def\elfit@fitcanvas{\global\ellay@incanvastrue\ellay@picstart\ellay@fitcanvas}
 \let\ellay@publishtype\elfit@publishtype
-\def\elfit@publishtype{\ellay@publishtype\ellay@picture\elfit@picbox}
-% A plain tikz picture: the same steps as endleaf-fit.tex, with the log line.
+\def\elfit@publishtype{%
+  \ellay@publishtype
+  \ellay@picture\elfit@picbox
+  \ifelfit@needland
+    \ellay@fit{sysml}\elfit@picbox\elfit@landline
+  \else
+    \ellay@fit{sysml}\elfit@picbox\elfit@portline
+  \fi
+  \global\ellay@incanvasfalse
+}
+\let\ellay@tikzon\elfit@tikzon
+\def\elfit@tikzon{\ifellay@incanvas\else\ellay@picstart\fi\ellay@tikzon}
+% A plain tikz picture: the same steps as endleaf-fit.tex, with the log lines.
 \def\elfit@closetizpicture{%
     \elfit@endtikzpicture
   \egroup
   \ellay@picture\elfit@plainbox
+  \ifellay@incanvas\else\ellay@fit{plain}\elfit@plainbox\linewidth\fi
   \ifdim\wd\elfit@plainbox>\linewidth
     \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\linewidth}%
   \fi

@@ -186,7 +186,13 @@ def render_to_stdout(payload_bytes):
                     sys.stderr.write(layout + "\n")
                 # ENDLEAF-R60-LAYOUT. Only fulldoc bodies carry marks.
                 if job.template_id == "fulldoc":
-                    mapping = layout_map_line(log)
+                    try:
+                        aux = Path("/tmp/job.aux").read_text(encoding="utf-8", errors="replace")
+                    except OSError:
+                        aux = None
+                    mapping = layout_map_line(
+                        log, body_start=body_start, body_lines=body_lines, aux=aux
+                    )
                     if mapping is not None:
                         sys.stderr.write(mapping + "\n")
         except (OSError, RenderPlanError):
