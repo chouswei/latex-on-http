@@ -3,6 +3,7 @@
 """Owner lock: one type stack on every human-facing PDF."""
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -118,5 +119,12 @@ def test_composed_body_uses_pagella_heros_cursor_not_cmr(tmp_path):
     assert "pagella" in blob
     assert "heros" in blob
     assert "cursor" in blob
+    # Font names only, without the random six-letter subset tag (it may spell CMR).
+    names = "\n".join(
+        re.sub(r"^[A-Z]{6}\+", "", row.split()[0])
+        for row in fonts.stdout.splitlines()[2:]
+        if row.split()
+    )
+    names = names.lower().replace("-", "")
     for banned in ("cmr", "lmroman", "latinmodernroman"):
-        assert banned not in blob, fonts.stdout
+        assert banned not in names, fonts.stdout

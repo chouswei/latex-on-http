@@ -132,6 +132,24 @@ _PDFONTS_LMROMAN = (
 )
 
 
+_PDFONTS_TAGGED_CURSOR = (
+    "NCMRNR+TeXGyreCursor-Regular         CID Type 0C       Identity-H"
+    "        yes yes yes     14  0"
+)
+
+
+def test_body_type_ignores_the_subset_tag():
+    """The random six-letter subset tag is not the font name (NCMRNR+ once failed a bake)."""
+    for tag in ("NCMRNR", "CMRAAA", "AACMR7", "LMROMA"):
+        row = _PDFONTS_TAGGED_CURSOR.replace("NCMRNR", tag)
+        assert _BODY_TYPE_ERROR(list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, row]) is None, tag
+    assert _KIND_FIXTURES.font_name(_PDFONTS_TAGGED_CURSOR) == "TeXGyreCursor-Regular"
+    assert _KIND_FIXTURES.font_name(_PDFONTS_CMR10) == "CMR10"
+    # A real CMR10 behind a tag still fails.
+    body_cmr = _BODY_TYPE_ERROR(list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_CMR10.replace("AAAAAA", "NCMRNR")])
+    assert body_cmr and "Computer Modern" in body_cmr
+
+
 def test_body_type_allows_cmr7_math_not_cmr10_or_latin_modern():
     math_ok = _BODY_TYPE_ERROR(
         list(_PDFONTS_HEADER) + [_PDFONTS_PAGELLA, _PDFONTS_CMMI, _PDFONTS_CMR7]
