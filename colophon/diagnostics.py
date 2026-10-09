@@ -51,6 +51,23 @@ def first_tex_error(text):
     return None
 
 
+def relocate_to_body(diagnostic, body_start, body_lines):
+    """ENDLEAF-R58-BODYLINE. A job.tex error inside the caller's body names the body.
+
+    ``file`` becomes ``"body"`` and ``line`` the 1-based body line. An error in
+    the worker's preamble or after the body keeps ``job.tex`` and its line.
+    """
+    if not isinstance(diagnostic, dict) or body_start is None or body_lines < 1:
+        return diagnostic
+    line = diagnostic.get("line")
+    if diagnostic.get("file") != "job.tex" or not isinstance(line, int):
+        return diagnostic
+    if body_start <= line < body_start + body_lines:
+        diagnostic["file"] = "body"
+        diagnostic["line"] = line - body_start + 1
+    return diagnostic
+
+
 def _add_cause(diagnostic):
     """ENDLEAF-R57-CAUSE. ``cause`` is set only when the table matches."""
     if "cause" in diagnostic:

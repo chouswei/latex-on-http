@@ -9,13 +9,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from colophon.diagnostics import first_tex_error
+from colophon.diagnostics import first_tex_error, relocate_to_body
 from colophon.enums import JobRejected, parse_job
 from colophon.limits import OUTPUT_CAP_BYTES
 from colophon.pdf_pages import fulldoc_page_count, fulldoc_page_failure
 from colophon.settings import setting
 from colophon.tex_log import count_tex_warnings, tex_warn_line
-from colophon.templates import compose
+from colophon.templates import compose_with_body_line
 from colophon.render_plan import RenderPlanError, build_render_plan
 
 
@@ -92,8 +92,9 @@ def _collect_logs():
 
 
 def _wrap_tex(template_id, lane, body, page_size="a4", orientation=None):
+    """``(job.tex text, body start line)`` (ENDLEAF-R58-BODYLINE)."""
     try:
-        return compose(
+        return compose_with_body_line(
             template_id, lane, body, page_size=page_size, orientation=orientation
         )
     except (OSError, ValueError) as exc:
@@ -117,6 +118,8 @@ def _run(command):
 
 def render_to_stdout(payload_bytes):
     plan = None
+    body_start = None
+    body_lines = 0
     data = b""
     status = "invalid"
     diagnostic = None
@@ -133,16 +136,15 @@ def render_to_stdout(payload_bytes):
                     continue
                 Path(path).write_text(content, encoding="utf-8")
             if job.input_kind == "tex" and job.output_format == "pdf":
-                Path("/tmp/job.tex").write_text(
-                    _wrap_tex(
-                        job.template_id,
-                        job.lane,
-                        job.source,
-                        job.page_size,
-                        job.orientation,
-                    ),
-                    encoding="utf-8",
+                wrapped, body_start = _wrap_tex(
+                    job.template_id,
+                    job.lane,
+                    job.source,
+                    job.page_size,
+                    job.orientation,
                 )
+                body_lines = len(job.source.split("\n"))
+                Path("/tmp/job.tex").write_text(wrapped, encoding="utf-8")
             for command in plan.commands:
                 _run(list(command))
             data = Path(plan.output_path).read_bytes()
@@ -177,7 +179,9 @@ def render_to_stdout(payload_bytes):
                 if line is not None:
                     sys.stderr.write(line + "\n")
         except (OSError, RenderPlanError):
-            diagnostic = first_tex_error(_collect_logs())
+            diagnostic = relocate_to_body(
+                first_tex_error(_collect_logs()), body_start, body_lines
+            )
             status = "render_error"
         finally:
             paths = list(plan.files) + [plan.output_path, "/tmp/job.tex"]

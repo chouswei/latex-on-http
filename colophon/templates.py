@@ -145,6 +145,20 @@ def page_macros(page_size="a4", orientation=None):
 
 def compose(template_id, lane, body, root=None, page_size="a4", orientation=None):
     """Preamble plus body. ``root`` defaults to the image share directory."""
+    return compose_with_body_line(
+        template_id, lane, body, root, page_size=page_size, orientation=orientation
+    )[0]
+
+
+def compose_with_body_line(
+    template_id, lane, body, root=None, page_size="a4", orientation=None
+):
+    """ENDLEAF-R58-BODYLINE. ``(job.tex text, body start line)``.
+
+    The start line is the 1-based line of job.tex that holds the body's first
+    line, so a TeX error at job.tex line N inside the body is body line
+    ``N - start + 1``.
+    """
     path = owned_root(root) / template_id / "preamble.tex"
     text = path.read_text(encoding="utf-8")
     # fulldoc's locked preamble has no lane stamp. Other templates have one.
@@ -158,7 +172,8 @@ def compose(template_id, lane, body, root=None, page_size="a4", orientation=None
     text = page_macros(page_size, orientation) + text.replace("__PAPER__", paper, 1)
     if "__LANE__" in text:
         text = text.replace("__LANE__", lane, 1)
-    return text.replace("__BODY__", body, 1)
+    start = text.count("\n", 0, text.index("__BODY__")) + 1
+    return text.replace("__BODY__", body, 1), start
 
 
 def example_body(template_id, root=None):
