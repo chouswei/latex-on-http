@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## 2026-10-09 (ENDLEAF-R61)
+
+* ENDLEAF-R61-FIT: `endleaf-layout.tex` logs one `ENDLEAF_PICFIT` line per
+  picture (plain TikZ or a sysml canvas): the last layout mark id, the kind,
+  the picture's rendered width, the text line it must fit, and the smallest
+  text size set in its node text. Only node text counts: a `selectfont` hook
+  is gated by `every text node part` begin and end code, because TikZ selects
+  10 pt internally many times. Limits: a size switch inside node text (for
+  example `{\large A}`) counts the node's starting size, so the minimum errs
+  small, never large; math sub- and superscripts are not measured; a picture
+  that replaces `every text node part` itself reports no text.
+* The `layout_overhang` warning is now one item per picture at least 1 pt
+  past the line, with `partId`, `overMm`, `scaleToFit` (line / width, 2
+  decimals, rounded down), `minTextPt` (smallest text at that scale, 0.1 pt,
+  rounded down; absent when the picture sets no text), `belowTypeFloor`
+  (under 7 pt) and `fix`: "scale inside the source to S", or "redraw or
+  split; scaling would put text at X pt". The message carries every field, so
+  a gate that reads only `code`, `packages` and `message` still shows them.
+  At most 10 pictures, then a count. Logs without `ENDLEAF_PICFIT` (other
+  templates) keep the R59 aggregate warning.
+* The layout map gains optional lists: `fits` [[id, width, line, minSize]],
+  `overfull` [[bodyLine, pt]] (Overfull \hbox lines inside the body, at most
+  40; body-relative as in ENDLEAF-R58) and `labels` [[label, number, page]]
+  from the final aux (at most 400). Over the 12000-byte cap they are dropped
+  in the order labels, overfull, fits before the map is. The R60 gate's
+  decoder ignores unknown keys, so this worker can roll first.
+  `endleaf-fit.tex` stays the pinned vendored copy; `packageSetHash` is
+  unchanged.
+
 ## 2026-10-09 (ENDLEAF-R60)
 
 * ENDLEAF-R60-LAYOUT: `fulldoc` inputs the new `endleaf-layout.tex`. The
