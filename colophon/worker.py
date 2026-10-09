@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException
 
 from colophon.enums import JobRejected, parse_job
 from colophon.job_result import job_record
+from colophon.layout_map import LAYOUT_HEADER
 from colophon.notation import notation_warnings
 from colophon.legacy import parse_legacy_build
 from colophon.limits import HOST_LOAD_REPORT_INTERVAL_SEC, INPUT_CAP_BYTES
@@ -151,6 +152,10 @@ def create_app(config, switch, monitor, supervisor):
             separators=(",", ":"),
         )
         response.headers["X-Endleaf-Result"] = "ok"
+        # ENDLEAF-R60-LAYOUT. The page layout map of a fulldoc render.
+        layout = getattr(outcome, "layout_map", None)
+        if layout:
+            response.headers[LAYOUT_HEADER] = layout
         response.headers["X-Endleaf-Job"] = record
         # The live gate still reads the old header names.
         response.headers["X-Colophon-Result"] = "ok"
