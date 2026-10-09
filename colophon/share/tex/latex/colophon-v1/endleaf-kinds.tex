@@ -1,0 +1,27 @@
+% Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% ENDLEAF-R59-KINDS. The packages of every sold Figure kind, for the
+% fulldoc template. A stored document's Figure may hold any of these
+% kinds. colophon-v1-preamble.tex keeps its own list for the per-kind
+% templates and the fences; a worker test keeps the two lists equal
+% except tikz-3dplot and tikz-feynman, which are installed but not sold.
+% This file is not a package. Every name here is already in the package
+% set, so packageSetHash does not change.
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap,circuits.pid.ISO14617}
+\usepackage{sysml-tikz}
+\usepackage{circuitikz}
+\usepackage{siunitx}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{chemfig}
+\usepackage{mhchem}
+\usepackage{tikz-cd}
+\usepackage{forest}
+\usepackage{tikz-timing}
+\usepackage{bytefield}
+\usepackage{pgfgantt}
+\usepackage{tikz-dimline}
+\usepackage{tikzscale}
+\usepackage{endleaf-floorplan}

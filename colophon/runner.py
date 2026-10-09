@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from colophon.cgroup_caps import CpuControllerMissing
 from colophon.diagnostics import parse_stderr
+from colophon.layout_warn import parse_layout
 from colophon.enums import job_payload
 from colophon.tex_log import parse_tex_warnings
 from colophon.limits import (
@@ -48,6 +49,8 @@ class Outcome:
     diagnostic: dict | None = None
     # ENDLEAF-R57-WARN. Present only when a count is above zero.
     tex_warnings: dict | None = None
+    # ENDLEAF-R59-OVERHANG. layout_overhang warnings; empty when none.
+    layout_warnings: tuple = ()
 
     @property
     def ok(self):
@@ -364,6 +367,7 @@ def make_podman_runner(config, switch):
                 pids_peak=meters.get("pidsPeak"),
                 memory_mode=meters.get("memoryMode"),
                 tex_warnings=parse_tex_warnings(stderr),
+                layout_warnings=tuple(parse_layout(stderr)),
             )
         finally:
             done.set()

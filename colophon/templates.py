@@ -14,7 +14,7 @@ from pathlib import Path
 
 from colophon.limits import SHARE_ROOT
 
-# Gate playbook order. document-shell is Markdown. The other eight are TeX.
+# Gate playbook order. document-shell is Markdown. The others are TeX.
 # fulldoc is PDF only (ENDLEAF-R39). It is not a sold kind.
 TEMPLATE_IDS = (
     "document-shell",
@@ -26,6 +26,15 @@ TEMPLATE_IDS = (
     "floorplan",
     "sysml",
     "fulldoc",
+    # ENDLEAF-R59-TEMPLATES. The six named playbook kinds. Same preamble
+    # as circuits; before this the gate wrapped them as a document-shell
+    # tikz fence on PDF too.
+    "tikzcd",
+    "forest",
+    "automata",
+    "mindmap",
+    "tikztiming",
+    "bytefield",
 )
 
 # article, the base fonts, and the names in colophon-v1-preamble.tex.
@@ -75,6 +84,7 @@ ALLOWED_INPUTS = frozenset(
         "endleaf-fit.tex",
         "endleaf-credit.tex",
         "endleaf-type.tex",
+        "endleaf-kinds.tex",
     }
 )
 
@@ -96,6 +106,12 @@ TEMPLATES = {
     "floorplan": TemplateAsset("floorplan", "tex", "example.tex"),
     "sysml": TemplateAsset("sysml", "tex", "example.tex"),
     "fulldoc": TemplateAsset("fulldoc", "tex", "example.tex"),
+    "tikzcd": TemplateAsset("tikzcd", "tex", "example.tex"),
+    "forest": TemplateAsset("forest", "tex", "example.tex"),
+    "automata": TemplateAsset("automata", "tex", "example.tex"),
+    "mindmap": TemplateAsset("mindmap", "tex", "example.tex"),
+    "tikztiming": TemplateAsset("tikztiming", "tex", "example.tex"),
+    "bytefield": TemplateAsset("bytefield", "tex", "example.tex"),
 }
 
 

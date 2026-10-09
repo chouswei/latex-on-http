@@ -1,0 +1,5 @@
+% Reference caller body for templateId bytefield. The worker owns the preamble.
+\begin{bytefield}{32}
+  \bitheader{0,8,16,24,31} \\
+  \bitbox{8}{Type} & \bitbox{8}{Code} & \bitbox{16}{Checksum}
+\end{bytefield}

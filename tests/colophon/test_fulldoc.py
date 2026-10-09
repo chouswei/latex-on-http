@@ -60,7 +60,7 @@ _FIT = re.compile(
     r"uniform=([0-9.]+) unit=([0-9.]+) type=([0-9.]+) "
     r"page=(portrait|landscape)"
 )
-_ENDLEAF_FIT_BLOB = "464cf4a56787ed8a4fa9b5fba94c352b00b426a5"
+_ENDLEAF_FIT_BLOB = "b8323c2b8b2bc2700da13469e23fe3f3f8c224f5"
 # Sysml preamble is the R49 vendor plus __PAPER__ for job pageSize.
 _ENDLEAF_SYSML_PREAMBLE_BLOB = "3b38c57495eb15afc7233c7758c5865d84616716"
 _BOX = re.compile(
@@ -215,8 +215,16 @@ def test_endleaf_fit_landscapes_at_declared_type_and_refuses_crush():
     assert r"\RenewDocumentEnvironment{figure}" not in text
     assert r"\RenewDocumentEnvironment{table}" not in text
     assert r"\def\figure" in text
-    assert r"\newpage" in text
-    assert r"\clearpage" in text
+    # ENDLEAF-R59-FLOAT. No forced break: a landscape figure is a
+    # page-only float shipped alone on a landscape float page.
+    code = "\n".join(line.split("%", 1)[0] for line in text.splitlines())
+    assert r"\newpage" not in code
+    assert r"\clearpage" not in code
+    assert r"\elfit@markland" in text
+    assert r"\def\@tryfcolumn" in text
+    assert r"\def\@testwrongwidth" in text
+    assert r"\def\@outputpage" in text
+    assert "ENDLEAF_OVERHANG" in text
     assert r"renewcommand{\sysml@typeset}" in text
     assert r"\begin{minipage}{\linewidth}" in text
 

@@ -14,6 +14,7 @@ from colophon.enums import JobRejected, parse_job
 from colophon.limits import OUTPUT_CAP_BYTES
 from colophon.pdf_pages import fulldoc_page_count, fulldoc_page_failure
 from colophon.settings import setting
+from colophon.layout_warn import layout_line, layout_warnings
 from colophon.tex_log import count_tex_warnings, tex_warn_line
 from colophon.templates import compose_with_body_line
 from colophon.render_plan import RenderPlanError, build_render_plan
@@ -178,6 +179,10 @@ def render_to_stdout(payload_bytes):
                 line = tex_warn_line(count_tex_warnings(log))
                 if line is not None:
                     sys.stderr.write(line + "\n")
+                # ENDLEAF-R59-OVERHANG. A picture past its text line.
+                layout = layout_line(layout_warnings(log))
+                if layout is not None:
+                    sys.stderr.write(layout + "\n")
         except (OSError, RenderPlanError):
             diagnostic = relocate_to_body(
                 first_tex_error(_collect_logs()), body_start, body_lines
