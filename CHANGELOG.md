@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-10-09 (ENDLEAF-R62)
+
+* ENDLEAF-R62-FONT: a picture-level font size now reaches node text. The
+  type stack set `every node/.append style={font=\sffamily}`; `font=`
+  replaces the node font, so `\begin{tikzpicture}[font=\large]` set its
+  nodes at 10 pt (measured: 9.96 pt high in the PDF, and ENDLEAF_PICFIT
+  reported 10). Nodes now take a new `endleaf sans` key that appends
+  `\sffamily` to the font in force, so picture-level sizes and families are
+  kept and the Endleaf sans still applies. Applies to every template that
+  inputs `endleaf-type.tex`. A node's own `font=` still replaces the picture
+  font, as in plain TikZ. `packageSetHash` is unchanged (no new packages).
+
 ## 2026-10-09 (ENDLEAF-R61)
 
 * ENDLEAF-R61-FIT: `endleaf-layout.tex` logs one `ENDLEAF_PICFIT` line per
