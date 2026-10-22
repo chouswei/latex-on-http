@@ -163,6 +163,10 @@ def test_every_pdf_preamble_inputs_the_credit():
     assert "\\input{endleaf-credit.tex}" in shared
     for template_id in TEMPLATE_IDS:
         text = (_OWNED / template_id / "preamble.tex").read_text(encoding="utf-8")
+        if template_id == "stocklabel":
+            # ENDLEAF-R66. A shelf label carries no document credit line.
+            assert "\\input{endleaf-credit.tex}" not in text
+            continue
         if template_id == "fulldoc":
             assert "\\input{colophon-v1-preamble.tex}" not in text
             assert "\\input{endleaf-credit.tex}" in text

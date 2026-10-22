@@ -52,6 +52,10 @@ def test_templates_input_endleaf_type_after_cjk():
     assert "\\usepackage{xeCJK}" not in text
     for template_id in TEMPLATE_IDS:
         preamble = (_OWNED / template_id / "preamble.tex").read_text(encoding="utf-8")
+        if template_id == "stocklabel":
+            # ENDLEAF-R66-FIELDS. Heros without the TeX ligature mapping.
+            assert "\\input{endleaf-label.tex}" in preamble
+            continue
         assert "\\input{endleaf-type.tex}" in preamble
         assert preamble.index("\\setCJKmainfont{Noto Sans CJK TC}") < preamble.index(
             "\\input{endleaf-type.tex}"

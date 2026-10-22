@@ -14,7 +14,7 @@ from colophon.enums import JobRejected, parse_job
 from colophon.limits import OUTPUT_CAP_BYTES
 from colophon.pdf_pages import fulldoc_page_count, fulldoc_page_failure
 from colophon.settings import setting
-from colophon.layout_map import layout_map_line
+from colophon.layout_map import label_fit_line, layout_map_line
 from colophon.layout_warn import layout_line, layout_warnings
 from colophon.tex_log import count_tex_warnings, tex_warn_line
 from colophon.templates import compose_with_body_line
@@ -93,11 +93,11 @@ def _collect_logs():
     return "\n".join(chunks)
 
 
-def _wrap_tex(template_id, lane, body, page_size="a4", orientation=None):
+def _wrap_tex(template_id, lane, body, page_size="a4", orientation=None, label_size=None):
     """``(job.tex text, body start line)`` (ENDLEAF-R58-BODYLINE)."""
     try:
         return compose_with_body_line(
-            template_id, lane, body, page_size=page_size, orientation=orientation
+            template_id, lane, body, page_size=page_size, orientation=orientation, label_size=label_size
         )
     except (OSError, ValueError) as exc:
         raise RenderPlanError("wrapper") from exc
@@ -144,6 +144,7 @@ def render_to_stdout(payload_bytes):
                     job.source,
                     job.page_size,
                     job.orientation,
+                    job.label_size,
                 )
                 body_lines = len(job.source.split("\n"))
                 Path("/tmp/job.tex").write_text(wrapped, encoding="utf-8")
@@ -192,9 +193,14 @@ def render_to_stdout(payload_bytes):
                         aux = Path("/tmp/job.aux").read_text(encoding="utf-8", errors="replace")
                     except OSError:
                         aux = None
-                mapping = layout_map_line(
-                    log, body_start=body_start, body_lines=body_lines, aux=aux, source=job.source
-                )
+                # ENDLEAF-R66-FIT. A stocklabel job sends its labelFit map instead: the
+                # runner reads one map per job, and label fit is the label's check.
+                if job.template_id == "stocklabel":
+                    mapping = label_fit_line(log)
+                else:
+                    mapping = layout_map_line(
+                        log, body_start=body_start, body_lines=body_lines, aux=aux, source=job.source
+                    )
                 if mapping is not None:
                     sys.stderr.write(mapping + "\n")
         except (OSError, RenderPlanError):

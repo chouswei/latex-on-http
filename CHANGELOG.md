@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-10-22 (ENDLEAF-R66)
+
+* ENDLEAF-R66: a `stocklabel` template. The gate writes the body from
+  validated fields (one `\EndleafStockLabel` per label, one label per page,
+  the QR as merged module rectangles); `endleaf-label.tex` owns the layout:
+  the QR at the left, full printable height, then the name (bold, 16 pt down
+  to 9 pt in 0.5 pt steps), one spec line (7 pt; drops package, then current,
+  then 6.5 and 6 pt) and `Stock #<id>` (6 pt). Nothing is truncated.
+* ENDLEAF-R66-SIZE: the job takes `labelSize` (`widthMm`, `heightMm`,
+  `marginXMm`, `marginYMm`) instead of `pageSize` for this template; the
+  template sets `\paperwidth`, `\paperheight`, `\pdfpagewidth` and
+  `\pdfpageheight`. `pageSize` and `orientation` are refused on it.
+* ENDLEAF-R66-FIELDS: the label fonts are TeX Gyre Heros without the TeX
+  ligature mapping (`--`, `---`, quotes print as typed).
+* ENDLEAF-R66-FIT: each label line logs `ENDLEAF_LABELFIT`; the sandbox
+  sends `labelFit` rows and the distinct missing-glyph count in the
+  `X-Endleaf-Layout` map. Sizes and flags only, never label text.
+  `packageSetHash` is unchanged (no new packages).
+
 ## 2026-10-22 (ENDLEAF-R64-ROWS)
 
 * Every TeX-path template (not only fulldoc) sends its overfull boxes in the

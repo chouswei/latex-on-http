@@ -1,0 +1,14 @@
+% ENDLEAF-R66-TEMPLATE. Server-owned preamble for templateId stocklabel.
+% The gate writes the body from validated fields: one \EndleafStockLabel per
+% label, one label per page. The page size comes from the job's labelSize
+% (macros written before \documentclass). No new package.
+\documentclass[__PAPER__]{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK TC}
+\setCJKsansfont{Noto Sans CJK TC}
+\input{endleaf-label.tex}
+\newcommand{\EndleafLane}{__LANE__}
+\begin{document}
+__BODY__
+\end{document}

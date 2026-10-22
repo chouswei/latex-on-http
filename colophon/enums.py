@@ -42,6 +42,8 @@ class JobSpec:
     template_id: str = "document-shell"
     page_size: str = "a4"
     orientation: str | None = None
+    # ENDLEAF-R66-SIZE. stocklabel only: (widthMm, heightMm, marginXMm, marginYMm).
+    label_size: tuple[float, float, float, float] | None = None
 
     @property
     def content_type(self):
@@ -90,6 +92,17 @@ def parse_job(payload):
     orientation = payload.get("orientation")
     if orientation is not None and orientation not in ORIENTATIONS:
         raise JobRejected("orientation", "orientation must be portrait or landscape")
+    label_size = None
+    if template_id == "stocklabel":
+        # ENDLEAF-R66-SIZE. A label page, not a sheet: labelSize, never pageSize.
+        if output_format != "pdf":
+            raise JobRejected("outputFormat", "stocklabel is pdf only")
+        if "orientation" in payload or ("pageSize" in payload and payload.get("pageSize") is not None):
+            raise JobRejected("pageSize", "stocklabel takes labelSize, not pageSize or orientation")
+        label_size = parse_label_size(payload.get("labelSize"))
+        page_size = "a4"
+    elif "labelSize" in payload:
+        raise JobRejected("labelSize", "labelSize is for templateId stocklabel")
     asset = TEMPLATES[template_id]
     return JobSpec(
         source=source,
@@ -99,7 +112,34 @@ def parse_job(payload):
         template_id=template_id,
         page_size=page_size,
         orientation=orientation,
+        label_size=label_size,
     )
+
+
+# ENDLEAF-R66-SIZE. The gate owns the presets and the column rule; the
+# worker only checks the page is sane. Millimetres.
+LABEL_WIDTH_MM = (12.0, 1000.0)
+LABEL_HEIGHT_MM = (9.0, 210.0)
+LABEL_MARGIN_MM = (0.0, 10.0)
+_LABEL_KEYS = ("widthMm", "heightMm", "marginXMm", "marginYMm")
+
+
+def parse_label_size(raw):
+    """``(w, h, mx, my)`` in mm from a labelSize object. ``JobRejected`` if bad."""
+    if not isinstance(raw, dict) or set(raw) != set(_LABEL_KEYS):
+        raise JobRejected("labelSize", "labelSize is widthMm, heightMm, marginXMm, marginYMm")
+    values = []
+    for key in _LABEL_KEYS:
+        value = raw[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise JobRejected("labelSize", f"{key} must be a number")
+        values.append(round(float(value), 2))
+    width, height, mx, my = values
+    if not (LABEL_WIDTH_MM[0] <= width <= LABEL_WIDTH_MM[1] and LABEL_HEIGHT_MM[0] <= height <= LABEL_HEIGHT_MM[1]):
+        raise JobRejected("labelSize", "label page out of range")
+    if not all(LABEL_MARGIN_MM[0] <= m <= LABEL_MARGIN_MM[1] for m in (mx, my)) or 2 * mx >= width or 2 * my >= height:
+        raise JobRejected("labelSize", "label margins out of range")
+    return (width, height, mx, my)
 
 
 def job_payload(job):
@@ -119,4 +159,7 @@ def job_payload(job):
     }
     if job.orientation is not None:
         payload["orientation"] = job.orientation
+    if job.label_size is not None:
+        del payload["pageSize"]
+        payload["labelSize"] = dict(zip(_LABEL_KEYS, job.label_size))
     return payload

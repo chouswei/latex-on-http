@@ -1,0 +1,156 @@
+% Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
+% SPDX-License-Identifier: AGPL-3.0-or-later
+%
+% ENDLEAF-R66. Stock label layout: the QR at the left, full printable
+% height; right of it a text column with three lines (owner decision
+% 2026-10-22 16:23): the name (bold, 16 pt down to 9 pt in 0.5 pt steps,
+% never truncated), one spec line (7 pt; drops package, then current; then
+% 6.5 and 6 pt), and "Stock #<id>" (6 pt). Nothing is truncated. Each line
+% logs one row:
+%   ENDLEAF_LABELFIT <label> <name|spec|stock> <pt> <dropped|-> <ok|over>
+% Fonts: the Endleaf sans (TeX Gyre Heros) WITHOUT the TeX ligature
+% mapping, so -- --- `` '' !` ?` print as typed (ENDLEAF-R66-FIELDS). The
+% gate also escapes those characters.
+%
+% Page macros, written by the worker before \documentclass:
+%   \EndleafLabelW \EndleafLabelH  page width and height (mm, no unit)
+%   \EndleafLabelMX \EndleafLabelMY  printable margins (mm, no unit)
+\setmainfont{texgyreheros}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  BoldFont=*-bold,
+  ItalicFont=*-italic,
+  BoldItalicFont=*-bolditalic,
+  Ligatures=NoCommon,
+]
+\setsansfont{texgyreheros}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  BoldFont=*-bold,
+  ItalicFont=*-italic,
+  BoldItalicFont=*-bolditalic,
+  Ligatures=NoCommon,
+]
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{tikz}
+\makeatletter
+\paperwidth=\EndleafLabelW mm
+\paperheight=\EndleafLabelH mm
+\pdfpagewidth=\paperwidth
+\pdfpageheight=\paperheight
+\hoffset=-1in
+\voffset=-1in
+\oddsidemargin=0pt
+\evensidemargin=0pt
+\topmargin=0pt
+\headheight=0pt
+\headsep=0pt
+\footskip=0pt
+\marginparwidth=0pt
+\marginparsep=0pt
+\textwidth=\paperwidth
+\textheight=\paperheight
+\parindent=0pt
+\parskip=0pt
+\pagestyle{empty}
+% XeTeX logs a glyph the font lacks; the worker counts these lines.
+\tracinglostchars=1
+\newdimen\EndleafModule \EndleafModule=0.33867mm
+\newdimen\EndleafGap \EndleafGap=2mm
+\newdimen\EndleafCol
+\newdimen\EndleafW
+\newdimen\EndleafColX
+\newdimen\EndleafTop
+\newdimen\EndleafBottom
+\newdimen\EndleafQrSide
+\newcount\EndleafLabelNo
+\def\EndleafPt#1{\strip@pt#1}
+% \q{x1}{y1}{x2}{y2}: one merged run of dark modules, module units, y down.
+\def\q#1#2#3#4{\fill(#1,#2)rectangle(#3,#4);}
+% Spec segments (function rating current power extra package).
+\def\EndleafSegJoin#1#2{\ifx#2\@empty\else\ifx\EndleafSpecText\@empty
+  \def\EndleafSpecText{#2}\else\expandafter\def\expandafter\EndleafSpecText
+  \expandafter{\EndleafSpecText\ #2}\fi\fi}
+\def\EndleafBuildSpec{%
+  \let\EndleafSpecText\@empty
+  \EndleafSegJoin{f}{\EndleafSegF}\EndleafSegJoin{r}{\EndleafSegR}%
+  \ifEndleafKeepCurrent\EndleafSegJoin{c}{\EndleafSegC}\fi
+  \EndleafSegJoin{p}{\EndleafSegP}\EndleafSegJoin{e}{\EndleafSegE}%
+  \ifEndleafKeepPackage\EndleafSegJoin{k}{\EndleafSegK}\fi}
+\newif\ifEndleafKeepCurrent
+\newif\ifEndleafKeepPackage
+\newif\ifEndleafFits
+% Width of #2 at size #1 pt; bold when \EndleafBold is \bfseries.
+\def\EndleafMeasure#1#2{\setbox0=\hbox{\fontsize{#1pt}{#1pt}\selectfont\EndleafFace#2}\EndleafW=\wd0\relax}
+% Body, written by the gate for each label:
+%   \def\EndleafQrRects{\q{x1}{y1}{x2}{y2}...}
+%   \EndleafStockLabel{modules}{name}{function}{rating}{current}{power}{extra}{package}{stockId}
+\long\def\EndleafStockLabel#1#2#3#4#5#6#7#8#9{%
+  \global\advance\EndleafLabelNo by 1
+  \EndleafQrSide=#1\EndleafModule
+  \EndleafColX=\dimexpr\EndleafLabelMX mm+\EndleafQrSide+\EndleafGap\relax
+  \EndleafCol=\dimexpr\paperwidth-\EndleafLabelMX mm-\EndleafColX\relax
+  % Name: 16 pt down to 9 pt in 0.5 pt steps.
+  \let\EndleafFace\bfseries
+  \def\EndleafSize{16}%
+  \EndleafMeasure{\EndleafSize}{#2}%
+  \loop
+    \ifdim\EndleafW>\EndleafCol \ifdim\EndleafSize pt>9pt \EndleafFitstrue\else\EndleafFitsfalse\fi
+    \else\EndleafFitsfalse\fi
+  \ifEndleafFits
+    \edef\EndleafSize{\EndleafPt{\dimexpr\EndleafSize pt-0.5pt\relax}}%
+    \EndleafMeasure{\EndleafSize}{#2}%
+  \repeat
+  \ifdim\EndleafW>\EndleafCol \def\EndleafNameOk{over}\else\def\EndleafNameOk{ok}\fi
+  \let\EndleafNameSize\EndleafSize
+  \typeout{ENDLEAF_LABELFIT \the\EndleafLabelNo\space name \EndleafNameSize pt - \EndleafNameOk}%
+  % Spec: 7 pt; drop package, then current; then 6.5 and 6 pt.
+  \def\EndleafSegF{#3}\def\EndleafSegR{#4}\def\EndleafSegC{#5}%
+  \def\EndleafSegP{#6}\def\EndleafSegE{#7}\def\EndleafSegK{#8}%
+  \let\EndleafFace\mdseries
+  \def\EndleafSize{7}\def\EndleafDropped{-}%
+  \EndleafKeepCurrenttrue\EndleafKeepPackagetrue
+  \EndleafBuildSpec\EndleafMeasure{\EndleafSize}{\EndleafSpecText}%
+  \ifdim\EndleafW>\EndleafCol
+    \ifx\relax#8\relax\else\def\EndleafDropped{package}\fi
+    \EndleafKeepPackagefalse\EndleafBuildSpec\EndleafMeasure{\EndleafSize}{\EndleafSpecText}%
+  \fi
+  \ifdim\EndleafW>\EndleafCol
+    \ifx\relax#5\relax\else
+      \ifx\EndleafDropped\EndleafDash\def\EndleafDropped{current}\else\def\EndleafDropped{package,current}\fi
+    \fi
+    \EndleafKeepCurrentfalse\EndleafBuildSpec\EndleafMeasure{\EndleafSize}{\EndleafSpecText}%
+  \fi
+  \ifdim\EndleafW>\EndleafCol \def\EndleafSize{6.5}\EndleafMeasure{\EndleafSize}{\EndleafSpecText}\fi
+  \ifdim\EndleafW>\EndleafCol \def\EndleafSize{6}\EndleafMeasure{\EndleafSize}{\EndleafSpecText}\fi
+  \ifdim\EndleafW>\EndleafCol \def\EndleafSpecOk{over}\else\def\EndleafSpecOk{ok}\fi
+  \let\EndleafSpecSize\EndleafSize
+  \ifx\EndleafSpecText\@empty\else
+    \typeout{ENDLEAF_LABELFIT \the\EndleafLabelNo\space spec \EndleafSpecSize pt \EndleafDropped\space \EndleafSpecOk}%
+  \fi
+  % Stock line: 6 pt.
+  \EndleafMeasure{6}{Stock \##9}%
+  \ifdim\EndleafW>\EndleafCol \def\EndleafStockOk{over}\else\def\EndleafStockOk{ok}\fi
+  \typeout{ENDLEAF_LABELFIT \the\EndleafLabelNo\space stock 6pt - \EndleafStockOk}%
+  \EndleafTop=\dimexpr\EndleafLabelMY mm+4\EndleafModule\relax
+  \EndleafBottom=\dimexpr\EndleafLabelMY mm+\EndleafQrSide-4\EndleafModule\relax
+  \noindent\begin{tikzpicture}[inner sep=0pt,outer sep=0pt]
+    \useasboundingbox (0pt,0pt) rectangle (\paperwidth,-\paperheight);
+    \begin{scope}[shift={(\EndleafLabelMX mm,-\EndleafLabelMY mm)},x=\EndleafModule,y=-\EndleafModule]
+      \EndleafQrRects
+    \end{scope}
+    \node[anchor=north west,text width=\EndleafCol,align=left]
+      at (\EndleafColX,-\EndleafTop)
+      {\fontsize{\EndleafNameSize pt}{\EndleafNameSize pt}\selectfont\bfseries #2};
+    \ifx\EndleafSpecText\@empty\else
+    \node[anchor=west,text width=\EndleafCol,align=left]
+      at (\EndleafColX,{-\EndleafLabelMY mm-0.5\EndleafQrSide})
+      {\fontsize{\EndleafSpecSize pt}{\EndleafSpecSize pt}\selectfont\EndleafSpecText};
+    \fi
+    \node[anchor=south west,text width=\EndleafCol,align=left]
+      at (\EndleafColX,-\EndleafBottom)
+      {\fontsize{6pt}{6pt}\selectfont Stock \##9};
+  \end{tikzpicture}%
+  \par\newpage}
+\def\EndleafDash{-}
+\makeatother

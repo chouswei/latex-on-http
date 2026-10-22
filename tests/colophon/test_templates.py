@@ -99,6 +99,10 @@ def test_preambles_use_only_the_allowlist():
             assert "\\documentclass[__PAPER__]{article}" in text
         assert text.count("__PAPER__") == 1
         assert "\\usepackage{fontspec}" in text
+        if template_id == "stocklabel":
+            # ENDLEAF-R66-FIELDS. Its own type setup: Heros without TeX ligatures.
+            assert "\\input{endleaf-label.tex}" in text
+            continue
         assert "\\input{endleaf-type.tex}" in text
         assert text.index("\\setCJKmainfont{Noto Sans CJK TC}") < text.index(
             "\\input{endleaf-type.tex}"
