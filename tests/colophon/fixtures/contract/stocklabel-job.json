@@ -2,7 +2,7 @@
   "comment": "ENDLEAF-R66-FIT contract. The gate's stocklabel job for the DK-11201 example label, minus jobId, limits and the body text. Endleaf endleaf_gate/tests/fixtures/stocklabel-job.json holds the same object.",
   "templateId": "stocklabel",
   "outputFormat": "pdf",
-  "lane": "Weft",
+  "lane": "lane-a",
   "labelSize": {"widthMm": 89.8, "heightMm": 29.0, "marginXMm": 2.95, "marginYMm": 1.55},
   "labelFit": [[1, "name", 16.0, "-", "ok"], [1, "spec", 7.0, "-", "ok"], [1, "stock", 6.0, "-", "ok"]]
 }

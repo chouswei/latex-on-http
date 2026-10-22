@@ -7,12 +7,13 @@ from pathlib import Path
 from colophon.enums import JobSpec
 from colophon.limits import SHARE_ROOT
 from colophon.render_plan import build_render_plan, source_needs_aux_pass
+from tests.colophon.lanes import PROD_LANES
 
 _ROOT = Path(__file__).resolve().parents[2]
 
 
 def _job(
-    lane="InstruMeasure", output_format="pdf", input_kind="markdown", source="Hello"
+    lane="lane-a", output_format="pdf", input_kind="markdown", source="Hello"
 ):
     return JobSpec(
         source=source,
@@ -36,7 +37,7 @@ def test_pandoc_pdf_always_passes_papersize():
             source="Hello",
             input_kind="markdown",
             output_format="pdf",
-            lane="Weft",
+            lane="lane-a",
             page_size="letter",
         )
     )
@@ -58,7 +59,7 @@ def test_xelatex_shell_escape_is_off():
 
 def test_each_lane_uses_its_own_template():
     seen = set()
-    for lane in ("InstruMeasure", "Weft", "Investor"):
+    for lane in PROD_LANES:
         plan = build_render_plan(_job(lane=lane))
         templates = [
             part
@@ -111,7 +112,7 @@ def test_ref_and_pageref_schedule_a_second_identical_pass():
     assert not source_needs_aux_pass("Hello")
     assert not source_needs_aux_pass("\\refstepcounter{section}")
     assert not source_needs_aux_pass("\\renewcommand{\\foo}{bar}")
-    plan = build_render_plan(_job(input_kind="tex", lane="Weft", source=body))
+    plan = build_render_plan(_job(input_kind="tex", lane="lane-a", source=body))
     assert len(plan.commands) == 2
     assert plan.commands[0] == plan.commands[1]
     assert plan.commands[0][-1] == "job.tex"

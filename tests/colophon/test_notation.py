@@ -36,7 +36,7 @@ def test_html_keeps_inline_notation_as_source_text():
             source=_PROSE,
             input_kind="markdown",
             output_format="html",
-            lane="Weft",
+            lane="lane-a",
         )
     )
     assert plan.files["/tmp/input.md"] == degraded
@@ -54,7 +54,7 @@ def test_docx_keeps_inline_notation_as_source_text():
             source=_PROSE,
             input_kind="tex",
             output_format="docx",
-            lane="Weft",
+            lane="lane-a",
         )
     )
     assert plan.files["/tmp/input.tex"] == degraded
@@ -68,7 +68,7 @@ def test_pdf_still_typesets_inline_notation():
             source=_PROSE,
             input_kind="markdown",
             output_format="pdf",
-            lane="Weft",
+            lane="lane-a",
         )
     )
     assert plan.files["/tmp/input.md"] == _PROSE

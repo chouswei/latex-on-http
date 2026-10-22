@@ -17,6 +17,7 @@ from colophon.revision import package_set, package_set_hash
 from colophon.sandbox_render import render_to_stdout
 from colophon.templates import TEMPLATE_IDS
 from tests.colophon.conftest import valid_body
+from tests.colophon.lanes import PROD_LANES
 
 _ROOT = Path(__file__).resolve().parents[2]
 _OWNED = _ROOT / "colophon/share/templates/owned"
@@ -175,7 +176,7 @@ def test_every_pdf_preamble_inputs_the_credit():
             )
         else:
             assert "\\input{colophon-v1-preamble.tex}" in text
-    for lane in ("InstruMeasure", "Weft", "Investor"):
+    for lane in PROD_LANES:
         template = (_SHARE / "templates" / lane / "pandoc.latex").read_text(
             encoding="utf-8"
         )
@@ -243,7 +244,7 @@ def test_fixture_pdf_has_the_document_credit(
         valid_body(
             templateId=_FIXTURES._template_id(fixture),
             outputFormat="pdf",
-            lane="Weft",
+            lane="lane-a",
             body=fixture.read_text(encoding="utf-8"),
         ),
         monkeypatch,

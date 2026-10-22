@@ -29,7 +29,7 @@ def _payload(**extra):
         "body": example_body("stocklabel", _OWNED),
         "templateId": "stocklabel",
         "outputFormat": "pdf",
-        "lane": "Weft",
+        "lane": "lane-a",
         "labelSize": dict(_DK11201),
     }
     payload.update(extra)
@@ -72,11 +72,11 @@ def test_parse_job_refuses_a_bad_label_page(extra):
 
 def test_label_size_is_refused_on_other_templates():
     with pytest.raises(JobRejected):
-        parse_job({"body": "x", "templateId": "circuits", "outputFormat": "pdf", "lane": "Weft", "labelSize": _DK11201})
+        parse_job({"body": "x", "templateId": "circuits", "outputFormat": "pdf", "lane": "lane-a", "labelSize": _DK11201})
 
 
 def test_compose_writes_label_macros_not_the_page_hook():
-    tex = compose("stocklabel", "InstruMeasure", "X", _OWNED, label_size=(62.0, 28.9, 1.55, 3.0))
+    tex = compose("stocklabel", "lane-a", "X", _OWNED, label_size=(62.0, 28.9, 1.55, 3.0))
     assert "\\def\\EndleafLabelW{62.00}" in tex
     assert "\\def\\EndleafLabelMY{3.00}" in tex
     assert "endleaf-page.tex" not in tex
@@ -118,7 +118,7 @@ def test_label_fit_map_reads_rows_and_distinct_missing_glyphs():
 
 
 def _compile(tmp_path, body, label_size):
-    tex = compose("stocklabel", "InstruMeasure", body, _OWNED, label_size=label_size)
+    tex = compose("stocklabel", "lane-a", body, _OWNED, label_size=label_size)
     (tmp_path / "job.tex").write_text(tex, encoding="utf-8")
     env = {"TEXINPUTS": f"{_TEX}//:", "PATH": "/usr/bin:/bin:/usr/local/bin"}
     done = subprocess.run(

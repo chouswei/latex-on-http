@@ -147,7 +147,7 @@ def test_fulldoc_renders_the_four_missing_kinds(tmp_path, kind):
         "\\section{Body}\nSee Figure~\\ref{fig:k}.\n\n"
         + _figure(example_body(kind, _OWNED), f"The {kind} figure", "fig:k")
     )
-    pdf, log = _xelatex(tmp_path, compose("fulldoc", "Weft", body, _OWNED))
+    pdf, log = _xelatex(tmp_path, compose("fulldoc", "lane-a", body, _OWNED))
     assert not re.search(r"Environment \S+ undefined", log)
     assert "??" not in _page_text(pdf, 1)
     assert f"The {kind} figure" in subprocess.run(
@@ -166,7 +166,7 @@ def test_wide_sysml_figure_is_a_landscape_float_page_without_a_break(tmp_path):
         + _figure(narrow, "Small box", "fig:small")
         + "Closing words.\n"
     )
-    pdf, log = _xelatex(tmp_path, compose("fulldoc", "Weft", body, _OWNED))
+    pdf, log = _xelatex(tmp_path, compose("fulldoc", "lane-a", body, _OWNED))
     sizes = _page_sizes(pdf)
     assert sizes[0][0] < sizes[0][1], sizes
     first = _page_text(pdf, 1)
@@ -220,7 +220,7 @@ def test_endleaf_type_reaches_bytefield_and_plots():
 
 @_NEEDS_TEX
 def test_bytefield_bit_numbers_are_at_least_seven_points(tmp_path):
-    tex = compose("bytefield", "Weft", example_body("bytefield", _OWNED), _OWNED)
+    tex = compose("bytefield", "lane-a", example_body("bytefield", _OWNED), _OWNED)
     pdf, _log = _xelatex(tmp_path, tex)
     out = subprocess.run(
         ["pdftotext", "-bbox", str(pdf), "-"], check=True, capture_output=True, text=True
@@ -244,7 +244,7 @@ def test_plot_tick_labels_use_the_endleaf_sans(tmp_path):
         "\\begin{tikzpicture}\\begin{axis}[width=6cm]"
         "\\addplot coordinates {(-2,1) (0,3) (2,2)};\\end{axis}\\end{tikzpicture}"
     )
-    pdf, _log = _xelatex(tmp_path, compose("plots", "Weft", body, _OWNED))
+    pdf, _log = _xelatex(tmp_path, compose("plots", "lane-a", body, _OWNED))
     fonts = subprocess.run(["pdffonts", str(pdf)], check=True, capture_output=True, text=True).stdout
     assert re.search(r"(?i)heros", fonts), fonts
     assert not re.search(r"CMR10|LMRoman10", fonts), fonts
@@ -295,7 +295,7 @@ def test_sandbox_reports_a_wide_plain_picture(tmp_path, monkeypatch):
         "\\caption{Too wide}\\label{fig:w}\\end{figure}\n"
     )
     code, _pdf, err = _render(
-        valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body),
+        valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=body),
         monkeypatch,
     )
     assert code == 0, err[-2000:]

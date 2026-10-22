@@ -24,12 +24,12 @@ BODY = "\\section{A}\nOne.\n\nTwo \\undefinedthing.\n"
 @pytest.mark.parametrize("page_size,orientation", [("a4", None), ("a3", "landscape")])
 def test_body_start_line_points_at_the_first_body_line(template_id, page_size, orientation):
     text, start = compose_with_body_line(
-        template_id, "Weft", BODY, _OWNED, page_size=page_size, orientation=orientation
+        template_id, "lane-a", BODY, _OWNED, page_size=page_size, orientation=orientation
     )
     lines = text.split("\n")
     assert lines[start - 1].endswith("\\section{A}")
     assert lines[start - 1 + 3] == "Two \\undefinedthing."
-    assert compose(template_id, "Weft", BODY, _OWNED, page_size, orientation) == text
+    assert compose(template_id, "lane-a", BODY, _OWNED, page_size, orientation) == text
 
 
 def test_error_inside_the_body_is_relocated():
@@ -61,7 +61,7 @@ def test_render_error_diagnostic_names_the_body_line(monkeypatch, capsys, tmp_pa
 
     Every /tmp path is redirected into tmp_path, so the test never touches the host /tmp.
     """
-    text, start = compose_with_body_line("fulldoc", "Weft", BODY, _OWNED)
+    text, start = compose_with_body_line("fulldoc", "lane-a", BODY, _OWNED)
     error_line = start + 3
 
     class Plan:
@@ -93,7 +93,7 @@ def test_render_error_diagnostic_names_the_body_line(monkeypatch, capsys, tmp_pa
     )
     monkeypatch.setattr(sandbox_render, "_run", fake_run)
     payload = (
-        '{"body": %s, "templateId": "fulldoc", "outputFormat": "pdf", "lane": "Weft"}'
+        '{"body": %s, "templateId": "fulldoc", "outputFormat": "pdf", "lane": "lane-a"}'
         % __import__("json").dumps(BODY)
     ).encode()
     code = sandbox_render.render_to_stdout(payload)

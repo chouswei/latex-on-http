@@ -8,6 +8,7 @@ import pytest
 
 from colophon.enums import JobRejected, parse_job
 from colophon.source_policy import reject_forbidden_source
+from tests.colophon.lanes import PROD_LANES
 
 FIXTURES = Path(__file__).parent / "fixtures"
 STYLES = (
@@ -27,7 +28,7 @@ def _job(source, input_kind="tex"):
         "body": source,
         "templateId": template,
         "outputFormat": "pdf",
-        "lane": "Weft",
+        "lane": "lane-a",
     }
 
 
@@ -294,7 +295,7 @@ def test_shared_preamble_is_the_only_package_list():
         "circuits.pid.ISO14617",
     ):
         assert name in preamble
-    for lane in ("Weft", "InstruMeasure", "Investor"):
+    for lane in PROD_LANES:
         wrapper = (root / f"colophon/share/templates/{lane}/wrapper.tex").read_text(
             encoding="utf-8"
         )

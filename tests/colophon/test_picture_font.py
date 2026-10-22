@@ -40,7 +40,7 @@ def test_picture_level_font_size_reaches_node_text(tmp_path, monkeypatch):
         + _figure("f3", "", "", "Plain")
         + _figure("f4", "every node/.style={font=\\Large}", "", "EveryNodeLarge")
     )
-    code, pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body), monkeypatch)
+    code, pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=body), monkeypatch)
     assert code == 0, err[-2000:]
     fits = {fit[0]: fit[3] for fit in decode_map(parse_layout_map(err))["fits"]}
     # \large is 12 pt and \Large 14.4 pt in the 10 pt body; before R62 the picture-level \large measured (and set) 10.

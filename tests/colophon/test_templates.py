@@ -186,14 +186,14 @@ def test_each_template_compiles_with_a_sample_body(template_id, tmp_path):
     sample = example_body(template_id, _ROOT)
     if template_id == "document-shell":
         sample = "Hello from the document shell."
-    tex = compose(template_id, "InstruMeasure", sample, _ROOT)
+    tex = compose(template_id, "lane-a", sample, _ROOT)
     assert re.search(r"\\documentclass(?:\[[^\]]*\])?\{article\}", tex)
     assert "a4paper" in tex
     assert "__PAPER__" not in tex
     if template_id == "fulldoc":
         assert "\\newcommand{\\EndleafLane}" not in tex
     else:
-        assert "\\newcommand{\\EndleafLane}{InstruMeasure}" in tex
+        assert "\\newcommand{\\EndleafLane}{lane-a}" in tex
     assert sample in tex
     if shutil.which("kpsewhich"):
         found = subprocess.run(

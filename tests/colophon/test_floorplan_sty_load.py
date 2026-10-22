@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from colophon.templates import compose, example_body
+from tests.colophon.lanes import PROD_LANES
 
 _ROOT = Path(__file__).resolve().parents[2]
 _OWNED = _ROOT / "colophon/share/templates/owned"
@@ -27,7 +28,7 @@ _TEXINPUTS = os.pathsep.join(
 _ENGINE = (
     shutil.which("xelatex") or shutil.which("lualatex") or shutil.which("pdflatex")
 )
-_LANES = ("InstruMeasure", "Weft", "Investor")
+_LANES = PROD_LANES
 
 # A definition whose control sequence starts with \end (lowercase). LaTeX's
 # \@ifdefinable rejects those three letters. \EndleafLane is a different name.

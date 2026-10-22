@@ -2,15 +2,21 @@
 # Copyright (C) 2026 Inkmirage (Endleaf render worker modifications)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from pathlib import Path
+
 import pytest
 
+import colophon.enums
 from colophon.enums import JobRejected, parse_job
 from tests.colophon.conftest import valid_body
+from tests.colophon.lanes import PLACEHOLDER_LANES, PROD_LANES
+
+_TEMPLATES = Path(__file__).resolve().parents[2] / "colophon/share/templates"
 
 
 def test_known_enums_accepted():
     job = parse_job(valid_body())
-    assert job.lane == "InstruMeasure"
+    assert job.lane == "lane-a"
     assert job.output_format == "pdf"
     assert job.template_id == "document-shell"
     assert job.input_kind == "markdown"
@@ -56,7 +62,7 @@ def test_http_rejects_invalid_pagesize(client, auth, runner):
 @pytest.mark.parametrize(
     "field,value,reason",
     [
-        ("lane", "instruMeasure", "lane"),
+        ("lane", PROD_LANES[0].swapcase(), "lane"),
         ("lane", "Other", "lane"),
         ("lane", "", "lane"),
         ("outputFormat", "PDF", "outputFormat"),
@@ -152,7 +158,7 @@ def test_legacy_url_resource_rejected(client, auth, runner):
         "/builds/sync",
         json={
             "compiler": "pdflatex",
-            "lane": "Weft",
+            "lane": "lane-a",
             "resources": [{"main": True, "url": "https://example.invalid/a.tex"}],
         },
         headers=auth,
@@ -167,7 +173,7 @@ def test_legacy_xelatex_content_is_accepted(client, auth, runner):
         "/builds/sync",
         json={
             "compiler": "xelatex",
-            "lane": "Investor",
+            "lane": "lane-b",
             "outputFormat": "pdf",
             "inputKind": "tex",
             "resources": [{"main": True, "content": "Hello from TeX"}],
@@ -176,5 +182,35 @@ def test_legacy_xelatex_content_is_accepted(client, auth, runner):
     )
     assert response.status_code == 200
     assert response.data == b"%PDF-1.4"
-    assert runner.calls[0].lane == "Investor"
+    assert runner.calls[0].lane == "lane-b"
     assert runner.calls[0].input_kind == "tex"
+
+
+@pytest.mark.real_lanes
+def test_production_lanes_are_unpatched_and_enforced():
+    # Unpatched: the list the worker ships, one template folder per lane.
+    assert colophon.enums.LANES == PROD_LANES
+    folders = {p.name for p in _TEMPLATES.iterdir() if p.is_dir() and p.name != "owned"}
+    assert set(PROD_LANES) == folders
+    assert not set(PLACEHOLDER_LANES) & set(PROD_LANES)
+    for lane in PROD_LANES:
+        assert parse_job(valid_body(lane=lane)).lane == lane
+    for lane in PLACEHOLDER_LANES:
+        with pytest.raises(JobRejected) as caught:
+            parse_job(valid_body(lane=lane))
+        assert caught.value.reason == "lane"
+
+
+def test_unknown_lane_is_rejected_while_placeholders_are_patched_in():
+    assert set(PLACEHOLDER_LANES) <= set(colophon.enums.LANES)
+    for lane in ("lane-zzz", "", None, "LANE-A"):
+        with pytest.raises(JobRejected) as caught:
+            parse_job(valid_body(lane=lane))
+        assert caught.value.reason == "lane"
+
+
+def test_http_rejects_unknown_lane_while_patched(client, auth, runner):
+    response = client.post("/v1/jobs", json=valid_body(lane="lane-zzz"), headers=auth)
+    assert response.status_code == 400
+    assert response.get_json()["field"] == "lane"
+    assert runner.calls == []

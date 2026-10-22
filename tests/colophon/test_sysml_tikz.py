@@ -166,7 +166,7 @@ def _cjk_ready():
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_sysml_kind_fixture_compiles(tmp_path):
     body = _FIXTURE.read_text(encoding="utf-8")
-    tex = compose("sysml", "Weft", body, _OWNED)
+    tex = compose("sysml", "lane-a", body, _OWNED)
     assert "\\usepackage{sysml-tikz}" in (
         _ROOT / "colophon/share/tex/latex/colophon-v1/colophon-v1-preamble.tex"
     ).read_text(encoding="utf-8")
@@ -269,7 +269,7 @@ def test_flow_item_stays_upright_when_path_is_reversed(tmp_path):
         "\\end{sysmlcanvas}\n"
         "\\end{sysmlfigure}\n"
     )
-    tex = compose("sysml", "Weft", body, _OWNED)
+    tex = compose("sysml", "lane-a", body, _OWNED)
     if not _cjk_ready():
         tex = (
             tex.replace("\\usepackage{fontspec}\n", "")
@@ -499,7 +499,7 @@ _SYSML_FIXTURES = _ROOT / "tests/colophon/fixtures/sysml"
 
 
 def _compose_sysml(_tmp_path, body, page_size="a4"):
-    tex = compose("sysml", "Weft", body, _OWNED, page_size=page_size)
+    tex = compose("sysml", "lane-a", body, _OWNED, page_size=page_size)
     if not _cjk_ready():
         tex = (
             tex.replace("\\usepackage{fontspec}\n", "")
