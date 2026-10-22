@@ -193,3 +193,24 @@ def test_one_label_per_page(tmp_path):
     (tmp_path / "out.pdf").write_bytes(data)
     info = subprocess.run(["pdfinfo", str(tmp_path / "out.pdf")], capture_output=True, text=True, check=True).stdout
     assert re.search(r"^Pages:\s+3$", info, re.MULTILINE)
+
+
+@pytest.mark.skipif(shutil.which("xelatex") is None or shutil.which("pdftoppm") is None, reason="xelatex or pdftoppm missing")
+@pytest.mark.parametrize("modules", [29, 81, 185])
+def test_qr_spans_the_full_printable_height_at_any_version(tmp_path, modules):
+    # ENDLEAF-R66-QR (owner 2026-10-22 17:30): module = printable height / modules.
+    from PIL import Image
+
+    body = (
+        "\\def\\EndleafQrRects{\\q{0}{0}{" + str(modules) + "}{" + str(modules) + "}}%\n"
+        "\\EndleafStockLabel{" + str(modules) + "}{A}{}{}{}{}{}{}{1}\n"
+    )
+    data, _log = _compile(tmp_path, body, (89.8, 29.0, 2.95, 1.55))
+    (tmp_path / "out.pdf").write_bytes(data)
+    subprocess.run(["pdftoppm", "-r", "600", "-gray", "-png", "-singlefile", "out.pdf", "out"], cwd=tmp_path, check=True)
+    image = Image.open(tmp_path / "out.png").point(lambda v: 255 if v < 128 else 0)
+    mm = 25.4 / 600
+    # The square only: crop left of the text column (QR side + gap starts the column).
+    left, top, right, bottom = image.crop((0, 0, round((2.95 + 25.9 + 1.0) / mm), image.height)).getbbox()
+    assert abs(top * mm - 1.55) < 0.15 and abs(bottom * mm - (29.0 - 1.55)) < 0.15
+    assert abs(left * mm - 2.95) < 0.15 and abs((right - left) * mm - 25.9) < 0.15

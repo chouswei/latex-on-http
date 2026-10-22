@@ -8,6 +8,10 @@
   the QR at the left, full printable height, then the name (bold, 16 pt down
   to 9 pt in 0.5 pt steps), one spec line (7 pt; drops package, then current,
   then 6.5 and 6 pt) and `Stock #<id>` (6 pt). Nothing is truncated.
+* ENDLEAF-R66-QR (owner 2026-10-22 17:30): the gate sends the smallest QR
+  version that holds the payload; the template sets the module to the
+  printable height over the symbol's modules, so every symbol spans the full
+  printable height. The gate refuses a module under 0.33867 mm.
 * ENDLEAF-R66-SIZE: the job takes `labelSize` (`widthMm`, `heightMm`,
   `marginXMm`, `marginYMm`) instead of `pageSize` for this template; the
   template sets `\paperwidth`, `\paperheight`, `\pdfpagewidth` and

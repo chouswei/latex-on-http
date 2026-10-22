@@ -55,7 +55,10 @@
 \pagestyle{empty}
 % XeTeX logs a glyph the font lacks; the worker counts these lines.
 \tracinglostchars=1
-\newdimen\EndleafModule \EndleafModule=0.33867mm
+% ENDLEAF-R66-QR (owner 2026-10-22 17:30): the gate picks the smallest version that holds the
+% payload; the module is the printable height over the symbol's modules (quiet zone included),
+% so the QR always spans the full printable height. The gate refuses a module under 0.33867 mm.
+\newdimen\EndleafModule
 \newdimen\EndleafGap \EndleafGap=2mm
 \newdimen\EndleafCol
 \newdimen\EndleafW
@@ -87,7 +90,8 @@
 %   \EndleafStockLabel{modules}{name}{function}{rating}{current}{power}{extra}{package}{stockId}
 \long\def\EndleafStockLabel#1#2#3#4#5#6#7#8#9{%
   \global\advance\EndleafLabelNo by 1
-  \EndleafQrSide=#1\EndleafModule
+  \EndleafQrSide=\dimexpr\paperheight-2\dimexpr\EndleafLabelMY mm\relax\relax
+  \EndleafModule=\dimexpr\EndleafQrSide/#1\relax
   \EndleafColX=\dimexpr\EndleafLabelMX mm+\EndleafQrSide+\EndleafGap\relax
   \EndleafCol=\dimexpr\paperwidth-\EndleafLabelMX mm-\EndleafColX\relax
   % Name: 16 pt down to 9 pt in 0.5 pt steps.
