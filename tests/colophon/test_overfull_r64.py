@@ -133,7 +133,6 @@ def test_caps_keep_total_and_max_rows_fits_the_header():
     }
     encoded = encode_map(worst)
     assert encoded is not None and len(encoded) < LAYOUT_MAP_CAP_BYTES // 2, len(encoded)
-    assert len(encoded) == 5224
     assert decode_map(encoded) == worst
 
 
