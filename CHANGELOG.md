@@ -8,9 +8,13 @@
   `page` is the next shipout after the warning, omitted when none follows;
   `table` gives `firstLine`, `n`, per-column `share` and `rules` when the line
   range starts or sits in a tabular/longtable. A body without marks sends a
-  map with only these keys. maxRows 50 is measured: 50 worst-case rows encode
-  to 3852 bytes, under a third of the 12000-byte map cap. Markdown jobs
-  (document-shell) still compile inside Pandoc and send none.
+  map with only these keys. A table wider than 20 columns is sent without
+  its `table` field. maxRows 50 is measured: 50 worst-case rows, each with a
+  20-column table, encode to 5224 bytes, under half of the 12000-byte map cap;
+  past the cap the lists drop and `overfullTotal` stays. Shipout pages are read
+  with every box dump masked, so bracketed page text is never a page. Markdown
+  jobs (document-shell) still compile inside Pandoc and send none (ENDLEAF-R65,
+  parked).
 
 ## 2026-10-09 (ENDLEAF-R62)
 

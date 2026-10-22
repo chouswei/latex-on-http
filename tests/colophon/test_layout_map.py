@@ -110,7 +110,9 @@ def test_unmarked_body_has_no_map_and_marks_do_not_move_text(tmp_path, monkeypat
     plain = "\\newcommand\\EndleafNoMark[2]{}\n" + plain
     code, plain_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=plain), monkeypatch)
     assert code == 0, err[-2000:]
-    assert parse_layout_map(err) is None
+    # ENDLEAF-R64-ROWS: an unmarked body still sends its overfull rows, never geom or marks.
+    encoded = parse_layout_map(err)
+    assert encoded is None or not ({"geom", "marks"} & set(decode_map(encoded)))
     code, marked_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=_BODY), monkeypatch)
     assert code == 0
     import subprocess

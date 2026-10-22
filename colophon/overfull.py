@@ -22,10 +22,17 @@ document text.
 import re
 from decimal import Decimal
 
-# ENDLEAF-R64-ROWS maxRows, measured by tests/colophon/test_overfull_r64.py:
-# 50 worst-case rows (every one with a 12-column table field) encode to under
-# a third of the 12000-byte map cap, leaving room for marks, fits and labels.
+# ENDLEAF-R64-ROWS maxRows and maxTableColumns, measured with the real encoder
+# by tests/colophon/test_overfull_r64.py: 50 worst-case rows (5-digit lines,
+# random pt, 3-digit pages, every row with a 20-column table field, random
+# shares) encode to 5224 bytes, under half of the 12000-byte map cap (12
+# columns: 3852 bytes).
+# Without the column cap 60 columns gave about 11.8 kB and 100 about 18 kB, so
+# a table wider than MAX_TABLE_COLUMNS is sent without its table field (no
+# width Fix). If a map is still over the cap, the optional lists drop (R61)
+# and overfullTotal stays: the gate prints "N lines, page unknown".
 MAX_ROWS = 50
+MAX_TABLE_COLUMNS = 20
 
 _OVERFULL = re.compile(
     r"^Overfull \\([hv])box \(([0-9]+(?:\.[0-9]+)?)pt too (?:wide|high)\)"
@@ -33,7 +40,11 @@ _OVERFULL = re.compile(
     re.MULTILINE,
 )
 # A shipout writes "[<page>" to the log, followed by "]", a space, "{" or a newline.
+# Page text TeX dumps after a box warning ("[]\OT1/cmr/m/n/10 see [7] ...") can
+# hold the same shape, so every box dump is masked before shipouts are read: a
+# dump runs from an Overfull/Underfull line to the next blank line.
 _SHIPOUT = re.compile(r"\[([0-9]{1,5})(?=[\]\s{<])")
+_BOX_DUMP = re.compile(r"^(?:Overfull|Underfull|Loose|Tight) \\[hv]box .*?(?:\n[ \t]*\n|\Z)", re.MULTILINE | re.DOTALL)
 _ENV = re.compile(r"\\(begin|end)\{(tabular\*?|longtable)\}")
 _PT_PER = {
     "pt": Decimal(1),
@@ -50,8 +61,14 @@ _ABS = re.compile(r"^\s*([0-9]*\.?[0-9]+)\s*(pt|bp|in|cm|mm|pc|dd|cc|sp)\s*$")
 _REL = re.compile(r"^\s*([0-9]*\.?[0-9]*)\s*\\(linewidth|textwidth|columnwidth|hsize)\s*$")
 
 
+def _mask_box_dumps(log):
+    """The log with every box dump blanked out, same length so positions hold."""
+    return _BOX_DUMP.sub(lambda match: " " * len(match.group(0)), log)
+
+
 def _shipouts(log):
-    return [(match.start(), int(match.group(1))) for match in _SHIPOUT.finditer(log)]
+    masked = _mask_box_dumps(log)
+    return [(match.start(), int(match.group(1))) for match in _SHIPOUT.finditer(masked)]
 
 
 def _page_after(shipouts, position):
@@ -227,7 +244,7 @@ def overfull_rows(log, *, body_start, body_lines, source=None, max_rows=MAX_ROWS
         if page is not None:
             row["page"] = page
         table = _table_for(tables, line, last - body_start + 1)
-        if table is not None:
+        if table is not None and table[2] <= MAX_TABLE_COLUMNS:
             row["table"] = {"firstLine": table[0], "n": table[2], "share": table[3], "rules": table[4]}
         rows.append(row)
     rows.sort(key=lambda row: (-row["pt"], row.get("page", 10**6), row["line"]))
