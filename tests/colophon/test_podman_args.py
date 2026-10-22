@@ -169,7 +169,7 @@ def test_runner_refuses_to_start_when_cpu_is_absent(monkeypatch, config, switch_
             "body": "Hello",
             "templateId": "document-shell",
             "outputFormat": "pdf",
-            "lane": "Weft",
+            "lane": "lane-a",
         }
     )
     outcome = runner(job, "endleaf-job-abc", threading.Event())

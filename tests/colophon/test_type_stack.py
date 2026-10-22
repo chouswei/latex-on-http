@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from colophon.templates import ALLOWED_INPUTS, TEMPLATE_IDS, compose
+from tests.colophon.lanes import PROD_LANES
 
 _ROOT = Path(__file__).resolve().parents[2]
 _OWNED = _ROOT / "colophon/share/templates/owned"
@@ -60,7 +61,7 @@ def test_templates_input_endleaf_type_after_cjk():
         assert preamble.index("\\setCJKmainfont{Noto Sans CJK TC}") < preamble.index(
             "\\input{endleaf-type.tex}"
         )
-    for lane in ("InstruMeasure", "Weft", "Investor"):
+    for lane in PROD_LANES:
         for name in ("wrapper.tex", "pandoc.latex"):
             blob = (_SHARE / "templates" / lane / name).read_text(encoding="utf-8")
             assert "\\input{endleaf-type.tex}" in blob
@@ -87,7 +88,7 @@ def test_composed_body_uses_pagella_heros_cursor_not_cmr(tmp_path):
         "{\\sffamily Diagram UI}\n\n"
         "{\\ttfamily PdMon.pump}\n"
     )
-    tex = compose("document-shell", "Weft", body, _OWNED)
+    tex = compose("document-shell", "lane-a", body, _OWNED)
     assert "\\input{endleaf-type.tex}" in tex
     work = tmp_path / "type-stack"
     work.mkdir()

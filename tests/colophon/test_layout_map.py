@@ -82,7 +82,7 @@ def test_sandbox_returns_the_layout_map_of_a_marked_body(tmp_path, monkeypatch):
     from tests.colophon.test_fulldoc import _bind_tex, _render
 
     _bind_tex(monkeypatch, tmp_path)
-    code, pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=_BODY), monkeypatch)
+    code, pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=_BODY), monkeypatch)
     assert code == 0, err[-2000:]
     encoded = parse_layout_map(err)
     assert encoded, err[-2000:]
@@ -108,12 +108,12 @@ def test_unmarked_body_has_no_map_and_marks_do_not_move_text(tmp_path, monkeypat
     _bind_tex(monkeypatch, tmp_path)
     plain = _BODY.replace("\\EndleafMark{", "\\EndleafNoMark{").replace("\\EndleafVMark{", "\\EndleafNoMark{")
     plain = "\\newcommand\\EndleafNoMark[2]{}\n" + plain
-    code, plain_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=plain), monkeypatch)
+    code, plain_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=plain), monkeypatch)
     assert code == 0, err[-2000:]
     # ENDLEAF-R64-ROWS: an unmarked body still sends its overfull rows, never geom or marks.
     encoded = parse_layout_map(err)
     assert encoded is None or not ({"geom", "marks"} & set(decode_map(encoded)))
-    code, marked_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=_BODY), monkeypatch)
+    code, marked_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=_BODY), monkeypatch)
     assert code == 0
     import subprocess
 
@@ -192,7 +192,7 @@ def test_sandbox_measures_picture_text_and_locates_overfull_lines(tmp_path, monk
         + _wide("f3", 6, "\\tiny")
         + "\\EndleafMark{p2}{s}\\hbox{Averyveryveryveryveryverylongunbreakablewordthatcannotfitonthelineatallnomatterwhatwedoabout}\\EndleafMark{p2}{e}\n"
     )
-    code, _pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body), monkeypatch)
+    code, _pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=body), monkeypatch)
     assert code == 0, err[-2000:]
     mapping = decode_map(parse_layout_map(err))
     fits = {fit[0]: fit for fit in mapping["fits"]}

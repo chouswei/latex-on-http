@@ -14,6 +14,7 @@ import pytest
 from colophon.enums import parse_job
 from colophon.templates import compose, example_body
 from tests.colophon.conftest import valid_body
+from tests.colophon.lanes import PROD_LANES
 
 _ROOT = (
     Path(__file__).resolve().parents[2] / "colophon" / "share" / "templates" / "owned"
@@ -96,19 +97,19 @@ def test_compose_replaces_paper_placeholder():
     shared = _PREAMBLE.read_text(encoding="utf-8")
     assert "\\pdfpagewidth=\\paperwidth" in shared
     assert "\\pdfpageheight=\\paperheight" in shared
-    a4 = compose("circuits", "Weft", "x", _ROOT)
+    a4 = compose("circuits", "lane-a", "x", _ROOT)
     assert "\\documentclass[a4paper]{article}" in a4
-    letter = compose("circuits", "Weft", "x", _ROOT, page_size="letter")
+    letter = compose("circuits", "lane-a", "x", _ROOT, page_size="letter")
     assert "\\documentclass[letterpaper]{article}" in letter
-    shell = compose("document-shell", "Weft", "Hello", _ROOT)
+    shell = compose("document-shell", "lane-a", "Hello", _ROOT)
     assert "\\documentclass[10pt,a4paper]{article}" in shell
-    full = compose("fulldoc", "Weft", "Hello", _ROOT, page_size="letter")
+    full = compose("fulldoc", "lane-a", "Hello", _ROOT, page_size="letter")
     assert "\\documentclass[10pt,letterpaper]{article}" in full
 
 
 def test_lane_pandoc_templates_use_papersize_variable():
     # ENDLEAF-R56-SIZES: three page lines run before the class line.
-    for lane in ("Weft", "InstruMeasure", "Investor"):
+    for lane in PROD_LANES:
         lines = (_SHARE / lane / "pandoc.latex").read_text(encoding="utf-8").splitlines()
         assert lines[0] == r"$if(endleafpaper)$\def\EndleafPaper{$endleafpaper$}$endif$"
         assert lines[1] == (

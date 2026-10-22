@@ -438,7 +438,7 @@ def _bbox_words(pdf, page):
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_fulldoc_fixture_compiles(tmp_path):
     body = (_KINDS / "fulldoc.tex").read_text(encoding="utf-8")
-    tex = compose("fulldoc", "Weft", body, _OWNED)
+    tex = compose("fulldoc", "lane-a", body, _OWNED)
     typed = _type_ready()
     pdf, log = _xelatex(tmp_path, "fulldoc.tex", tex)
     assert "Overfull \\hbox" not in log
@@ -524,7 +524,7 @@ def test_wide_sysml_canvas_is_landscape_at_declared_type(tmp_path):
     body = "\\makeatletter\\sysml@marktracetrue\\makeatother\n" + (
         _REVIEW / "wide-175.tex"
     ).read_text(encoding="utf-8")
-    tex = compose("sysml", "Weft", body, _OWNED)
+    tex = compose("sysml", "lane-a", body, _OWNED)
     pdf, log = _xelatex(tmp_path, "wide.tex", tex)
     assert "Overfull \\hbox" not in log
     assert "Overfull \\vbox" not in log
@@ -561,7 +561,7 @@ def test_narrow_sysml_canvas_stays_portrait_at_declared_type(tmp_path):
         "\\end{sysmlcanvas}\n"
         "\\end{sysmlfigure}\n"
     )
-    tex = compose("sysml", "Weft", body, _OWNED)
+    tex = compose("sysml", "lane-a", body, _OWNED)
     pdf, log = _xelatex(tmp_path, "narrow.tex", tex)
     assert "Overfull \\hbox" not in log
     assert "Overfull \\vbox" not in log
@@ -587,7 +587,7 @@ def test_narrow_sysml_canvas_stays_portrait_at_declared_type(tmp_path):
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_tall_sysml_canvas_refuses_instead_of_crush(tmp_path):
     body = (_REVIEW / "tall-split.tex").read_text(encoding="utf-8")
-    tex = compose("sysml", "Weft", body, _OWNED)
+    tex = compose("sysml", "lane-a", body, _OWNED)
     if not _type_ready():
         tex = tex.replace("\\input{endleaf-type.tex}\n", "")
     (tmp_path / "tall.tex").write_text(tex, encoding="utf-8")
@@ -623,7 +623,7 @@ def test_tall_sysml_canvas_refuses_instead_of_crush(tmp_path):
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_hash_in_a_float_body_compiles(tmp_path):
     body = (_REVIEW / "hash-float.tex").read_text(encoding="utf-8")
-    tex = compose("fulldoc", "Weft", body, _OWNED)
+    tex = compose("fulldoc", "lane-a", body, _OWNED)
     pdf, _log = _xelatex(tmp_path, "hash.tex", tex)
     assert _pages(pdf) == 1
     text = _text(pdf)
@@ -641,7 +641,7 @@ def test_plain_pictures_are_not_fitted(tmp_path):
         "\\draw (0,0) to[R] (15,0);\n"
         "\\end{circuitikz}\n"
     )
-    tex = compose("fulldoc", "Weft", body, _OWNED)
+    tex = compose("fulldoc", "lane-a", body, _OWNED)
     _pdf, log = _xelatex(tmp_path, "widepic.tex", tex)
     unwrapped = _unwrap(log)
     warnings = re.findall(
@@ -750,7 +750,7 @@ def test_fulldoc_cross_references_resolve(tmp_path, monkeypatch):
     _bind_tex(monkeypatch, tmp_path)
     body = (_KINDS / "fulldoc.tex").read_text(encoding="utf-8")
     code, pdf, err = _render(
-        valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body),
+        valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=body),
         monkeypatch,
     )
     assert code == 0, err[-2000:]

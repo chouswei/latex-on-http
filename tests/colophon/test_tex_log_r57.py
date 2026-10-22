@@ -134,7 +134,7 @@ def test_first_tex_error_carries_the_cause_only_when_typed():
 
 def _tex_job(source):
     return parse_job(
-        valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=source)
+        valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=source)
     )
 
 
@@ -233,7 +233,7 @@ def test_cite_only_fulldoc_resolves_and_is_clean(tmp_path, monkeypatch):
     _bind_tex(monkeypatch, tmp_path)
     code, pdf, err = _render(
         valid_body(
-            templateId="fulldoc", outputFormat="pdf", lane="Weft", body=_CITE_ONLY
+            templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=_CITE_ONLY
         ),
         monkeypatch,
     )
@@ -252,7 +252,7 @@ def test_missing_key_and_wide_line_are_counted(tmp_path, monkeypatch):
         "\\noindent\\texttt{" + "x" * 120 + "}\n"
     )
     code, _pdf, err = _render(
-        valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body),
+        valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=body),
         monkeypatch,
     )
     assert code == 0, err[-2000:]
@@ -279,7 +279,7 @@ def test_missing_key_and_wide_line_are_counted(tmp_path, monkeypatch):
 def test_render_error_carries_a_typed_cause(tmp_path, monkeypatch, body, cause):
     _bind_tex(monkeypatch, tmp_path)
     code, _pdf, err = _render(
-        valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=body),
+        valid_body(templateId="fulldoc", outputFormat="pdf", lane="lane-a", body=body),
         monkeypatch,
     )
     assert code == 10, err[-2000:]

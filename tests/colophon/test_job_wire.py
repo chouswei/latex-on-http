@@ -29,6 +29,7 @@ from colophon.templates import TEMPLATES, example_body
 from colophon.worker import create_app
 from tests.colophon.conftest import TOKEN
 from tests.colophon.test_page_size import _mediabox_pt
+from tests.colophon.lanes import LANE_A, TEMPLATE_LANE
 
 _ROOT = Path(__file__).resolve().parents[2]
 _OWNED = _ROOT / "colophon/share/templates/owned"
@@ -54,7 +55,7 @@ def _jobs():
                         "body": "Hello",
                         "templateId": template_id,
                         "outputFormat": output_format,
-                        "lane": "Weft",
+                        "lane": "lane-a",
                         "pageSize": size,
                     }
                     if orientation is not None:
@@ -242,7 +243,7 @@ def _sysml(tmp_path, page_size, orientation, halt=True):
     from colophon.templates import compose
 
     tex = compose(
-        "sysml", "Weft", _WIDE.read_text(encoding="utf-8"), _OWNED,
+        "sysml", "lane-a", _WIDE.read_text(encoding="utf-8"), _OWNED,
         page_size=page_size, orientation=orientation,
     )
     if not _type_ready():
@@ -334,7 +335,7 @@ def test_pandoc_lane_gets_size_and_orientation(case, tmp_path):
     from colophon.render_plan import build_render_plan
 
     job = parse_job(
-        {**_gate_body(case, "document-shell"), "body": "Hello", "lane": "Weft"}
+        {**_gate_body(case, "document-shell"), "body": "Hello", "lane": "lane-a"}
     )
     found = _pandoc_vars(build_render_plan(job).commands[0])
     size = case.get("pageSize", "a4")
@@ -346,7 +347,7 @@ def test_pandoc_lane_gets_size_and_orientation(case, tmp_path):
     import os
     import subprocess
 
-    tex = _lane_header("Weft", found) + "\\begin{document}\nHello.\n\\end{document}\n"
+    tex = _lane_header(TEMPLATE_LANE[LANE_A], found) + "\\begin{document}\nHello.\n\\end{document}\n"
     (tmp_path / "lane.tex").write_text(tex, encoding="utf-8")
     env = dict(os.environ)
     env["TEXINPUTS"] = (

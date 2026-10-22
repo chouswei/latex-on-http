@@ -4,11 +4,14 @@
 
 import pytest
 
+import colophon.enums
+import colophon.render_plan
 from colophon.config import load_config
 from colophon.killswitch import KillSwitch
 from colophon.load import LoadMonitor
 from colophon.runner import Outcome, Supervisor
 from colophon.worker import create_app
+from tests.colophon.lanes import LANE_A, PLACEHOLDER_LANES, PROD_LANES, TEMPLATE_LANE
 
 TOKEN = "test-token-value"
 
@@ -18,10 +21,30 @@ def valid_body(**overrides):
         "body": "Hello",
         "templateId": "document-shell",
         "outputFormat": "pdf",
-        "lane": "InstruMeasure",
+        "lane": LANE_A,
     }
     body.update(overrides)
     return body
+
+
+@pytest.fixture(autouse=True)
+def placeholder_lanes(request, monkeypatch):
+    """Test-only: accept lane-a/lane-b next to the production lanes.
+
+    Production code is untouched. colophon.enums.LANES is patched for the
+    test's duration, and the placeholders map to an existing lane's template
+    folder in the render plan. Tests marked ``real_lanes`` see the
+    unpatched production list.
+    """
+    if request.node.get_closest_marker("real_lanes"):
+        return
+    monkeypatch.setattr(colophon.enums, "LANES", PROD_LANES + PLACEHOLDER_LANES)
+    template = colophon.render_plan._template
+    monkeypatch.setattr(
+        colophon.render_plan,
+        "_template",
+        lambda lane, name: template(TEMPLATE_LANE.get(lane, lane), name),
+    )
 
 
 class _Runner:

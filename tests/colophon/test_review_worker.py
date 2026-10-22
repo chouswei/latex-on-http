@@ -105,7 +105,7 @@ def test_openin_any_p_refuses_hostname(tmp_path):
 )
 def test_three_metre_wall_reads_three_metres(tmp_path):
     sample = example_body("floorplan", _OWNED)
-    tex = compose("floorplan", "InstruMeasure", sample, _OWNED)
+    tex = compose("floorplan", "lane-a", sample, _OWNED)
     pdf = _compile(tmp_path, tex)
     text = _text(pdf)
     assert "3.00 m" in text
@@ -117,7 +117,7 @@ def test_three_metre_wall_reads_three_metres(tmp_path):
     )
     half_dir = tmp_path / "half"
     half_dir.mkdir()
-    half_pdf = _compile(half_dir, compose("floorplan", "Weft", half, _OWNED))
+    half_pdf = _compile(half_dir, compose("floorplan", "lane-a", half, _OWNED))
     half_text = _text(half_pdf)
     assert "2.00 m" in half_text
     assert "1.50 m" in half_text
@@ -133,7 +133,7 @@ def test_scale_bar_pic_draws_once(tmp_path):
         "  \\pic at (3,1) {floorplan north arrow};\n"
         "\\end{tikzpicture}\n"
     )
-    pdf = _compile(tmp_path, compose("floorplan", "Weft", body, _OWNED))
+    pdf = _compile(tmp_path, compose("floorplan", "lane-a", body, _OWNED))
     text = _text(pdf)
     assert text.count("1 m") == 1
     assert "N" in text
@@ -167,7 +167,7 @@ def test_pid_pos_moves_the_flow_marker(tmp_path):
         "\\end{tikzpicture}\n"
         "\\chemfig{H-[:30]O-[:-30]H}\n"
     )
-    pdf = _compile(tmp_path, compose("pidcircuit", "Weft", body, _OWNED))
+    pdf = _compile(tmp_path, compose("pidcircuit", "lane-a", body, _OWNED))
     assert _word_x(pdf, "NEAR") < _word_x(pdf, "FAR")
     assert "H" in _text(pdf)
 
