@@ -62,7 +62,7 @@ def test_http_rejects_invalid_pagesize(client, auth, runner):
 @pytest.mark.parametrize(
     "field,value,reason",
     [
-        ("lane", "instruMeasure", "lane"),
+        ("lane", PROD_LANES[0].swapcase(), "lane"),
         ("lane", "Other", "lane"),
         ("lane", "", "lane"),
         ("outputFormat", "PDF", "outputFormat"),
