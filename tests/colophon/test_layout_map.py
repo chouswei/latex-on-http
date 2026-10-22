@@ -110,7 +110,9 @@ def test_unmarked_body_has_no_map_and_marks_do_not_move_text(tmp_path, monkeypat
     plain = "\\newcommand\\EndleafNoMark[2]{}\n" + plain
     code, plain_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=plain), monkeypatch)
     assert code == 0, err[-2000:]
-    assert parse_layout_map(err) is None
+    # ENDLEAF-R64-ROWS: an unmarked body still sends its overfull rows, never geom or marks.
+    encoded = parse_layout_map(err)
+    assert encoded is None or not ({"geom", "marks"} & set(decode_map(encoded)))
     code, marked_pdf, err = _render(valid_body(templateId="fulldoc", outputFormat="pdf", lane="Weft", body=_BODY), monkeypatch)
     assert code == 0
     import subprocess
@@ -145,7 +147,9 @@ def test_map_optional_lists_and_their_drop_order():
     mapping = layout_map(log, body_start=30, body_lines=20, aux=aux)
     assert mapping["fits"] == [["f1", 499.0, 345.0, 12.0]]
     # Line 40 of job.tex is body line 11; line 3 is in the preamble, so it is not located.
-    assert mapping["overfull"] == [[11, 3.5]]
+    # ENDLEAF-R64-ROWS: object rows; no shipout follows, so no page.
+    assert mapping["overfull"] == [{"line": 11, "pt": 3.5, "axis": "h"}]
+    assert mapping["overfullTotal"] == 1
     assert mapping["labels"] == [["fig:a", "3", 5], ["sec:b", "2.1", 4]]
     assert "overfull" not in layout_map(log, aux=aux)
     full = encode_map(mapping)
@@ -196,7 +200,7 @@ def test_sandbox_measures_picture_text_and_locates_overfull_lines(tmp_path, monk
     assert fits["f1"][3] == 12.0 and fits["f2"][3] == 10.0 and fits["f3"][3] == 5.0
     assert fits["f1"][1] > fits["f1"][2] and fits["f3"][1] < fits["f3"][2]
     assert ["fig:f1", "1", 1] in mapping["labels"] and ["sec:intro", "1", 1] in mapping["labels"]
-    assert any(line == 6 for line, _pt in mapping.get("overfull", [])), mapping.get("overfull")
+    assert any(row["line"] == 6 for row in mapping.get("overfull", [])), mapping.get("overfull")
     warnings = {item.get("partId"): item for item in parse_layout(err)}
     assert set(warnings) == {"f1", "f2"}
     assert warnings["f1"]["belowTypeFloor"] is False and warnings["f1"]["fix"].startswith("scale inside the source to 0.")
