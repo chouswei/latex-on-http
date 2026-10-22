@@ -43,6 +43,9 @@ _SIZES = {"a4": (595.28, 841.89), "letter": (612.0, 792.0), "a3": (841.89, 1190.
 
 def _jobs():
     for template_id, asset in TEMPLATES.items():
+        if template_id == "stocklabel":
+            # ENDLEAF-R66-SIZE. labelSize, never pageSize: test_stocklabel_r66.
+            continue
         formats = ("pdf",) if template_id == "fulldoc" else ("pdf", "html", "docx")
         for output_format in formats:
             for size in PAGE_SIZES:

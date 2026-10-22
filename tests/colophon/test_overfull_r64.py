@@ -183,7 +183,8 @@ from tests.colophon.test_fulldoc import _bind_tex, _render, _type_ready  # noqa:
 _NEEDS_XELATEX = pytest.mark.skipif(
     shutil.which("xelatex") is None or not _type_ready(), reason="xelatex or the type stack is not installed"
 )
-_TEX_TEMPLATES = sorted(t for t, asset in TEMPLATES.items() if asset.kind == "tex")
+# stocklabel sends its labelFit map instead (ENDLEAF-R66-FIT), so it has no overfull rows.
+_TEX_TEMPLATES = sorted(t for t, asset in TEMPLATES.items() if asset.kind == "tex" and t != "stocklabel")
 _WIDE = "\\noindent\\hbox to 10pt{a wide box of text}"
 _MULTI = (
     "First page.\n\n" + _WIDE + "\n\n"

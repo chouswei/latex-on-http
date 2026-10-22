@@ -158,6 +158,42 @@ def layout_map_line(log, *, body_start=None, body_lines=0, aux=None, source=None
     return None if encoded is None else LAYOUT_MAP_PREFIX + encoded
 
 
+# ENDLEAF-R66-FIT. endleaf-label.tex logs one row per label line:
+#   ENDLEAF_LABELFIT <label> <name|spec|stock> <pt>pt <dropped|-> <ok|over>
+# The map is {"v": 1, "labelFit": [[label, line, pt, dropped, ok], ...],
+# "glyphs": N}: sizes and flags only, never label text. glyphs counts the
+# distinct XeTeX "Missing character" lines (the fit measures each line more
+# than once, so repeats are the same glyph).
+_LABELFIT = re.compile(
+    r"ENDLEAF_LABELFIT ([0-9]{1,4}) (name|spec|stock) ([0-9]+(?:\.[0-9]+)?)pt "
+    r"(-|package|current|package,current) (ok|over)"
+)
+_MISSING = re.compile(r"^Missing character: There is no .*$", re.MULTILINE)
+MAX_LABEL_ROWS = 400
+
+
+def label_fit_map(log):
+    """The stocklabel map from a log, or ``None`` when it has no rows."""
+    rows = []
+    seen = set()
+    for match in _LABELFIT.finditer(log or ""):
+        key = (int(match.group(1)), match.group(2))
+        if key in seen or len(rows) >= MAX_LABEL_ROWS:
+            continue
+        seen.add(key)
+        rows.append([key[0], key[1], _pt(match.group(3)), match.group(4), match.group(5)])
+    if not rows:
+        return None
+    glyphs = len(set(_MISSING.findall(log or "")))
+    return {"v": LAYOUT_MAP_VERSION, "labelFit": rows, "glyphs": glyphs}
+
+
+def label_fit_line(log):
+    """One stderr line, or ``None``."""
+    encoded = encode_map(label_fit_map(log))
+    return None if encoded is None else LAYOUT_MAP_PREFIX + encoded
+
+
 def parse_layout_map(stderr):
     """The encoded map from the sandbox's stderr, re-checked; ``None`` when absent or malformed."""
     if not stderr:

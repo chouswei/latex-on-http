@@ -35,6 +35,8 @@ TEMPLATE_IDS = (
     "mindmap",
     "tikztiming",
     "bytefield",
+    # ENDLEAF-R66. Stock labels: the gate writes the body from fields.
+    "stocklabel",
 )
 
 # article, the base fonts, and the names in colophon-v1-preamble.tex.
@@ -86,6 +88,7 @@ ALLOWED_INPUTS = frozenset(
         "endleaf-type.tex",
         "endleaf-kinds.tex",
         "endleaf-layout.tex",
+        "endleaf-label.tex",
     }
 )
 
@@ -113,6 +116,7 @@ TEMPLATES = {
     "mindmap": TemplateAsset("mindmap", "tex", "example.tex"),
     "tikztiming": TemplateAsset("tikztiming", "tex", "example.tex"),
     "bytefield": TemplateAsset("bytefield", "tex", "example.tex"),
+    "stocklabel": TemplateAsset("stocklabel", "tex", "example.tex"),
 }
 
 
@@ -160,15 +164,27 @@ def page_macros(page_size="a4", orientation=None):
     return "\n".join(lines) + "\n"
 
 
-def compose(template_id, lane, body, root=None, page_size="a4", orientation=None):
+# DK-11201 page and printable margins. parse_job always sets labelSize;
+# this default is for the reference example only.
+DEFAULT_LABEL_SIZE = (89.8, 29.0, 2.95, 1.55)
+
+
+def label_macros(label_size):
+    """ENDLEAF-R66-SIZE. Lines before \\documentclass; endleaf-label.tex reads them."""
+    width, height, mx, my = label_size
+    names = (("W", width), ("H", height), ("MX", mx), ("MY", my))
+    return "".join(f"\\def\\EndleafLabel{name}{{{value:.2f}}}\n" for name, value in names)
+
+
+def compose(template_id, lane, body, root=None, page_size="a4", orientation=None, label_size=None):
     """Preamble plus body. ``root`` defaults to the image share directory."""
     return compose_with_body_line(
-        template_id, lane, body, root, page_size=page_size, orientation=orientation
+        template_id, lane, body, root, page_size=page_size, orientation=orientation, label_size=label_size
     )[0]
 
 
 def compose_with_body_line(
-    template_id, lane, body, root=None, page_size="a4", orientation=None
+    template_id, lane, body, root=None, page_size="a4", orientation=None, label_size=None
 ):
     """ENDLEAF-R58-BODYLINE. ``(job.tex text, body start line)``.
 
@@ -186,7 +202,13 @@ def compose_with_body_line(
     ):
         raise ValueError("preamble")
     paper = paper_option(page_size, orientation)
-    text = page_macros(page_size, orientation) + text.replace("__PAPER__", paper, 1)
+    if template_id == "stocklabel":
+        # ENDLEAF-R66-SIZE. The label page, not endleaf-page.tex.
+        if label_size is None:
+            label_size = DEFAULT_LABEL_SIZE
+        text = label_macros(label_size) + text.replace("__PAPER__", paper, 1)
+    else:
+        text = page_macros(page_size, orientation) + text.replace("__PAPER__", paper, 1)
     if "__LANE__" in text:
         text = text.replace("__LANE__", lane, 1)
     start = text.count("\n", 0, text.index("__BODY__")) + 1
