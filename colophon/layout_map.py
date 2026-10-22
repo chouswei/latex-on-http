@@ -19,12 +19,19 @@ ENDLEAF-R61 adds three optional lists the R60 gate ignores:
   labels    [label, number, page] from the final aux file (at most 400)
 When the map is over the cap they are dropped in the order labels, overfull,
 fits before the whole map is.
+
+ENDLEAF-R64-ROWS replaces the overfull rows with objects (colophon.overfull)
+for every TeX template and adds ``overfullTotal``, which is never dropped. A
+body without marks (any template but fulldoc) sends a map with only
+``v``, ``overfull`` and ``overfullTotal`` when TeX reported an overfull.
 """
 
 import base64
 import json
 import re
 import zlib
+
+from colophon.overfull import MAX_ROWS, overfull_rows
 
 LAYOUT_MAP_PREFIX = "ENDLEAF_LAYOUTMAP "
 LAYOUT_HEADER = "X-Endleaf-Layout"
@@ -44,7 +51,7 @@ _OVERFULL = re.compile(
     re.MULTILINE,
 )
 _NEWLABEL = re.compile(r"\\newlabel\{(" + _ID + r")\}\{\{([0-9A-Za-z.\-]{1,12})\}\{([0-9]{1,5})\}")
-MAX_OVERFULL = 40
+MAX_OVERFULL = MAX_ROWS
 MAX_LABELS = 400
 _OPTIONAL = ("labels", "overfull", "fits")
 _MARK = re.compile(
@@ -56,7 +63,7 @@ def _pt(value):
     return round(float(value), 1)
 
 
-def layout_map(log, *, body_start=None, body_lines=0, aux=None):
+def layout_map(log, *, body_start=None, body_lines=0, aux=None, source=None):
     """The map from a final-pass log, or ``None`` when the body had no marks.
 
     ``body_start`` is the job.tex line where the body starts (ENDLEAF-R58);
@@ -77,8 +84,15 @@ def layout_map(log, *, body_start=None, body_lines=0, aux=None):
                 "l" if match.group(5) == "landscape" else "p",
             ]
         )
+    rows, total = overfull_rows(log or "", body_start=body_start, body_lines=body_lines, source=source)
     if geom is None or not marks:
-        return None
+        if not total:
+            return None
+        # ENDLEAF-R64-ROWS. A template without marks sends the overfull rows only.
+        mapping = {"v": LAYOUT_MAP_VERSION, "overfullTotal": total}
+        if rows:
+            mapping["overfull"] = rows
+        return mapping
     pictures = []
     seen = set()
     for match in _PICBOX.finditer(text):
@@ -93,12 +107,7 @@ def layout_map(log, *, body_start=None, body_lines=0, aux=None):
         entry = [match.group(1), _pt(match.group(2)), _pt(match.group(3)), _pt(match.group(4))]
         if match.group(1) not in fits or entry[1] > fits[match.group(1)][1]:
             fits[match.group(1)] = entry
-    overfull = []
-    if body_start is not None and body_lines > 0:
-        for match in _OVERFULL.finditer(log or ""):
-            line = int(match.group(2))
-            if body_start <= line < body_start + body_lines and len(overfull) < MAX_OVERFULL:
-                overfull.append([line - body_start + 1, _pt(match.group(1))])
+    overfull = rows
     labels = []
     for match in _NEWLABEL.finditer(aux or ""):
         if len(labels) >= MAX_LABELS:
@@ -111,6 +120,8 @@ def layout_map(log, *, body_start=None, body_lines=0, aux=None):
         extra["overfull"] = overfull
     if labels:
         extra["labels"] = labels
+    if total:
+        extra["overfullTotal"] = total
     return {
         **extra,
         "v": LAYOUT_MAP_VERSION,
@@ -141,9 +152,9 @@ def encode_map(mapping, cap=LAYOUT_MAP_CAP_BYTES):
         mapping.pop(drops.pop(0))
 
 
-def layout_map_line(log, *, body_start=None, body_lines=0, aux=None):
+def layout_map_line(log, *, body_start=None, body_lines=0, aux=None, source=None):
     """One stderr line, or ``None``."""
-    encoded = encode_map(layout_map(log, body_start=body_start, body_lines=body_lines, aux=aux))
+    encoded = encode_map(layout_map(log, body_start=body_start, body_lines=body_lines, aux=aux, source=source))
     return None if encoded is None else LAYOUT_MAP_PREFIX + encoded
 
 

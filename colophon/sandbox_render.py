@@ -185,16 +185,18 @@ def render_to_stdout(payload_bytes):
                 if layout is not None:
                     sys.stderr.write(layout + "\n")
                 # ENDLEAF-R60-LAYOUT. Only fulldoc bodies carry marks.
+                # ENDLEAF-R64-ROWS. Every TeX template sends its overfull rows.
+                aux = None
                 if job.template_id == "fulldoc":
                     try:
                         aux = Path("/tmp/job.aux").read_text(encoding="utf-8", errors="replace")
                     except OSError:
                         aux = None
-                    mapping = layout_map_line(
-                        log, body_start=body_start, body_lines=body_lines, aux=aux
-                    )
-                    if mapping is not None:
-                        sys.stderr.write(mapping + "\n")
+                mapping = layout_map_line(
+                    log, body_start=body_start, body_lines=body_lines, aux=aux, source=job.source
+                )
+                if mapping is not None:
+                    sys.stderr.write(mapping + "\n")
         except (OSError, RenderPlanError):
             diagnostic = relocate_to_body(
                 first_tex_error(_collect_logs()), body_start, body_lines

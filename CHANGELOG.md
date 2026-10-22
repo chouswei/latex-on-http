@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-10-22 (ENDLEAF-R64-ROWS)
+
+* Every TeX-path template (not only fulldoc) sends its overfull boxes in the
+  layout map: `overfullTotal` (never dropped) plus at most 50 rows, largest
+  first, `{line, pt, axis, page?, table?}`. hbox and vbox are both listed;
+  `page` is the next shipout after the warning, omitted when none follows;
+  `table` gives `firstLine`, `n`, per-column `share` and `rules` when the line
+  range starts or sits in a tabular/longtable. A body without marks sends a
+  map with only these keys. maxRows 50 is measured: 50 worst-case rows encode
+  to 3852 bytes, under a third of the 12000-byte map cap. Markdown jobs
+  (document-shell) still compile inside Pandoc and send none.
+
 ## 2026-10-09 (ENDLEAF-R62)
 
 * ENDLEAF-R62-FONT: a picture-level font size now reaches node text. The
