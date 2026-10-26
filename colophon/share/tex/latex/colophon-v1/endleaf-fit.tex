@@ -10,7 +10,10 @@
 % is an error. Portrait sheets that already fit stay portrait.
 % Caller \pdfpagewidth in the body is not the switch: a minipage
 % group would restore portrait at shipout.
-% Plain tikzpictures are not scaled; a wide one logs ENDLEAF_WIDE_PICTURE.
+% Plain tikzpictures are not scaled. With no job orientation a plain
+% picture wider than the portrait line turns its page landscape
+% (ENDLEAF-R69-AUTO, ENDLEAF_AUTO_LANDSCAPE); a picture still wider than
+% its line logs ENDLEAF_WIDE_PICTURE (ENDLEAF-R69-WIDE-WARN).
 % ENDLEAF-R59-FLOAT. Inside a figure, a canvas that needs landscape makes
 % that float page-only: it is never set here, top or bottom on a portrait
 % page and never shares a float page. When it reaches the head of the
@@ -403,19 +406,48 @@
 }
 \let\endtable\elfit@closetable
 
-% Plain pictures are not fitted. circuitikz is \let to \tikzpicture
+% Plain pictures are not scaled. circuitikz is \let to \tikzpicture
 % after that name is defined, so point it at this wrapper.
+% ENDLEAF-R69-AUTO. With no job orientation, a plain picture wider than
+% the portrait line at the declared type size turns its page landscape,
+% as a sysml canvas does (ENDLEAF-R49, ENDLEAF-R56-FIT). Inside a figure
+% the float is marked landscape (ENDLEAF-R59-FLOAT); elsewhere the page
+% ships landscape and the next page is portrait again. Type stays at the
+% declared size. A named orientation stays locked: no turn.
+% ENDLEAF-R69-WIDE-WARN. A picture still wider than the line it is set on
+% logs ENDLEAF_WIDE_PICTURE. The worker turns that into a layout_overhang
+% job warning, which the gate reads as figure_wider_than_text.
+\newdimen\elfit@plainline
 \def\tikzpicture{\@ifnextchar[{\elfit@tikzon}{\elfit@tikzon[]}}
 \def\elfit@tikzon[#1]{%
   \setbox\elfit@plainbox=\hbox\bgroup
     \elfit@tikzpicture[#1]%
 }
+\def\elfit@plainfit{%
+  \elfit@plainline=\linewidth
+  \ifdim\wd\elfit@plainbox>\elfit@portline
+    \ifelfit@locked
+    \else
+      \ifelfit@insidefloat
+        \global\elfit@thislandtrue
+      \else
+        \elfit@setlandscape
+        \global\elfit@shiplandtrue
+      \fi
+      \typeout{ENDLEAF_AUTO_LANDSCAPE package=tikz width=\the\wd\elfit@plainbox\space portline=\the\elfit@portline}%
+    \fi
+  \fi
+  \ifelfit@thisland
+    \elfit@plainline=\elfit@landline
+  \fi
+  \ifdim\wd\elfit@plainbox>\elfit@plainline
+    \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\elfit@plainline}%
+  \fi
+}
 \def\elfit@closetizpicture{%
     \elfit@endtikzpicture
   \egroup
-  \ifdim\wd\elfit@plainbox>\linewidth
-    \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\linewidth}%
-  \fi
+  \elfit@plainfit
   \leavevmode\box\elfit@plainbox
 }
 \let\endtikzpicture\elfit@closetizpicture
