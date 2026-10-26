@@ -63,3 +63,13 @@ def test_layout_tex_logs_turn_and_shipout_page():
     order = [close.index(k) for k in (r"\elfit@plainfit", r"\ellay@turnline", r"\ellay@fit{plain}", r"\ellay@turned", r"\ellay@pagemark")]
     assert order == sorted(order)
     assert r"\elfit@plainline=\elfit@landline" in tex
+
+
+def test_wide_float_picture_is_centred_and_own_page_turn_uses_landscape_line():
+    # ENDLEAF-R69-WHERE: centred on the portrait minipage, so centred on the landscape page.
+    fit = (_TEX / "endleaf-fit.tex").read_text(encoding="utf-8")
+    layout = (_TEX / "endleaf-layout.tex").read_text(encoding="utf-8")
+    assert r"\hbox to\linewidth{\hss\box\elfit@plainbox\hss}" in fit
+    assert fit.index(r"\elfit@plainfit" + "\n" + r"  \elfit@plaincentre") > 0
+    assert r"\ellay@turned" + "\n" + r"    \elfit@plaincentre" in layout
+    assert "\\global\\elfit@shiplandtrue\n        % ENDLEAF-R69-WHERE: this page is landscape now; measure on its line.\n        \\elfit@plainline=\\elfit@landline" in fit
