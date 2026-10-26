@@ -433,6 +433,8 @@
       \else
         \elfit@setlandscape
         \global\elfit@shiplandtrue
+        % ENDLEAF-R69-WHERE: this page is landscape now; measure on its line.
+        \elfit@plainline=\elfit@landline
       \fi
       \typeout{ENDLEAF_AUTO_LANDSCAPE package=tikz width=\the\wd\elfit@plainbox\space portline=\the\elfit@portline}%
     \fi
@@ -444,10 +446,21 @@
     \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\elfit@plainline}%
   \fi
 }
+% ENDLEAF-R69-WHERE. Inside a landscape float the minipage is still the
+% portrait line; a picture wider than it is centred on it, so the picture
+% is centred on the landscape page and overhangs both sides evenly.
+\def\elfit@plaincentre{%
+  \ifelfit@thisland
+    \ifdim\wd\elfit@plainbox>\linewidth
+      \setbox\elfit@plainbox\hbox to\linewidth{\hss\box\elfit@plainbox\hss}%
+    \fi
+  \fi
+}
 \def\elfit@closetizpicture{%
     \elfit@endtikzpicture
   \egroup
   \elfit@plainfit
+  \elfit@plaincentre
   \leavevmode\box\elfit@plainbox
 }
 \let\endtikzpicture\elfit@closetizpicture

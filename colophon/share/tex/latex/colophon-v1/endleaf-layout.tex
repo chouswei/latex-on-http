@@ -56,7 +56,9 @@
   execute at begin node={\ellay@innodetrue\ellay@seen},
   execute at end node={\ellay@innodefalse}}}
 \def\ellay@where{\ifx\ellay@cur\@empty -\else\ellay@cur\fi}
+\newcount\ellay@picn
 \def\ellay@fit#1#2#3{%
+  \global\advance\ellay@picn\@ne
   \typeout{ENDLEAF_PICFIT \ellay@where\space #1 \the\wd#2\space\the\dimexpr#3\relax\space\ellay@minfs}%
 }
 % A sysml canvas: its box is final once the type size is published. The
@@ -91,9 +93,42 @@
     \fi
   \else
     \elfit@plainfit
+    \ellay@turnline
     \ellay@fit{plain}\elfit@plainbox\elfit@plainline
+    \ellay@turned
+    \elfit@plaincentre
+    \ellay@pagemark
   \fi
   \leavevmode\box\elfit@plainbox
+}
+% ENDLEAF-R69-WHERE. \elfit@plainfit reads \linewidth before it turns a
+% page outside a float, so a picture that turned its own page would be
+% measured against the portrait line. Outside a float, on a landscape page,
+% the line is the landscape line.
+\def\ellay@turnline{%
+  \ifelfit@insidefloat\else
+    \ifelfit@landscaped\elfit@plainline=\elfit@landline\fi
+  \fi
+}
+% A picture wider than the portrait line with no named orientation turned
+% its page or float landscape. Log its PICFIT number and input line:
+%   ENDLEAF_PICTURN n inputline
+% The worker marks the Overfull \hbox TeX reported for that paragraph
+% against the portrait line as superseded by the turn.
+\def\ellay@turned{%
+  \ifdim\wd\elfit@plainbox>\elfit@portline
+    \ifelfit@locked\else
+      \typeout{ENDLEAF_PICTURN \the\ellay@picn\space\the\inputlineno}%
+    \fi
+  \fi
+}
+% The page the picture ships on: a zero-width write inside its box logs, at
+% shipout,
+%   ENDLEAF_PICPAGE n page portrait|landscape
+% so a float that moves to a later page reports the page it lands on.
+\def\ellay@pagemark{%
+  \edef\ellay@tmp{\write-1{ENDLEAF_PICPAGE \the\ellay@picn\space\noexpand\thepage\space\noexpand\elfit@page}}%
+  \setbox\elfit@plainbox\hbox{\ellay@tmp\box\elfit@plainbox}%
 }
 \let\endtikzpicture\elfit@closetizpicture
 \let\endcircuitikz\endtikzpicture

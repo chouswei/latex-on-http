@@ -31,6 +31,7 @@ import json
 import re
 import zlib
 
+from colophon.layout_warn import turned_pictures
 from colophon.overfull import MAX_ROWS, overfull_rows
 
 LAYOUT_MAP_PREFIX = "ENDLEAF_LAYOUTMAP "
@@ -84,7 +85,10 @@ def layout_map(log, *, body_start=None, body_lines=0, aux=None, source=None):
                 "l" if match.group(5) == "landscape" else "p",
             ]
         )
-    rows, total = overfull_rows(log or "", body_start=body_start, body_lines=body_lines, source=source)
+    turned = tuple(turned_pictures(text).values())
+    rows, total = overfull_rows(
+        log or "", body_start=body_start, body_lines=body_lines, source=source, turned_lines=turned
+    )
     if geom is None or not marks:
         if not total:
             return None

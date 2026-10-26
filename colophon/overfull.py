@@ -218,8 +218,15 @@ def _table_for(tables, first, last):
     return best
 
 
-def overfull_rows(log, *, body_start, body_lines, source=None, max_rows=MAX_ROWS):
-    """(rows, total) for the map; ([], 0) when TeX reported none in the body."""
+def overfull_rows(log, *, body_start, body_lines, source=None, max_rows=MAX_ROWS, turned_lines=()):
+    """(rows, total) for the map; ([], 0) when TeX reported none in the body.
+
+    ENDLEAF-R69-WHERE. ``turned_lines`` are job.tex input lines where a plain
+    picture turned its page landscape (ENDLEAF_PICTURN). An \\hbox row whose
+    paragraph holds one of them is TeX measuring that picture against the
+    portrait line before the turn: it carries ``"superseded": "landscape"``
+    and the picture's own warning reports the landscape overhang.
+    """
     if not log or body_start is None or body_lines <= 0:
         return [], 0
     shipouts = _shipouts(log)
@@ -240,6 +247,8 @@ def overfull_rows(log, *, body_start, body_lines, source=None, max_rows=MAX_ROWS
         line = first - body_start + 1
         # pt exactly as TeX printed it; the gate rounds in decimal (ENDLEAF-R64-REPORT).
         row = {"line": line, "pt": float(match.group(2)), "axis": match.group(1)}
+        if match.group(1) == "h" and any(first <= turn <= last for turn in turned_lines):
+            row["superseded"] = "landscape"
         page = _page_after(shipouts, match.end())
         if page is not None:
             row["page"] = page

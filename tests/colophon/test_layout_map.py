@@ -187,8 +187,8 @@ def test_sandbox_measures_picture_text_and_locates_overfull_lines(tmp_path, monk
     body = (
         "\\section{\\EndleafMark{s1}{s}Intro}\\label{sec:intro}\n"
         "\\EndleafMark{p1}{s}See Figure~\\EndleafMark{fig:f1}{r}\\ref{fig:f1}.\\EndleafMark{p1}{e}\n\n"
-        + _wide("f1", 17.5, "\\large")
-        + _wide("f2", 26, "\\normalsize")
+        + _wide("f1", 23, "\\large")  # wider than the landscape line (ENDLEAF-R69-AUTO)
+        + _wide("f2", 40, "\\normalsize")  # below the type floor even on the landscape line
         + _wide("f3", 6, "\\tiny")
         + "\\EndleafMark{p2}{s}\\hbox{Averyveryveryveryveryverylongunbreakablewordthatcannotfitonthelineatallnomatterwhatwedoabout}\\EndleafMark{p2}{e}\n"
     )
@@ -199,9 +199,10 @@ def test_sandbox_measures_picture_text_and_locates_overfull_lines(tmp_path, monk
     # The smallest text set inside each picture: \large is 12 pt, \normalsize 10 pt and \tiny 5 pt.
     assert fits["f1"][3] == 12.0 and fits["f2"][3] == 10.0 and fits["f3"][3] == 5.0
     assert fits["f1"][1] > fits["f1"][2] and fits["f3"][1] < fits["f3"][2]
-    assert ["fig:f1", "1", 1] in mapping["labels"] and ["sec:intro", "1", 1] in mapping["labels"]
-    assert any(row["line"] == 6 for row in mapping.get("overfull", [])), mapping.get("overfull")
+    assert ["fig:f1", "1", 2] in mapping["labels"]  # its own landscape float page and ["sec:intro", "1", 1] in mapping["labels"]
+    # ENDLEAF-R69-WHERE: a wide float picture is centred on its line, so only the unbreakable word is overfull.
+    assert [row["line"] for row in mapping.get("overfull", [])] == [22], mapping.get("overfull")
     warnings = {item.get("partId"): item for item in parse_layout(err)}
     assert set(warnings) == {"f1", "f2"}
-    assert warnings["f1"]["belowTypeFloor"] is False and warnings["f1"]["fix"].startswith("scale inside the source to 0.")
-    assert warnings["f2"]["belowTypeFloor"] is True and warnings["f2"]["fix"].startswith("redraw or split")
+    assert warnings["f1"]["belowTypeFloor"] is False and warnings["f1"]["fix"].startswith("already landscape; scale inside the source to 0.")
+    assert warnings["f2"]["belowTypeFloor"] is True and warnings["f2"]["fix"].startswith("already landscape; redraw or split")

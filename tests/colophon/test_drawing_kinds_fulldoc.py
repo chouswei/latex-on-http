@@ -291,7 +291,7 @@ def test_sandbox_reports_a_wide_plain_picture(tmp_path, monkeypatch):
     _bind_tex(monkeypatch, tmp_path)
     body = (
         "\\section{Wide}\nText.\n\n\\begin{figure}[htbp]\\centering\n"
-        "\\begin{tikzpicture}\\draw (0,0) rectangle (16,1);\\end{tikzpicture}\n"
+        "\\begin{tikzpicture}\\draw (0,0) rectangle (22,1);\\end{tikzpicture}\n"
         "\\caption{Too wide}\\label{fig:w}\\end{figure}\n"
     )
     code, _pdf, err = _render(
@@ -302,3 +302,5 @@ def test_sandbox_reports_a_wide_plain_picture(tmp_path, monkeypatch):
     (item,) = parse_layout(err)
     assert item["packages"] == ["tikz"]
     assert "past the text line" in item["message"]
+    # ENDLEAF-R69-AUTO turns a 16 cm float landscape where it fits; 22 cm still overhangs the landscape line.
+    assert item["message"].startswith("pg2 landscape: ") and item["page"] == 2
