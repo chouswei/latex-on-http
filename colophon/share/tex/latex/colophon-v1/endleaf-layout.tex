@@ -77,13 +77,21 @@
 \let\ellay@tikzon\elfit@tikzon
 \def\elfit@tikzon{\ifellay@incanvas\else\ellay@picstart\fi\ellay@tikzon}
 % A plain tikz picture: the same steps as endleaf-fit.tex, with the log lines.
+% ENDLEAF-R69-AUTO: outside a sysml canvas, \elfit@plainfit turns the page
+% (or marks the float) landscape when the picture is wider than the portrait
+% line and no orientation was named, and logs ENDLEAF_WIDE_PICTURE against the
+% line the picture is set on; PICFIT then reports that same line.
 \def\elfit@closetizpicture{%
     \elfit@endtikzpicture
   \egroup
   \ellay@picture\elfit@plainbox
-  \ifellay@incanvas\else\ellay@fit{plain}\elfit@plainbox\linewidth\fi
-  \ifdim\wd\elfit@plainbox>\linewidth
-    \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\linewidth}%
+  \ifellay@incanvas
+    \ifdim\wd\elfit@plainbox>\linewidth
+      \typeout{ENDLEAF_WIDE_PICTURE width=\the\wd\elfit@plainbox\space line=\the\linewidth}%
+    \fi
+  \else
+    \elfit@plainfit
+    \ellay@fit{plain}\elfit@plainbox\elfit@plainline
   \fi
   \leavevmode\box\elfit@plainbox
 }
