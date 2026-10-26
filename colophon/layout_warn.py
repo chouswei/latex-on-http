@@ -38,6 +38,13 @@ _FIT = re.compile(
     r"ENDLEAF_PICFIT (\S{1,80}) (plain|sysml) ([0-9]+(?:\.[0-9]+)?)pt"
     r" ([0-9]+(?:\.[0-9]+)?)pt ([0-9]+(?:\.[0-9]+)?)"
 )
+# ENDLEAF-R69-WHERE. endleaf-layout.tex numbers each PICFIT line (1, 2, ...)
+# and logs, for a plain picture, the page it ships on and whether it turned
+# its page landscape:
+#   ENDLEAF_PICPAGE n page portrait|landscape   (at shipout)
+#   ENDLEAF_PICTURN n inputline                 (at compile time)
+_PICPAGE = re.compile(r"ENDLEAF_PICPAGE ([0-9]{1,5}) ([0-9]{1,5}) (portrait|landscape)")
+_PICTURN = re.compile(r"ENDLEAF_PICTURN ([0-9]{1,5}) ([0-9]{1,7})")
 TYPE_FLOOR_PT = 7.0
 # endleaf-layout.tex logs 99 when a picture sets no text.
 NO_TEXT_PT = 99.0
@@ -56,10 +63,25 @@ def picture_fit(width_pt, line_pt, min_size_pt):
     return scale, min_text, min_text < TYPE_FLOOR_PT
 
 
+def picture_pages(text):
+    """{n: (page, orientation)} from ENDLEAF_PICPAGE; the first shipout of n wins."""
+    pages = {}
+    for match in _PICPAGE.finditer(text):
+        pages.setdefault(int(match.group(1)), (int(match.group(2)), match.group(3)))
+    return pages
+
+
+def turned_pictures(text):
+    """{n: inputline} for each picture that turned its page or float landscape."""
+    return {int(m.group(1)): int(m.group(2)) for m in _PICTURN.finditer(text)}
+
+
 def _picture_warnings(text):
     out = []
     extra = 0
-    for match in _FIT.finditer(text):
+    pages = picture_pages(text)
+    turned = turned_pictures(text)
+    for number, match in enumerate(_FIT.finditer(text), start=1):
         where, kind = match.group(1), match.group(2)
         width, line, size = (float(match.group(n)) for n in (3, 4, 5))
         over = width - line
@@ -75,11 +97,21 @@ def _picture_warnings(text):
         else:
             fix = f"scale inside the source to {scale:.2f}"
         part = None if where == "-" else where
+        page = pages.get(number, (None, None))[0]
+        landscape = number in turned
+        if landscape:
+            # The page already turned: the picture is past the landscape line.
+            fix = fix.replace("scale inside the source", "already landscape; scale inside the source", 1)
+            if below:
+                fix = "already landscape; " + fix
+        where_text = " ".join(
+            x for x in (part, f"pg{page}" if page is not None else None, "landscape" if landscape else None) if x
+        )
         item = {
             "code": LAYOUT_CODE,
             "packages": ["sysml-tikz" if kind == "sysml" else "tikz"],
             "message": (
-                (f"{part}: " if part else "")
+                (f"{where_text}: " if where_text else "")
                 + f"a picture runs {millimetres:.1f} mm past the text line; "
                 + f"scaleToFit {scale:.2f}, "
                 + (f"minTextPt {min_text:g}" if min_text is not None else "no text")
@@ -94,6 +126,10 @@ def _picture_warnings(text):
         }
         if part:
             item["partId"] = part
+        if page is not None:
+            item["page"] = page
+        if landscape:
+            item["landscape"] = True
         out.append(item)
     if extra:
         out.append(
@@ -152,6 +188,8 @@ _FIT_KEYS = {
     "minTextPt": (int, float),
     "belowTypeFloor": bool,
     "fix": str,
+    "page": int,
+    "landscape": bool,
 }
 
 
