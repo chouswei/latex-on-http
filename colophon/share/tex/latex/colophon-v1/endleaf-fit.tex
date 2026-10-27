@@ -454,8 +454,29 @@
     \ifdim\wd\elfit@plainbox>\linewidth
       \setbox\elfit@plainbox\hbox to\linewidth{\hss\box\elfit@plainbox\hss}%
     \fi
+  \else
+    \elfit@barecentre
   \fi
 }
+% ENDLEAF-R70-KINDS. A drawing kind (its preamble defines
+% \EndleafBareCentre) centres a bare picture that turned its own page on
+% the landscape line: it starts the line without an indent and overhangs
+% both sides evenly when it is still wider. Without that flag (sysml,
+% fulldoc) nothing here changes.
+\ifdefined\EndleafBareCentre
+  \def\elfit@barecentre{%
+    \ifelfit@insidefloat\else
+      \ifelfit@landscaped
+        \ifdim\wd\elfit@plainbox>\elfit@portline
+          \ifvmode\noindent\fi
+          \setbox\elfit@plainbox\hbox to\linewidth{\hss\box\elfit@plainbox\hss}%
+        \fi
+      \fi
+    \fi
+  }
+\else
+  \let\elfit@barecentre\relax
+\fi
 \def\elfit@closetizpicture{%
     \elfit@endtikzpicture
   \egroup
@@ -466,4 +487,88 @@
 \let\endtikzpicture\elfit@closetizpicture
 \let\circuitikz\tikzpicture
 \let\endcircuitikz\endtikzpicture
+
+% ENDLEAF-R70-SHELL. A document-shell diagram fence reaches the page as an
+% image in \pandocbounded; the lane templates point that at
+% \elfit@bounded. The fence is drawn at the declared body size (10 pt
+% unless \EndleafFenceTypePt says otherwise), so scaling by s sets its type
+% at s times that size. 7 pt is the floor (ENDLEAF-R26).
+%  1. It fits the portrait line: unchanged.
+%  2. Shrinking to the portrait line keeps type at or above 7 pt: shrink,
+%     and log the shrink.
+%  3. Otherwise, with no job orientation: turn landscape (a float ships
+%     alone on a landscape page; elsewhere this page ships landscape),
+%     centre it, and shrink to the landscape line only while type stays at
+%     or above 7 pt.
+%  4. Otherwise (a named orientation, or still too wide landscape): set it
+%     at the floor scale, centred; it overhangs and logs that.
+% The height still bounds the scale, as Pandoc's own macro does.
+% Log lines (compile time, then shipout):
+%   ENDLEAF_SHELLFIT n natural-width line type-pt scale
+%   ENDLEAF_SHELLTURN n
+%   ENDLEAF_SHELLPAGE n page portrait|landscape
+\newcount\elfit@fencen
+\newbox\elfit@fencebox
+\newdimen\elfit@fenceline
+\ifdefined\EndleafFenceTypePt
+  \edef\elfit@fencetype{\EndleafFenceTypePt}
+\else
+  \def\elfit@fencetype{10}
+\fi
+\def\elfit@fencefloor{7}
+% \elfit@fencescale{line}: \elfit@s = min(line / width, 1).
+\def\elfit@fencescale#1{%
+  \Gscale@div\elfit@s{#1}{\wd\elfit@fencebox}%
+  \ifdim\elfit@s\p@>\p@\def\elfit@s{1}\fi
+}
+\def\elfit@bounded#1{%
+  \global\advance\elfit@fencen\@ne
+  \setbox\elfit@fencebox\hbox{#1}%
+  \Gscale@div\elfit@minscale{\elfit@fencefloor\p@}{\elfit@fencetype\p@}%
+  \elfit@fenceline=\linewidth
+  \let\elfit@fenceturn\relax
+  \elfit@fencescale\elfit@fenceline
+  \ifdim\elfit@s\p@<\elfit@minscale\p@
+    \ifelfit@locked
+      \let\elfit@s\elfit@minscale
+    \else
+      \def\elfit@fenceturn{\typeout{ENDLEAF_SHELLTURN \the\elfit@fencen}}%
+      \ifelfit@insidefloat
+        \global\elfit@thislandtrue
+      \else
+        \ifelfit@landscaped\else
+          \elfit@setlandscape
+          \global\elfit@shiplandtrue
+        \fi
+      \fi
+      \elfit@fenceline=\elfit@landline
+      \elfit@fencescale\elfit@fenceline
+      \ifdim\elfit@s\p@<\elfit@minscale\p@
+        \let\elfit@s\elfit@minscale
+      \fi
+    \fi
+  \fi
+  \ifelfit@thisland
+    \elfit@fenceline=\elfit@landline
+  \fi
+  \Gscale@div\elfit@h{\textheight}{\dimexpr\ht\elfit@fencebox+\dp\elfit@fencebox\relax}%
+  \ifdim\elfit@h\p@<\elfit@s\p@\let\elfit@s\elfit@h\fi
+  \typeout{ENDLEAF_SHELLFIT \the\elfit@fencen\space\the\wd\elfit@fencebox\space\the\elfit@fenceline\space\elfit@fencetype\space\elfit@s}%
+  \elfit@fenceturn
+  \ifdim\elfit@s\p@<\p@
+    \setbox\elfit@fencebox\hbox{\scalebox{\elfit@s}{\box\elfit@fencebox}}%
+  \fi
+  \edef\elfit@tmp{\write16{ENDLEAF_SHELLPAGE \the\elfit@fencen\space\noexpand\thepage\space\noexpand\elfit@page}}%
+  \ifx\elfit@fenceturn\relax
+    % A shrunk fence fills the line: start it without the indent.
+    \ifdim\elfit@s\p@<\p@\ifvmode\noindent\fi\fi
+    \ifdim\wd\elfit@fencebox>\linewidth
+      \setbox\elfit@fencebox\hbox to\linewidth{\hss\box\elfit@fencebox\hss}%
+    \fi
+  \else
+    \ifvmode\noindent\fi
+    \setbox\elfit@fencebox\hbox to\linewidth{\hss\box\elfit@fencebox\hss}%
+  \fi
+  \leavevmode\hbox{\elfit@tmp\box\elfit@fencebox}%
+}
 \makeatother

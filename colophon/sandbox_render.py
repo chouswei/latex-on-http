@@ -15,7 +15,7 @@ from colophon.limits import OUTPUT_CAP_BYTES
 from colophon.pdf_pages import fulldoc_page_count, fulldoc_page_failure
 from colophon.settings import setting
 from colophon.layout_map import label_fit_line, layout_map_line
-from colophon.layout_warn import layout_line, layout_warnings
+from colophon.layout_warn import final_pass, layout_line, layout_warnings
 from colophon.tex_log import count_tex_warnings, tex_warn_line
 from colophon.templates import compose_with_body_line
 from colophon.render_plan import RenderPlanError, build_render_plan
@@ -116,6 +116,7 @@ def _run(command):
     if completed.returncode != 0:
         sys.stderr.buffer.write(completed.stdout[-8192:])
         raise RenderPlanError("command")
+    return completed.stdout
 
 
 def render_to_stdout(payload_bytes):
@@ -148,8 +149,9 @@ def render_to_stdout(payload_bytes):
                 )
                 body_lines = len(job.source.split("\n"))
                 Path("/tmp/job.tex").write_text(wrapped, encoding="utf-8")
+            output = b""
             for command in plan.commands:
-                _run(list(command))
+                output = _run(list(command))
             data = Path(plan.output_path).read_bytes()
             log = _collect_logs()
             status = "cap" if len(data) > OUTPUT_CAP_BYTES else "ok"
@@ -171,6 +173,16 @@ def render_to_stdout(payload_bytes):
                     # The fixture asserts this. The log is deleted below.
                     overfull = log.count("Overfull \\hbox")
                     sys.stderr.write(f"ENDLEAF_OVERFULL {overfull}\n")
+            # ENDLEAF-R70-SHELL. A Markdown PDF: the fence fit lines come from
+            # Pandoc's --verbose output (its last LaTeX run).
+            if (
+                status == "ok"
+                and job.input_kind == "markdown"
+                and job.output_format == "pdf"
+            ):
+                layout = layout_line(layout_warnings(final_pass(output)))
+                if layout is not None:
+                    sys.stderr.write(layout + "\n")
             # ENDLEAF-R57-WARN. Counts only, and only for the TeX path:
             # Pandoc compiles in its own directory, so /tmp has no log.
             if (
