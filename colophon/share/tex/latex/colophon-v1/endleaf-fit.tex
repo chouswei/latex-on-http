@@ -306,7 +306,9 @@
 
 % Do not collect the float body. \@float has already begun, so the
 % minipage opens in internal vertical mode. A # in the body stays a #.
-\def\figure{\@ifnextchar[\elfit@figopt{\elfit@figopt[\fps@figure]}}
+% A figure with no [..] (Pandoc's Figure) takes the class default. Expand
+% \fps@figure first: \@xfloat reads the option list token by token.
+\def\figure{\@ifnextchar[\elfit@figopt{\expandafter\elfit@figopt\expandafter[\fps@figure]}}
 \def\elfit@figopt[#1]{%
   \global\elfit@insidefloattrue
   \global\elfit@thislandfalse
