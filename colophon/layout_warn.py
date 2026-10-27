@@ -45,6 +45,17 @@ _FIT = re.compile(
 #   ENDLEAF_PICTURN n inputline                 (at compile time)
 _PICPAGE = re.compile(r"ENDLEAF_PICPAGE ([0-9]{1,5}) ([0-9]{1,5}) (portrait|landscape)")
 _PICTURN = re.compile(r"ENDLEAF_PICTURN ([0-9]{1,5}) ([0-9]{1,7})")
+# ENDLEAF-R70-SHELL. endleaf-fit.tex logs each document-shell diagram fence:
+#   ENDLEAF_SHELLFIT n natural-width line type-pt scale   (compile time)
+#   ENDLEAF_SHELLTURN n                                   (it turned landscape)
+#   ENDLEAF_SHELLPAGE n page portrait|landscape           (at shipout)
+_SHELLFIT = re.compile(
+    r"ENDLEAF_SHELLFIT ([0-9]{1,5}) ([0-9]+(?:\.[0-9]+)?)pt ([0-9]+(?:\.[0-9]+)?)pt"
+    r" ([0-9]+(?:\.[0-9]+)?) ([0-9]+(?:\.[0-9]+)?)"
+)
+_SHELLTURN = re.compile(r"ENDLEAF_SHELLTURN ([0-9]{1,5})")
+_SHELLPAGE = re.compile(r"ENDLEAF_SHELLPAGE ([0-9]{1,5}) ([0-9]{1,5}) (portrait|landscape)")
+SCALED_CODE = "picture_scaled"
 TYPE_FLOOR_PT = 7.0
 # endleaf-layout.tex logs 99 when a picture sets no text.
 NO_TEXT_PT = 99.0
@@ -142,9 +153,108 @@ def _picture_warnings(text):
     return out
 
 
+def _shell_warnings(text):
+    """ENDLEAF-R70-SHELL. One item per fence that overhangs or was shrunk."""
+    pages = {}
+    for match in _SHELLPAGE.finditer(text):
+        pages.setdefault(int(match.group(1)), (int(match.group(2)), match.group(3)))
+    turned = {int(m.group(1)) for m in _SHELLTURN.finditer(text)}
+    out = []
+    seen = set()
+    extra = 0
+    for match in _SHELLFIT.finditer(text):
+        number = int(match.group(1))
+        if number in seen:
+            continue
+        seen.add(number)
+        natural, line, type_pt, applied = (float(match.group(n)) for n in (2, 3, 4, 5))
+        if natural <= 0:
+            continue
+        shown = natural * applied
+        page, orientation = pages.get(number, (None, None))
+        landscape = number in turned or orientation == "landscape"
+        where = " ".join(
+            x for x in (f"pg{page}" if page is not None else None, "landscape" if landscape else None) if x
+        )
+        prefix = f"{where}: " if where else ""
+        if shown - line >= MIN_OVERHANG_PT:
+            if len(out) >= MAX_PICTURE_WARNINGS:
+                extra += 1
+                continue
+            # Against the fence as drawn: the scale its source needs.
+            scale = math.floor(line / natural * 100) / 100
+            min_text = math.floor(type_pt * scale * 10) / 10
+            below = min_text < TYPE_FLOOR_PT
+            millimetres = round((shown - line) * _PT_TO_MM, 1)
+            fix = (
+                f"redraw or split; scaling would put text at {min_text:g} pt"
+                if below
+                else f"scale inside the source to {scale:.2f}"
+            )
+            if landscape:
+                fix = "already landscape; " + fix
+            item = {
+                "code": LAYOUT_CODE,
+                "packages": ["diagram"],
+                "message": (
+                    f"{prefix}a diagram runs {millimetres:.1f} mm past the text line"
+                    f" at {applied:.2f} scale; scaleToFit {scale:.2f}, minTextPt {min_text:g}"
+                    + (" (below 7 pt)" if below else "")
+                    + f". Fix: {fix}"
+                ),
+                "overMm": millimetres,
+                "scaleToFit": scale,
+                "minTextPt": min_text,
+                "belowTypeFloor": below,
+                "fix": fix,
+            }
+        elif applied < 1:
+            text_pt = math.floor(type_pt * applied * 10) / 10
+            applied = math.floor(applied * 100) / 100
+            item = {
+                "code": SCALED_CODE,
+                "packages": ["diagram"],
+                "message": f"{prefix}a diagram was shrunk to {applied:.2f}; its text is {text_pt:g} pt",
+                "scale": applied,
+                "minTextPt": text_pt,
+            }
+        else:
+            continue
+        if page is not None:
+            item["page"] = page
+        if landscape:
+            item["landscape"] = True
+        out.append(item)
+    if extra:
+        out.append(
+            {
+                "code": LAYOUT_CODE,
+                "packages": ["diagram"],
+                "message": f"{extra} more diagrams run past the text line",
+            }
+        )
+    return out
+
+
+def final_pass(output):
+    """Pandoc ``--verbose`` output: only the last LaTeX run's text."""
+    text = output.decode("utf-8", "replace") if isinstance(output, bytes) else (output or "")
+    marker = "[makePDF] LaTeX run number"
+    at = text.rfind(marker)
+    return text if at < 0 else text[at:]
+
+
 def layout_warnings(log):
     """Structured warnings from a final-pass log; ``[]`` when nothing overhangs."""
     text = (log or "").replace("\n", "")
+    if "ENDLEAF_SHELLFIT" in text:
+        return _shell_warnings(text) + [
+            item for item in _plain_warnings(text) if item["packages"] != ["diagram"]
+        ]
+    return _plain_warnings(text)
+
+
+def _plain_warnings(text):
     if "ENDLEAF_PICFIT" in text:
         return _picture_warnings(text)
     worst = {}
@@ -190,6 +300,7 @@ _FIT_KEYS = {
     "fix": str,
     "page": int,
     "landscape": bool,
+    "scale": (int, float),
 }
 
 
@@ -211,7 +322,7 @@ def parse_layout(stderr):
         for item in parsed:
             if (
                 isinstance(item, dict)
-                and item.get("code") == LAYOUT_CODE
+                and item.get("code") in (LAYOUT_CODE, SCALED_CODE)
                 and isinstance(item.get("packages"), list)
                 and item["packages"]
                 and all(isinstance(name, str) and name for name in item["packages"])
@@ -219,7 +330,7 @@ def parse_layout(stderr):
                 and item["message"]
             ):
                 kept = {
-                    "code": LAYOUT_CODE,
+                    "code": item["code"],
                     "packages": list(item["packages"]),
                     "message": item["message"],
                 }

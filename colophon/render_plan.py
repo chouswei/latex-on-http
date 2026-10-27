@@ -119,6 +119,10 @@ def build_render_plan(job: JobSpec) -> RenderPlan:
         # /usr/local/bin/xelatex is the no-shell-escape wrapper, and that
         # directory is first on PATH in the image.
         command += [
+            # ENDLEAF-R70-SHELL. --verbose puts the LaTeX output on stdout,
+            # where the sandbox reads the fence fit lines (Pandoc compiles in
+            # its own directory, so /tmp has no log).
+            "--verbose",
             "--pdf-engine",
             "xelatex",
             "--pdf-engine-opt=-no-shell-escape",

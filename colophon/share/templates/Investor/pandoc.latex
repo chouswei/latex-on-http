@@ -24,6 +24,13 @@ $if(endleaforientation)$\def\EndleafOrientation{$endleaforientation$}$endif$
 \usepackage{longtable}
 \usepackage{hyperref}
 \input{colophon-v1-preamble.tex}
+% ENDLEAF-R70-SHELL. A diagram fence shrinks only while its type stays at
+% or above 7 pt; past that it turns its page landscape (no job orientation)
+% or stops at the floor scale. endleaf-fit.tex logs each fence.
+\input{endleaf-fit.tex}
+\makeatletter
+\renewcommand*\pandocbounded[1]{\elfit@bounded{#1}}
+\makeatother
 \newcommand{\EndleafLane}{Investor}
 $if(title)$
 \title{$title$}
