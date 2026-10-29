@@ -141,11 +141,6 @@ def test_new_circuitikz_symbols_compile_without_missing_shapes(tmp_path):
     _check(tmp_path, data["paths"] + data["aliases"], data["nodes"])
 
 
-@pytest.mark.xfail(
-    reason="spring, damper and crossing need the circuits-symbol-fixes preamble (ENDLEAF-R74) "
-    "on top of the PID library; they pass after that branch is rebased in",
-    strict=False,
-)
 @pytest.mark.skipif(shutil.which("xelatex") is None, reason="xelatex is not installed")
 def test_spring_damper_crossing_compile(tmp_path):
     _check(tmp_path, list(_KNOWN), [])
