@@ -107,7 +107,9 @@
   /sysml/port,
   conjugated/.is if=sysml@conjugated,
   conjugated/.default=true,
+  label anchor/.store in=\sysml@lanchor,
 }
+\def\sysml@lanchor{north west}
 
 \newcommand{\sysmlset}[1]{\pgfkeys{/sysml,#1}}
 
@@ -263,7 +265,7 @@
 %% conjugated, or a leading tilde in the label, flips in and out and
 %% shows a tilde. The recorded direction is the effective one.
 \newcommand{\sysmlport}[9][]{%
-  \pgfkeys{/sysml/port, conjugated=false, #1}%
+  \pgfkeys{/sysml/port, conjugated=false, label anchor=north west, #1}%
   \sysml@absorbtilde{#8}%
   \sysml@effectivedir{#9}%
   \sysml@rememberport{#2}{#3}{#4}{#5}{\sysml@effdir}%
@@ -274,7 +276,7 @@
   \if\relax\detokenize{#6}\relax
     \sysml@autoportlabel{#5}{#3}{#4}%
   \else
-    \node[sysml port label] (sysml@plab) at (#6,#7) {\sysml@shownlabel};%
+    \node[sysml port label, anchor/.expanded=\sysml@lanchor] (sysml@plab) at (#6,#7) {\sysml@shownlabel};%
   \fi
   \edef\sysml@nextname{label of \detokenize{#2}}%
   \sysml@pushnode{plab}{sysml@plab}%
@@ -1308,6 +1310,70 @@
 %% Collapse count, bottom-right inside the owner. Not a header line.
 \newcommand{\sysmlbadge}[3]{%
   \node[sysml badge] at (#1,#2) {#3};%
+}
+
+%% ENDLEAF-R73 part view: the encapsulated contents of one part usage.
+%% Millimetre coordinates, y down, drawn where given. A boundary port
+%% on the outer frame uses the SIDE of the face its connector meets
+%% (the inside face), and `label anchor` plus lx and ly place its label
+%% inside the frame, so no label crosses an outline.
+\definecolor{sysmlicon}{RGB}{70,62,140}
+\tikzset{
+  sysml view frame/.style={draw, rounded corners=3mm, line width=0.4pt},
+  sysml view box/.style={draw, rounded corners=2mm, line width=0.4pt},
+  sysml view rule/.style={draw, line width=0.4pt},
+  sysml view icon/.style={draw=sysmlicon, line width=0.3pt},
+  sysml view head/.style={font=\sysml@font{\sysml@body}, inner sep=0pt, align=center, anchor=north},
+  sysml view compartment/.style={font=\sysml@font{\sysml@body}\itshape, inner sep=0pt, anchor=north},
+  sysml view attribute/.style={font=\sysml@font{\sysml@name}, inner sep=0pt, anchor=west},
+}
+%% Part icon and attribute icon, centred on the coordinate #1.
+\newcommand{\sysml@particon}[1]{%
+  \draw[sysml view icon] ($#1+(-1.2,-1.7)$) rectangle ($#1+(1.2,1.7)$);%
+  \draw[sysml view icon] ($#1+(-1.2,0.5)$) -- ($#1+(1.2,0.5)$);%
+  \draw[sysml view icon] ($#1+(-1.2,1.1)$) -- ($#1+(1.2,1.1)$);%
+}
+\newcommand{\sysml@attricon}[1]{%
+  \draw[sysml view icon] ($#1+(-1.7,-1.1)$) rectangle ($#1+(1.7,1.1)$);%
+  \draw[sysml view icon] ($#1+(-0.9,-0.4)$) rectangle ($#1+(0.9,0.4)$);%
+}
+%% Header: «part» over the name, centred at x #1 with the top at y #2,
+%% the part icon left of the text block.
+\newcommand{\sysml@partheader}[3]{%
+  \node[sysml view head] (sysml@hd) at (#1,#2) {\sysmlguillemets{part}\\[0.4mm]{\sysml@font{\sysml@name}#3}};%
+  \coordinate (sysml@hdic) at ($(sysml@hd.west)+(-3.2,0)$);%
+  \sysml@particon{(sysml@hdic)}%
+  \edef\sysml@nextname{head \detokenize{#3}}%
+  \sysml@pushnode{text}{sysml@hd}%
+}
+%% Outer frame of the view: id, x, y, width, height, title.
+\newcommand{\sysmlpartview}[6]{%
+  \edef\sysml@nextname{box \detokenize{#1}}%
+  \draw[sysml view frame] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+  \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
+  \sysml@partheader{#2+#4/2}{#3+2.4}{#6}%
+}
+%% Inner or nested part box: id, x, y, width, height, name.
+\newcommand{\sysmlpartbox}[6]{%
+  \edef\sysml@nextname{box \detokenize{#1}}%
+  \draw[sysml view box] (#2,#3) rectangle ($(#2,#3)+(#4,#5)$);%
+  \sysml@recordxy{#2}{#3}{#4}{#5}{part}%
+  \sysml@partheader{#2+#4/2}{#3+2.4}{#6}%
+}
+%% Compartment rule across the box at y #2 and its italic label.
+%% x, y, width, label.
+\newcommand{\sysmlcompartment}[4]{%
+  \draw[sysml view rule] (#1,#2) -- ($(#1,#2)+(#3,0)$);%
+  \node[sysml view compartment] (sysml@cmp) at (#1+#3/2,#2+1.2) {#4};%
+  \edef\sysml@nextname{compartment \detokenize{#4}}%
+  \sysml@pushnode{text}{sysml@cmp}%
+}
+%% Attribute row centred on y #2, icon at x #1: x, y, name.
+\newcommand{\sysmlattribute}[3]{%
+  \sysml@attricon{(#1+1.7,#2)}%
+  \node[sysml view attribute] (sysml@atr) at (#1+4.4,#2) {#3};%
+  \edef\sysml@nextname{attribute \detokenize{#3}}%
+  \sysml@pushnode{text}{sysml@atr}%
 }
 
 \newcommand{\sysmlconnectionlegend}[1]{%
