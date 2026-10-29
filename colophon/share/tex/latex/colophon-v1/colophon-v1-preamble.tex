@@ -53,7 +53,7 @@
 % made again here. The PID symbols stay reachable by number (2002, 2151) and
 % by their other names; only the three names above now mean circuitikz's.
 \makeatletter
-\def\endleaf@restore@circuitikz{%
+\def\elcircuitikz@restore{%
   \ifdefined\pgfcirc@activate@bipole@simple
     \pgfcirc@activate@bipole@simple{l}{spring}%
     \pgfcirc@activate@bipole@simple{l}{damper}%
@@ -61,7 +61,7 @@
     \pgfcirc@style@to@style{crossing}{xing}%
   \fi
 }
-\endleaf@restore@circuitikz
+\elcircuitikz@restore
 % ENDLEAF-R74-TEXT. circuitikz sets the thermistor and varistor letters, the
 % ecapacitor plus and the chip pin numbers in its tiny and six-point bold
 % fonts (4 to 5 pt here). Endleaf's floor is 7 pt (ENDLEAF-R26), so both are

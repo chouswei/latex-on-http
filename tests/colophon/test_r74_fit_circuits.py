@@ -41,7 +41,7 @@ def test_circuitikz_styles_are_restored_after_the_pid_library():
     text = _PREAMBLE.read_text(encoding="utf-8")
     code = _code(_PREAMBLE)
     pid = code.index(r"\usetikzlibrary{circuits.pid.ISO14617}")
-    assert pid < code.index(r"\def\endleaf@restore@circuitikz") < code.rindex(r"\endleaf@restore@circuitikz")
+    assert pid < code.index(r"\def\elcircuitikz@restore") < code.rindex(r"\elcircuitikz@restore")
     for name in ("spring", "damper", "crossing"):
         assert rf"\pgfcirc@activate@bipole@simple{{l}}{{{name}}}" in code
     assert r"\pgfcirc@style@to@style{crossing}{xing}" in code
@@ -96,12 +96,14 @@ PORTRAIT = "595.28 x 841.89"
 def _texinputs(tmp_path):
     stub = tmp_path / "stub"
     stub.mkdir(exist_ok=True)
-    found = subprocess.run(
-        ["kpsewhich", "tikzlibrarycircuits.pid.ISO14617.code.tex"],
-        capture_output=True,
-        text=True,
-        env={k: v for k, v in os.environ.items() if k != "TEXINPUTS"},
-    ).stdout.strip()
+    found = ""
+    if shutil.which("kpsewhich"):
+        found = subprocess.run(
+            ["kpsewhich", "tikzlibrarycircuits.pid.ISO14617.code.tex"],
+            capture_output=True,
+            text=True,
+            env={k: v for k, v in os.environ.items() if k != "TEXINPUTS"},
+        ).stdout.strip()
     if not found:
         (stub / "tikzlibrarycircuits.pid.ISO14617.code.tex").write_text("")
     return f".:{stub}:{_SHARE / 'tex'}//:"
