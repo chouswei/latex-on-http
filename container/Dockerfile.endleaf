@@ -2,7 +2,7 @@
 #
 # arm64 and amd64. Everything the job needs is installed here. The container
 # has no network at runtime, and tlmgr is removed so a job cannot fetch
-# packages. The only build-time download is Pandoc. Mermaid, D2, Chromium,
+# packages. The only build-time downloads are Pandoc and the pinned circuitikz zip. Mermaid, D2, Chromium,
 # and Node are not installed.
 #
 # PIDcircuitTikZ has no CTAN package name (checked 2026-09-26). It is vendored
@@ -15,6 +15,11 @@
 # loads (fit, backgrounds, decorations.markings,
 # shapes.geometric, shapes.multipart, plus positioning, calc, and arrows.meta)
 # ship in pgf via texlive-pictures.
+#
+# circuitikz is the exception: Debian bookworm texlive-pictures ships 1.6.0
+# (2022/12/10), which lacks many newer symbols. The pinned CTAN release is installed
+# into TEXMFLOCAL (/usr/local/share/texmf), which kpathsea searches before the
+# Debian tree, and the build fails unless \pgfcircversion is that release.
 
 FROM debian:12-slim
 
@@ -45,6 +50,28 @@ RUN apt-get update -qq \
         tex-gyre \
         fonts-texgyre \
     && rm -rf /var/lib/apt/lists/*
+
+# circuitikz from CTAN, pinned by version and sha256. The zip layout is
+# circuitikz/{README.md,tex/*}; the tex/ files go to tex/latex/circuitikz.
+# To move to a newer release, change all three ARGs together: the build fails
+# on a sha256 or version mismatch. Extraction uses python3 (no unzip needed).
+ARG CIRCUITIKZ_VERSION=1.8.7
+ARG CIRCUITIKZ_SHA256=768edfc7d4cbe77145790f5e4fee929437364c9e359ab3d8a04a2dad1593fd9c
+ARG CIRCUITIKZ_URL=https://mirrors.ctan.org/graphics/pgf/contrib/circuitikz.zip
+RUN set -eu; \
+    curl -fsSL -o /tmp/circuitikz.zip "${CIRCUITIKZ_URL}"; \
+    echo "${CIRCUITIKZ_SHA256}  /tmp/circuitikz.zip" | sha256sum -c -; \
+    mkdir /tmp/circuitikz-src; \
+    python3 -I -c 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+        /tmp/circuitikz.zip /tmp/circuitikz-src; \
+    dest=/usr/local/share/texmf/tex/latex/circuitikz; \
+    mkdir -p "$dest" /usr/local/share/texmf/doc/latex/circuitikz; \
+    cp /tmp/circuitikz-src/circuitikz/tex/* "$dest"/; \
+    cp /tmp/circuitikz-src/circuitikz/README.md /usr/local/share/texmf/doc/latex/circuitikz/; \
+    grep -qF "\\def\\pgfcircversion{${CIRCUITIKZ_VERSION}}" "$dest/circuitikz.sty"; \
+    mktexlsr /usr/local/share/texmf; \
+    test "$(kpsewhich circuitikz.sty)" = "$dest/circuitikz.sty"; \
+    rm -rf /tmp/circuitikz.zip /tmp/circuitikz-src
 
 # Pandoc 3 is required by pandoc-ext/diagram (Figure AST). Bookworm's Pandoc
 # is 2.x. Binaries are pinned; TARGETARCH selects arm64 or amd64.
@@ -91,7 +118,13 @@ RUN set -eu; \
     update-texmf; \
     mktexlsr; \
     fc-cache -f; \
-    kpsewhich circuitikz.sty; \
+    test "$(kpsewhich circuitikz.sty)" = /usr/local/share/texmf/tex/latex/circuitikz/circuitikz.sty; \
+    printf '%s\n' '\documentclass{article}' '\usepackage{circuitikz}' \
+        '\begin{document}\typeout{CTZVER|\pgfcircversion}\end{document}' > /tmp/ctzver.tex; \
+    cd /tmp; \
+    xelatex -interaction=nonstopmode -halt-on-error ctzver.tex > ctzver.out; \
+    grep -qF "CTZVER|${CIRCUITIKZ_VERSION}" ctzver.out; \
+    rm -f ctzver.*; \
     kpsewhich siunitx.sty; \
     kpsewhich pgfplots.sty; \
     kpsewhich chemfig.sty; \

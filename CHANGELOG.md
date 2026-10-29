@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-10-29 (ENDLEAF-R75)
+
+* ENDLEAF-R75: the worker image installs circuitikz 1.8.7 (2026/09/12) from
+  CTAN into `/usr/local/share/texmf` (TEXMFLOCAL), replacing the 1.6.0 that
+  Debian `texlive-pictures` ships. `CIRCUITIKZ_VERSION`, `CIRCUITIKZ_SHA256`
+  and `CIRCUITIKZ_URL` are build args; the build fails on a sha256 mismatch,
+  when the first `circuitikz.sty` is not the local one, or when
+  `\pgfcircversion` is not the pinned version. `packageSetHash` is unchanged.
+* `tests/colophon/test_circuitikz_187.py` compiles the 73 path symbols, 109
+  aliases and 22 node shapes missing on 1.6.0 (plus spring, damper and
+  crossing) and fails on any missing shape or key.
+* IEC logic gate marks follow the picture font (10 pt in the circuits
+  template) and the TikZ `circuits.logic.IEC` marks are `\scriptstyle`
+  (7 pt), so the preamble sets nothing for them.
+
 ## 2026-10-22 (ENDLEAF-R66)
 
 * ENDLEAF-R66: a `stocklabel` template. The gate writes the body from
