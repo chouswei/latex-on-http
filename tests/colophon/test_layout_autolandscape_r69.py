@@ -34,7 +34,8 @@ def test_layout_close_calls_plainfit_outside_a_canvas():
     assert outside.index(r"\elfit@plainfit") < outside.index(r"\ellay@fit{plain}")
     # plainfit already logs ENDLEAF_WIDE_PICTURE outside a canvas; no second line there.
     assert "ENDLEAF_WIDE_PICTURE" not in outside
-    assert r"\leavevmode\box\elfit@plainbox" in body
+    # R74-FIT: the box starts its paragraph without the indent.
+    assert r"\ifvmode\noindent\fi\box\elfit@plainbox" in body
 
 
 def test_layout_inside_a_canvas_does_not_turn_the_page():

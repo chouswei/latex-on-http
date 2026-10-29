@@ -46,5 +46,28 @@
   \fi
 }%
 \makeatother
+% ENDLEAF-R74-SYMBOLS. The PID library is loaded after circuitikz and defines
+% /tikz/spring, /tikz/damper and /tikz/crossing as its own styles (xing is an
+% alias of crossing), so to[spring] and to[damper] drew plain wires and
+% to[crossing] and to[xing] lost the hop. circuitikz's own definitions are
+% made again here. The PID symbols stay reachable by number (2002, 2151) and
+% by their other names; only the three names above now mean circuitikz's.
+\makeatletter
+\def\elcircuitikz@restore{%
+  \ifdefined\pgfcirc@activate@bipole@simple
+    \pgfcirc@activate@bipole@simple{l}{spring}%
+    \pgfcirc@activate@bipole@simple{l}{damper}%
+    \pgfcirc@activate@bipole@simple{l}{crossing}%
+    \pgfcirc@style@to@style{crossing}{xing}%
+  \fi
+}
+\elcircuitikz@restore
+% ENDLEAF-R74-TEXT. circuitikz sets the thermistor and varistor letters, the
+% ecapacitor plus and the chip pin numbers in its tiny and six-point bold
+% fonts (4 to 5 pt here). Endleaf's floor is 7 pt (ENDLEAF-R26), so both are
+% set to 7 pt; the symbols keep their drawn size and only the text grows.
+\long\def\pgf@circ@font@tiny{\fontsize{7}{8.4}\selectfont}
+\long\def\pgf@circ@font@sixbm{\fontsize{7}{8.4}\selectfont\boldmath}
+\makeatother
 % ENDLEAF-R40-CREDIT. Every PDF, including a fenced diagram image.
 \input{endleaf-credit.tex}

@@ -12,6 +12,14 @@
 \usetikzlibrary{shapes,arrows.meta,positioning,calc,automata,mindmap,circuits.pid.ISO14617}
 \usepackage{sysml-tikz}
 \usepackage{circuitikz}
+% ENDLEAF-R74-TEXT. As in colophon-v1-preamble.tex: circuitikz's tiny and
+% six-point bold text is set at 7 pt, the Endleaf floor (ENDLEAF-R26). The
+% PID library is loaded above, before circuitikz, so spring, damper and
+% crossing are circuitikz's here and need no restore.
+\makeatletter
+\long\def\pgf@circ@font@tiny{\fontsize{7}{8.4}\selectfont}
+\long\def\pgf@circ@font@sixbm{\fontsize{7}{8.4}\selectfont\boldmath}
+\makeatother
 \usepackage{siunitx}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}

@@ -60,7 +60,7 @@ _FIT = re.compile(
     r"uniform=([0-9.]+) unit=([0-9.]+) type=([0-9.]+) "
     r"page=(portrait|landscape)"
 )
-_ENDLEAF_FIT_BLOB = "fbb78e65f5b1f537766620a6b2d812e4592ecb2b"  # Endleaf endleaf-r70-fix (R70-FIGOPT)
+_ENDLEAF_FIT_BLOB = "430eafdc296ede1c61b3d2e5d8ad047cacd6fc9a"  # Endleaf circuits-symbol-fixes (R74-FIT)
 # Sysml preamble is the R49 vendor plus __PAPER__ for job pageSize.
 _ENDLEAF_SYSML_PREAMBLE_BLOB = "3b38c57495eb15afc7233c7758c5865d84616716"
 _BOX = re.compile(
