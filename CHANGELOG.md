@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-10-29 (ENDLEAF-R74)
+
+* ENDLEAF-R74-SYMBOLS: circuitikz `spring`, `damper`, `crossing` and `xing`
+  draw again on the worker. The PID library is loaded after circuitikz in
+  `colophon-v1-preamble.tex` and defines styles of the same names, which
+  replaced circuitikz's; the preamble now makes circuitikz's definitions
+  again after the library. PID symbols keep their numbers.
+* ENDLEAF-R74-TEXT: circuitikz's tiny and six-point bold fonts are 7 pt in
+  `colophon-v1-preamble.tex` and `endleaf-kinds.tex` (thermistor and varistor
+  letters, ecapacitor plus, chip pin numbers).
+* ENDLEAF-R74-FIT: `endleaf-fit.tex` scales a plain picture that is wider
+  than the portrait line and taller than a landscape text block to the
+  portrait line (text at or above 7 pt) instead of turning a blank landscape
+  page; logs `ENDLEAF_PICSCALE`. `endleaf-layout.tex` logs `ENDLEAF_PICTURN`
+  only for a real turn.
+* ENDLEAF-R74-INDENT: a plain picture box starts its paragraph without the
+  indent, which had added about 12 pt to a picture that fitted its line.
+  `packageSetHash` is unchanged (no new packages).
+
 ## 2026-10-22 (ENDLEAF-R66)
 
 * ENDLEAF-R66: a `stocklabel` template. The gate writes the body from

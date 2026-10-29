@@ -99,7 +99,8 @@
     \elfit@plaincentre
     \ellay@pagemark
   \fi
-  \leavevmode\box\elfit@plainbox
+  % ENDLEAF-R74-FIT: no paragraph indent on the picture box.
+  \ifvmode\noindent\fi\box\elfit@plainbox
 }
 % ENDLEAF-R69-WHERE. \elfit@plainfit reads \linewidth before it turns a
 % page outside a float, so a picture that turned its own page would be
@@ -117,7 +118,7 @@
 % against the portrait line as superseded by the turn.
 \def\ellay@turned{%
   \ifdim\wd\elfit@plainbox>\elfit@portline
-    \ifelfit@locked\else
+    \ifelfit@plainstay\else
       \typeout{ENDLEAF_PICTURN \the\ellay@picn\space\the\inputlineno}%
     \fi
   \fi
