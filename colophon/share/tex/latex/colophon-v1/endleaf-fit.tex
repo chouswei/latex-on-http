@@ -420,15 +420,49 @@
 % logs ENDLEAF_WIDE_PICTURE. The worker turns that into a layout_overhang
 % job warning, which the gate reads as figure_wider_than_text.
 \newdimen\elfit@plainline
+\newdimen\elfit@plainht
+\newif\ifelfit@plainstay
+\ifdefined\Gscale@div\else\RequirePackage{graphicx}\fi
+% ENDLEAF-R74-FIT. A plain picture wider than the portrait line that is also
+% taller than a landscape text block cannot be turned: its landscape page
+% would be blank and the picture would be clipped on the next page. Such a
+% picture stays portrait and is scaled to the portrait line (and to the
+% portrait text height), as long as the smallest text in it stays at or above
+% 7 pt (ENDLEAF-R26); ENDLEAF_PICSCALE logs the scale. Below that floor it is
+% set unscaled and logs ENDLEAF_WIDE_PICTURE. \ifelfit@plainstay is true when
+% the picture does not turn its page: a named orientation, or too tall.
+\def\elfit@plainscale{%
+  \ifelfit@locked\elfit@plainstaytrue\else\elfit@plainstayfalse\fi
+  \ifdim\wd\elfit@plainbox>\elfit@portline
+    \ifelfit@locked
+    \else
+      \elfit@plainht=\dimexpr\ht\elfit@plainbox+\dp\elfit@plainbox\relax
+      \ifdim\elfit@plainht>\elfit@landth
+        \elfit@plainstaytrue
+        \Gscale@div\elfit@ps{\elfit@portline}{\wd\elfit@plainbox}%
+        \Gscale@div\elfit@pqh{\elfit@portth}{\elfit@plainht}%
+        \ifdim\elfit@pqh\p@<\elfit@ps\p@\let\elfit@ps\elfit@pqh\fi
+        \ifdefined\ellay@minfs\let\elfit@pfs\ellay@minfs\else\def\elfit@pfs{99}\fi
+        \Gscale@div\elfit@pmin{7\p@}{\elfit@pfs\p@}%
+        \ifdim\elfit@ps\p@<\elfit@pmin\p@
+        \else
+          \typeout{ENDLEAF_PICSCALE package=tikz width=\the\wd\elfit@plainbox\space line=\the\elfit@portline\space scale=\elfit@ps}%
+          \setbox\elfit@plainbox\hbox to\elfit@portline{\hss\scalebox{\elfit@ps}{\box\elfit@plainbox}\hss}%
+        \fi
+      \fi
+    \fi
+  \fi
+}
 \def\tikzpicture{\@ifnextchar[{\elfit@tikzon}{\elfit@tikzon[]}}
 \def\elfit@tikzon[#1]{%
   \setbox\elfit@plainbox=\hbox\bgroup
     \elfit@tikzpicture[#1]%
 }
 \def\elfit@plainfit{%
+  \elfit@plainscale
   \elfit@plainline=\linewidth
   \ifdim\wd\elfit@plainbox>\elfit@portline
-    \ifelfit@locked
+    \ifelfit@plainstay
     \else
       \ifelfit@insidefloat
         \global\elfit@thislandtrue
@@ -484,7 +518,8 @@
   \egroup
   \elfit@plainfit
   \elfit@plaincentre
-  \leavevmode\box\elfit@plainbox
+  % ENDLEAF-R74-FIT: no paragraph indent, which the box would add to its width.
+  \ifvmode\noindent\fi\box\elfit@plainbox
 }
 \let\endtikzpicture\elfit@closetizpicture
 \let\circuitikz\tikzpicture
