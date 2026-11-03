@@ -1,0 +1,7 @@
+---
+description: Repo context for the Endleaf render worker
+alwaysApply: true
+---
+
+Read `CLAUDE.md` at the repo root for commands, layout and conventions, and
+`AGENTS.md` for agent-specific notes.
