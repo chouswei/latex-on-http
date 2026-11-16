@@ -4,9 +4,12 @@ Unit cases (no TeX): c1 page.tex margin names, c2 fit.tex landscape derivation,
 c3 the caption reserve in \\elfit@bounded, c4 the layout_too_tall warning.
 TeX cases (a), (b) skip when xelatex or pdfinfo is missing. Caption position in
 case (a) is checked from the PDF text position (pdftotext -bbox) when
-pdftotext exists; otherwise only the log markers are checked and the caption
-position is UNPROVEN, not passed.
+pdftotext exists; otherwise the test emits a visible UNPROVEN warning (shown in
+the pytest warnings summary) and records the property ``caption_position`` as
+``UNPROVEN`` (junit xml / ``-rA`` shows it): a green run then does not read as
+proof of the caption position.
 """
+import warnings
 
 import os
 import re
@@ -50,7 +53,34 @@ def _flat(text):
     return re.sub(r"\s+", " ", text)
 
 
-_DEF = r"\\(?:def|gdef|edef|xdef|newcommand\*?|renewcommand\*?|providecommand\*?|newdimen)\s*\{?\\EndleafLand%s\b"
+def _cond(text, start):
+    """(then, else) parts of the balanced conditional whose \\if token starts at ``start``."""
+    depth = 0
+    else_at = None
+    first_end = None
+    for m in re.finditer(r"\\(if[A-Za-z@]*|else|fi)(?![A-Za-z@])", text[start:]):
+        tok, pos = m.group(1), start + m.start()
+        if tok == "fi":
+            depth -= 1
+            if depth == 0:
+                end = pos
+                head = re.match(r"\\if[A-Za-z@]*", text[start:]).end() + start
+                if else_at is None:
+                    return text[head:end], ""
+                return text[head:else_at], text[else_at + len(r"\else") : end]
+        elif tok == "else":
+            if depth == 1 and else_at is None:
+                else_at = pos
+        else:
+            depth += 1
+    raise AssertionError("unbalanced conditional")
+
+
+_DEF = (
+    r"\\(?:def|gdef|edef|xdef|newcommand\*?|renewcommand\*?|providecommand\*?|newdimen|newskip)"
+    r"\s*\{?\\EndleafLand%s\b"
+    r"|\\newlength\s*\{?\\EndleafLand%s\b"
+)
 
 
 # --- c1: endleaf-page.tex ----------------------------------------------------
@@ -58,7 +88,7 @@ _DEF = r"\\(?:def|gdef|edef|xdef|newcommand\*?|renewcommand\*?|providecommand\*?
 @pytest.mark.parametrize("side", sorted(_VALUES))
 def test_c1_page_defines_each_landscape_margin_once(side):
     code = _code(_PAGE)
-    assert len(re.findall(_DEF % side, code)) == 1, side
+    assert len(re.findall(_DEF % (side, side), code)) == 1, side
     value = _VALUES[side]
     assert re.search(rf"\\EndleafLand{side}\}}?\s*(?:=\s*|\{{){value}", code), (side, value)
 
@@ -83,8 +113,9 @@ def test_c2_fit_landscape_uses_the_four_names():
 def test_c2_fit_has_one_ifdefined_fallback_with_equal_values():
     code = _code(_FIT)
     assert len(re.findall(r"\\ifdefined\s*\\EndleafLandL\b", code)) == 1
-    start = re.search(r"\\ifdefined\s*\\EndleafLandL\b", code).end()
-    block = code[start : code.index(r"\fi", start)]
+    start = re.search(r"\\ifdefined\s*\\EndleafLandL\b", code).start()
+    then, other = _cond(code, start)
+    block = then + " " + other
     for side, value in _VALUES.items():
         assert re.search(rf"\\EndleafLand{side}\}}?\s*(?:=\s*|\{{){value}", block), side
 
@@ -115,32 +146,60 @@ def test_c3_bounded_keeps_the_floor_and_names_the_reserve_parts():
 
 def test_c3_reserve_applies_inside_a_wrapped_figure_or_table_float_only():
     body = _bounded()
-    m = re.search(r"\\ifelfit@insidefloat(.*?)\\else(.*?)\\fi", body)
-    assert m, "the reserve must be chosen under \\ifelfit@insidefloat"
-    inside, outside = m.group(1), m.group(2)
+    assert r"\abovecaptionskip" in body, "no caption reserve in \\elfit@bounded"
+    at = body.index(r"\abovecaptionskip")
+    starts = [m.start() for m in re.finditer(r"\\ifelfit@insidefloat(?![A-Za-z@])", body[:at])]
+    assert starts, "the reserve must be chosen under \\ifelfit@insidefloat"
+    # the governing block is the nearest one that still contains the reserve
+    for start in reversed(starts):
+        inside, outside = _cond(body, start)
+        if r"\abovecaptionskip" in inside or r"\abovecaptionskip" in outside:
+            break
+    else:
+        raise AssertionError("no \\ifelfit@insidefloat block contains \\abovecaptionskip")
     assert r"\abovecaptionskip" in inside and r"\elfit@capreserve" in inside
     assert r"\abovecaptionskip" not in outside
     assert re.search(r"\\elfit@capreserve\s*=\s*(?:0pt|\\z@)", outside), "outside a float the reserve is 0"
 
 
+def _bound_register(body):
+    """Register assigned \\elfit@landth under \\ifelfit@thisland and \\textheight in its else."""
+    for m in re.finditer(r"\\ifelfit@thisland(?![A-Za-z@])", body):
+        then, other = _cond(body, m.start())
+        t = re.search(r"(\\[A-Za-z@]+)\s*=[^\\]*\\(?:dimexpr\s*)?\\?[^\\]*", then)
+        o = re.search(r"(\\[A-Za-z@]+)\s*=", other)
+        if t and o and t.group(1) == o.group(1) and r"\elfit@landth" in then and r"\textheight" in other:
+            return t.group(1)
+    return None
+
+
 def test_c3_height_bound_is_landth_when_thisland_else_textheight():
     body = _bounded()
-    m = re.search(
-        r"\\ifelfit@thisland (\\[A-Za-z@]+)=\\elfit@landth \\else \1=\\textheight \\fi", body
-    )
-    assert m, "bound selection is not tied to \\ifelfit@thisland"
+    assert _bound_register(body), "bound selection is not tied to \\ifelfit@thisland"
     # the height scale is computed against that bound, not the bare \textheight
     assert not re.search(r"\\Gscale@div\\elfit@h\{\\textheight\}", body.replace(" ", ""))
 
 
 def test_c3_shelltall_avail_is_the_bound_itself():
     body = _bounded()
-    bound = re.search(r"\\ifelfit@thisland (\\[A-Za-z@]+)=\\elfit@landth", body).group(1)
-    line = body[body.index("ENDLEAF_SHELLTALL") :]
-    line = line[: line.index("}%") if "}%" in line else len(line)]
-    assert line.rstrip().endswith(rf"\the{bound}") or re.search(rf"\\the{re.escape(bound)}\s*$", line), line
-    assert r"\elfit@capreserve" not in line.split(r"\the", 2)[-1], "avail must not subtract the reserve"
-    assert not re.search(r"-\s*\\(?:the)?\\?elfit@capreserve", line)
+    bound = _bound_register(body)
+    assert bound, "no bound register"
+    assert "ENDLEAF_SHELLTALL" in body, "no SHELLTALL marker in \\elfit@bounded"
+    at = body.index("ENDLEAF_SHELLTALL")
+    depth, end = 0, len(body)
+    for i in range(at, len(body)):  # end of the brace group that holds the marker
+        if body[i] == "{":
+            depth += 1
+        elif body[i] == "}":
+            if depth == 0:
+                end = i
+                break
+            depth -= 1
+    group = body[at:end]
+    thes = list(re.finditer(r"\\the(\\[A-Za-z@]+)", group))
+    assert len(thes) >= 2, group
+    assert thes[-1].group(1) == bound, group
+    assert r"\elfit@capreserve" not in group[thes[-2].start() :], "avail must not subtract the reserve"
 
 
 # --- c4: layout_warn ---------------------------------------------------------
@@ -195,8 +254,15 @@ _A4_L = "841.89 x 595.28"
 _A4_P = "595.28 x 841.89"
 
 
+_PROBE = (
+    r"\typeout{R80TB \the\textwidth\space\the\textheight\space\the\paperwidth\space\the\paperheight"
+    r"\space\the\EndleafPageL\space\the\EndleafPageR\space\the\EndleafPageT\space\the\EndleafPageB}"
+)
+
+
 def _compile(tmp_path, name, body, orientation=None):
     tex, _ = compose_with_body_line("document-shell", "InstruMeasure", body, root=_OWNED, orientation=orientation)
+    tex = tex.replace(r"\end{document}", _PROBE + r"\end{document}")
     d = tmp_path / name
     d.mkdir()
     (d / "job.tex").write_text(tex, encoding="utf-8")
@@ -209,11 +275,12 @@ def _compile(tmp_path, name, body, orientation=None):
 
 
 @_tex
-def test_a_landscape_fence_with_caption_fits_one_page_at_scale_one(tmp_path):
+def test_a_landscape_fence_with_caption_fits_one_page_at_scale_one(tmp_path, record_property):
     """Checks: one page, SHELLFIT scale 1, no SHELLTALL, no layout_too_tall.
 
     Caption position: a PDF text-position check runs only when pdftotext exists;
-    otherwise the caption position is UNPROVEN (log markers cannot show it).
+    otherwise the test warns "UNPROVEN" and records property caption_position
+    = UNPROVEN (log markers cannot show it); it does not pass silently.
     """
     body = (
         "```tikz\n\\draw (0,0) rectangle (20cm,11.5cm);\n```\n\n"
@@ -231,6 +298,10 @@ def test_a_landscape_fence_with_caption_fits_one_page_at_scale_one(tmp_path):
         ys = [float(y) for y, w in re.findall(r'yMax="([0-9.]+)">([^<]*)<', out) if w in ("Two", "caption", "wrap", "sure.")]
         # text block bottom = paper height - 22 mm; the footskip sits below it
         assert ys and max(ys) <= 595.28 - 22 * 72.27 / 25.4 * 72 / 72.27 + 1
+        record_property("caption_position", "proven")
+    else:
+        record_property("caption_position", "UNPROVEN")
+        warnings.warn("UNPROVEN: pdftotext missing, landscape caption position not checked", stacklevel=1)
 
 
 @_tex
@@ -241,3 +312,10 @@ def test_b_portrait_fence_is_unchanged(tmp_path):
     assert "ENDLEAF_SHELLTALL" not in log
     fit = re.findall(r"ENDLEAF_SHELLFIT \d+ \S+ \S+ \S+ (\S+)", log)
     assert all(float(s) == 1.0 for s in fit)
+    probe = re.findall(r"R80TB (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt", log)
+    assert probe, "text-block probe line missing from the log"
+    tw, th, pw, ph, l, r, t, b = (float(x) for x in probe[-1])
+    # portrait baseline: the text block is the paper minus the class-derived page margins
+    assert abs(tw - (pw - l - r)) < 0.5 and abs(th - (ph - t - b)) < 0.5, probe[-1]
+    assert abs(pw - 595.28 * 72.27 / 72) < 1 and abs(ph - 841.89 * 72.27 / 72) < 1
+    assert tw < pw and th < ph and tw > 0.5 * pw and th > 0.5 * ph
