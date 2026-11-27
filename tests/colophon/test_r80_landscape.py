@@ -401,11 +401,6 @@ def test_a2_tall_fence_with_long_caption_fits_one_page(tmp_path):
     want = (_LAND_TH - _RESERVE) / _NATURAL_H
     assert abs(scale - want) < 0.01, (scale, want)
     assert scale < 1 and scale * 10 > 7
-    # negative control: the scale without the caption reserve would be larger, and
-    # at that scale the fence plus the caption's two lines would not fit the text block
-    no_reserve = _LAND_TH / _NATURAL_H
-    assert scale < no_reserve - 0.05, (scale, no_reserve)
-    assert no_reserve * _NATURAL_H + 2 * 12 + 10 > _LAND_TH
     out = subprocess.run(["pdftotext", "-bbox", str(pdf), "-"], capture_output=True, text=True).stdout
     words = set(_A2_CAPTION.split())
     ys = [float(y) for y, w in re.findall(r'yMax="([0-9.]+)">([^<]*)<', out) if w in words]
@@ -414,6 +409,12 @@ def test_a2_tall_fence_with_long_caption_fits_one_page(tmp_path):
     msg = f"caption lines={len(lines)} yMax={max(ys, default=None)} limit={limit:.2f} slack={limit - max(ys, default=0):.2f} scale={scale}"
     assert ys and len(lines) >= 2, msg
     assert max(ys) <= limit, msg
+    # negative control from the measured output: at the reserve-free scale the fence is taller by
+    # (no_reserve - scale) * natural height (TeX pt -> bp), so the caption would end that much lower
+    no_reserve = _LAND_TH / _NATURAL_H
+    assert scale < no_reserve - 0.05, (scale, no_reserve)
+    projected = max(ys) + (no_reserve - scale) * _NATURAL_H * 72 / 72.27
+    assert projected > limit, f"projected caption yMax {projected:.2f} must exceed limit {limit:.2f}; {msg}"
 
 
 @_tex
