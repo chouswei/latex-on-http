@@ -2,15 +2,11 @@
 
 Unit cases (no TeX): c1 page.tex margin names, c2 fit.tex landscape derivation,
 c3 the caption reserve in \\elfit@bounded, c4 the layout_too_tall warning.
-TeX cases (a), (b) skip when xelatex or pdfinfo is missing. Caption position in
-case (a) is checked from the PDF text position (pdftotext -bbox) when
-pdftotext exists; otherwise the test emits a visible UNPROVEN warning (shown in
-the pytest warnings summary) and records the property ``caption_position`` as
-``UNPROVEN`` (junit xml / ``-rA`` shows it): a green run then does not read as
-proof of the caption position.
+TeX cases: (a) runs the worker's own Markdown PDF command (Pandoc, the diagram
+filters, the lane template) and skips without Pandoc 3, xelatex or poppler;
+(b) compiles the document-shell TeX wrapper and skips without xelatex/pdfinfo.
+TeX wraps log lines at max_print_line (79 on Debian), so logs are read unwrapped.
 """
-import warnings
-
 import os
 import re
 import shutil
@@ -20,7 +16,11 @@ from pathlib import Path
 import pytest
 
 from colophon import layout_warn
+from colophon.enums import JobSpec
+from colophon.limits import SHARE_ROOT
+from colophon.render_plan import build_render_plan
 from colophon.templates import compose_with_body_line
+from tests.colophon.test_fulldoc import _unwrap
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SHARE = _ROOT / "colophon/share"
@@ -28,6 +28,7 @@ _OWNED = _SHARE / "templates/owned"
 _TEX = _SHARE / "tex/latex/colophon-v1"
 _PAGE = _TEX / "endleaf-page.tex"
 _FIT = _TEX / "endleaf-fit.tex"
+_DIAGRAM = _ROOT / "vendor/diagram/diagram.lua"
 _VALUES = {"L": "20mm", "R": "20mm", "T": "20mm", "B": "22mm"}
 
 
@@ -245,13 +246,42 @@ def test_c4_survives_the_line_round_trip():
     assert back[0]["overMm"] == items[0]["overMm"] and back[0]["packages"] == ["diagram"]
 
 
-# --- TeX-level (skipped without xelatex) -------------------------------------
+def test_c4_reads_the_fence_lines_through_a_log_wrap():
+    log = _tall("512.3", "478.0", "ENDLEAF_SHELLTURN 1")
+    # TeX breaks a log line after max_print_line columns; a 9-column break splits each keyword.
+    wrapped = "\n".join(line[i : i + 9] for line in log.splitlines() for i in range(0, max(len(line), 1), 9))
+    assert "ENDLEAF_SHELLTALL" not in wrapped
+    assert layout_warn.layout_warnings(wrapped) == layout_warn.layout_warnings(log)
+    assert _too_tall(wrapped)
+
+
+# --- TeX-level (skipped without the tools) -----------------------------------
 
 _tex = pytest.mark.skipif(
     shutil.which("xelatex") is None or shutil.which("pdfinfo") is None, reason="xelatex/pdfinfo not installed"
 )
 _A4_L = "841.89 x 595.28"
 _A4_P = "595.28 x 841.89"
+_NONESCAPE = Path("/usr/local/bin/xelatex-nonescape")
+
+
+def _pandoc3():
+    if shutil.which("pandoc") is None:
+        return False
+    out = subprocess.run(["pandoc", "--version"], capture_output=True, text=True).stdout
+    m = re.match(r"pandoc (\d+)", out)
+    return bool(m and int(m.group(1)) >= 3)
+
+
+_shell = pytest.mark.skipif(
+    not (_pandoc3() and all(shutil.which(t) for t in ("xelatex", "pdfinfo", "pdftotext"))),
+    reason="Markdown PDF path needs pandoc 3, xelatex and poppler (pdfinfo, pdftotext)",
+)
+
+
+def _pages(pdf):
+    info = subprocess.run(["pdfinfo", "-f", "1", "-l", "99", str(pdf)], capture_output=True, text=True).stdout
+    return [l.split(":", 1)[1].split("pts")[0].strip() for l in info.splitlines() if re.match(r"Page\s+\d+ size", l)]
 
 
 _PROBE = (
@@ -268,51 +298,79 @@ def _compile(tmp_path, name, body, orientation=None):
     (d / "job.tex").write_text(tex, encoding="utf-8")
     env = dict(os.environ, TEXINPUTS=f".:{_SHARE / 'tex'}//:")
     subprocess.run(["xelatex", "-interaction=nonstopmode", "job.tex"], cwd=d, env=env, capture_output=True, timeout=240)
-    log = (d / "job.log").read_text(encoding="utf-8", errors="replace")
-    info = subprocess.run(["pdfinfo", "-f", "1", "-l", "99", str(d / "job.pdf")], capture_output=True, text=True).stdout
-    pages = [l.split(":", 1)[1].split("pts")[0].strip() for l in info.splitlines() if re.match(r"Page\s+\d+ size", l)]
-    return d, pages, log
+    log = _unwrap((d / "job.log").read_text(encoding="utf-8", errors="replace"))
+    assert not re.search(r"^! ", log, re.MULTILINE), log[-3000:]
+    return d, _pages(d / "job.pdf"), log
 
 
-@_tex
-def test_a_landscape_fence_with_caption_fits_one_page_at_scale_one(tmp_path, record_property):
-    """Checks: one page, SHELLFIT scale 1, no SHELLTALL, no layout_too_tall.
+def _markdown_pdf(tmp_path, source, orientation):
+    """The worker's Markdown PDF command (build_render_plan), on this checkout's files.
 
-    Caption position: a PDF text-position check runs only when pdftotext exists;
-    otherwise the test warns "UNPROVEN" and records property caption_position
-    = UNPROVEN (log markers cannot show it); it does not pass silently.
+    Returns (pdf, pages, the final LaTeX pass of Pandoc's --verbose output),
+    which is the text the sandbox reads the fence lines from.
     """
-    body = (
-        "```tikz\n\\draw (0,0) rectangle (20cm,11.5cm);\n```\n\n"
-        "Figure: Two line caption that is long enough to wrap onto a second line of the caption "
-        "on this landscape page, with a few more words to be sure.\n"
+    job = JobSpec(source=source, input_kind="markdown", output_format="pdf", lane="InstruMeasure", orientation=orientation)
+    plan = build_render_plan(job)
+    (command,) = plan.commands
+    (source_path,) = plan.files
+    (tmp_path / "input.md").write_text(source, encoding="utf-8")
+    lock = _SHARE / "lock-diagram.lua"
+    if not _NONESCAPE.exists():
+        # A dev box has no non-escape wrapper: lock TikZ to plain xelatex.
+        lock = tmp_path / "lock.lua"
+        lock.write_text((_SHARE / "lock-diagram.lua").read_text(encoding="utf-8").replace(str(_NONESCAPE), "xelatex"))
+    local = {
+        source_path: str(tmp_path / "input.md"),
+        plan.output_path: str(tmp_path / "out.pdf"),
+        f"{SHARE_ROOT}/diagram.lua": str(_DIAGRAM),
+        f"{SHARE_ROOT}/lock-diagram.lua": str(lock),
+    }
+    argv = []
+    for arg in command:
+        if arg in local:
+            arg = local[arg]
+        elif arg.startswith(SHARE_ROOT + "/"):
+            arg = str(_SHARE) + arg[len(SHARE_ROOT) :]
+        elif "-cnf-line=open" in arg and not _NONESCAPE.exists():
+            # Pandoc passes an absolute input.tex; only the wrapper makes it relative.
+            continue
+        argv.append(arg)
+    env = dict(os.environ, TEXINPUTS=f".:{_SHARE / 'tex'}//:")
+    done = subprocess.run(argv, cwd=tmp_path, capture_output=True, env=env, timeout=300)
+    out = done.stdout + done.stderr
+    assert done.returncode == 0, out[-3000:]
+    return tmp_path / "out.pdf", _pages(tmp_path / "out.pdf"), _unwrap(layout_warn.final_pass(out))
+
+
+@_shell
+def test_a_landscape_fence_with_caption_fits_one_page_at_scale_one(tmp_path):
+    """One A4 landscape page, every fence at scale 1, no SHELLTALL or
+    layout_too_tall, and the caption ends above the bottom margin (footskip)."""
+    source = (
+        '```{.tikz caption="Two line caption that is long enough to wrap onto a second line of the caption '
+        'on this landscape page, with a few more words to be sure."}\n'
+        "\\begin{tikzpicture}\n\\draw (0,0) rectangle (20cm,11.5cm);\n\\end{tikzpicture}\n```\n"
     )
-    d, pages, log = _compile(tmp_path, "land", body, orientation="landscape")
+    pdf, pages, log = _markdown_pdf(tmp_path, source, "landscape")
     assert pages == [_A4_L]
-    fit = re.findall(r"ENDLEAF_SHELLFIT \d+ \S+ \S+ \S+ (\S+)", log)
-    assert fit and all(float(s) == 1.0 for s in fit)
+    fit = re.findall(r"ENDLEAF_SHELLFIT \d+ [0-9.]+pt [0-9.]+pt [0-9.]+ ([0-9.]+)", log)
+    assert fit and all(float(s) == 1.0 for s in fit), log[-3000:]
     assert "ENDLEAF_SHELLTALL" not in log
     assert "layout_too_tall" not in str(layout_warn.layout_warnings(log))
-    if shutil.which("pdftotext"):
-        out = subprocess.run(["pdftotext", "-bbox", str(d / "job.pdf"), "-"], capture_output=True, text=True).stdout
-        ys = [float(y) for y, w in re.findall(r'yMax="([0-9.]+)">([^<]*)<', out) if w in ("Two", "caption", "wrap", "sure.")]
-        # text block bottom = paper height - 22 mm; the footskip sits below it
-        assert ys and max(ys) <= 595.28 - 22 * 72.27 / 25.4 * 72 / 72.27 + 1
-        record_property("caption_position", "proven")
-    else:
-        record_property("caption_position", "UNPROVEN")
-        warnings.warn("UNPROVEN: pdftotext missing, landscape caption position not checked", stacklevel=1)
+    out = subprocess.run(["pdftotext", "-bbox", str(pdf), "-"], capture_output=True, text=True).stdout
+    ys = [float(y) for y, w in re.findall(r'yMax="([0-9.]+)">([^<]*)<', out) if w in ("Two", "caption", "wrap", "sure.")]
+    # text block bottom = paper height - 22 mm (bp); the footskip sits below it
+    assert ys and max(ys) <= 595.28 - 22 / 25.4 * 72 + 1, ys
 
 
 @_tex
 def test_b_portrait_fence_is_unchanged(tmp_path):
-    body = "```tikz\n\\draw (0,0) rectangle (12cm,6cm);\n```\n"
+    """A portrait TeX body keeps the class-derived text block. (A TeX body has no
+    fences: Pandoc's \\pandocbounded, which logs SHELLFIT, is Markdown-only.)"""
+    body = "\\begin{tikzpicture}\\draw (0,0) rectangle (12cm,6cm);\\end{tikzpicture}\n"
     _, pages, log = _compile(tmp_path, "port", body)
     assert pages == [_A4_P]
-    assert "ENDLEAF_SHELLTALL" not in log
-    fit = re.findall(r"ENDLEAF_SHELLFIT \d+ \S+ \S+ \S+ (\S+)", log)
-    assert all(float(s) == 1.0 for s in fit)
-    probe = re.findall(r"R80TB (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt (\S+)pt", log)
+    probe = re.findall(r"R80TB " + " ".join([r"([0-9.]+)pt"] * 8), log)
     assert probe, "text-block probe line missing from the log"
     tw, th, pw, ph, l, r, t, b = (float(x) for x in probe[-1])
     # portrait baseline: the text block is the paper minus the class-derived page margins
