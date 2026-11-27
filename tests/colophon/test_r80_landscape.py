@@ -363,6 +363,59 @@ def test_a_landscape_fence_with_caption_fits_one_page_at_scale_one(tmp_path):
     assert ys and max(ys) <= 595.28 - 22 / 25.4 * 72 + 1, ys
 
 
+# Case A2 numbers (TeX pt, 72.27 per inch), from endleaf-fit.tex and the lane template:
+#   landth   = 210 mm - 20 mm (T) - 22 mm (B) = 168 mm = 478.0 pt (text width 257 mm)
+#   reserve  = 3 * \baselineskip (12 pt at 10 pt) + \abovecaptionskip (10 pt) = 46 pt
+#              (\ElfitCaptionHeight is not defined by any template)
+#   bound    = landth - reserve = 432.0 pt for the fence image
+#   natural  = 17 cm + 0.4 pt line = 484.0 pt, so scale = 432.0 / 484.0 = 0.8926
+#   without the reserve the scale would be 478.0 / 484.0 = 0.9876 and the
+#   two-line caption (34 pt with its skip) would end 478 + 34 pt down, past the text block.
+_LAND_TH = 168 / 25.4 * 72.27
+_RESERVE = 3 * 12 + 10
+_NATURAL_H = 17 * 28.4528 + 0.4
+_A2_CAPTION = (
+    "A tall reference figure on a landscape page. The caption names the box, says why it is as tall as it "
+    "is, and what a reader should check against it, and it is long enough to run onto a second line of the "
+    "257 mm text width of the page."
+)
+
+
+@_shell
+def test_a2_tall_fence_with_long_caption_fits_one_page(tmp_path):
+    """A 17 cm tall fence is taller than the landscape text block minus the caption
+    reserve, so SHELLFIT must scale it below 1 (type stays above 7 pt) and the
+    wrapped caption still ends above the bottom margin."""
+    source = (
+        "```{.tikz caption=\"" + _A2_CAPTION + "\"}\n"
+        "\\begin{tikzpicture}\n\\draw (0,0) rectangle (20cm,17cm);\n\\end{tikzpicture}\n```\n"
+    )
+    pdf, pages, log = _markdown_pdf(tmp_path, source, "landscape")
+    assert pages == [_A4_L]
+    fit = re.findall(r"ENDLEAF_SHELLFIT \d+ [0-9.]+pt [0-9.]+pt [0-9.]+ ([0-9.]+)", log)
+    assert len(fit) == 1, log[-3000:]
+    scale = float(fit[0])
+    assert "ENDLEAF_SHELLTALL" not in log
+    assert "layout_too_tall" not in str(layout_warn.layout_warnings(log))
+    # designed outcome: height-bound scale = (landth - reserve) / natural, not 1, above the 7 pt floor
+    want = (_LAND_TH - _RESERVE) / _NATURAL_H
+    assert abs(scale - want) < 0.01, (scale, want)
+    assert scale < 1 and scale * 10 > 7
+    # negative control: the scale without the caption reserve would be larger, and
+    # at that scale the fence plus the caption's two lines would not fit the text block
+    no_reserve = _LAND_TH / _NATURAL_H
+    assert scale < no_reserve - 0.05, (scale, no_reserve)
+    assert no_reserve * _NATURAL_H + 2 * 12 + 10 > _LAND_TH
+    out = subprocess.run(["pdftotext", "-bbox", str(pdf), "-"], capture_output=True, text=True).stdout
+    words = set(_A2_CAPTION.split())
+    ys = [float(y) for y, w in re.findall(r'yMax="([0-9.]+)">([^<]*)<', out) if w in words]
+    lines = sorted({round(y, 1) for y in ys})
+    limit = 595.28 - 22 / 25.4 * 72 + 1
+    msg = f"caption lines={len(lines)} yMax={max(ys, default=None)} limit={limit:.2f} slack={limit - max(ys, default=0):.2f} scale={scale}"
+    assert ys and len(lines) >= 2, msg
+    assert max(ys) <= limit, msg
+
+
 @_tex
 def test_b_portrait_fence_is_unchanged(tmp_path):
     """A portrait TeX body keeps the class-derived text block. (A TeX body has no
