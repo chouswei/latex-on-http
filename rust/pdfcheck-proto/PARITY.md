@@ -140,12 +140,31 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
   same; only text-based rules such as captions, folios and stray source could differ).
 - Filters: Flate (with PNG predictors), ASCIIHex and ASCII85. LZW and RunLength streams
   are left encoded; encrypted PDFs stop with `error PDFEncryptionError`.
-- Geometry stands in for GEOS: invalid node outlines are used as drawn instead of
-  `buffer(0)`; `is_valid` is a simple ring test; the point used for the white-cover test
-  of `pdf_label_on_stroke` follows GEOS InteriorPointLine on merged pieces, but may differ
-  in the last bits; boundary-only contacts may differ in exactly degenerate cases.
-- kNN ties: cKDTree's order among equidistant neighbours is not specified; Rust breaks
-  ties by index. Only the k-th neighbour boundary and exact duplicate centres can differ.
+- Geometry stands in for GEOS (ENDLEAF-R82-GEOM). `geom::ring_valid` follows GEOS
+  `is_valid` for a shell: repeated points are ignored; fewer than three distinct points,
+  any contact between non-adjacent edges, and adjacent edges that fold back on each other
+  (spikes, zero-area rings) make it invalid; self-touching rings are invalid.
+  `geom::Region::from_ring` is `buffer(polygon, 0)`: the points whose winding number `w` has
+  `s * w >= 1`, where `s` is the sign of the ring's signed area and zero counts as clockwise.
+  So a bow-tie keeps one lobe, a pentagram keeps the whole star with its centre, a slit ring
+  keeps its hole, and spikes and zero-area rings drop out. `Region` gives `intersects`, the
+  intersection area and the bounds of `core.difference(node)` for a convex core. On 24,000
+  random rings (integer and 0.01-grid coordinates, with repeated points) and random boxes,
+  `is_valid`, area, intersection area, `intersects` and difference bounds all match shapely
+  2.2.0 to 1e-6.
+- Residual: `pdf_text_escapes_node` in `check.rs` still uses an invalid node outline as
+  drawn. It skips the outline only when it is invalid with zero area, so a symmetric bow-tie
+  node is skipped when GEOS keeps one lobe. The switch to `Region` is a call-site change in
+  `check.rs`, which was outside this part's files. Cases: `tests/gap_n5.rs`
+  `n5_gap_node_invalid_a`..`f`, which stay red until that change lands.
+- Residual: GEOS computes intersection points with its robust noder; Rust uses plain
+  floating point, so repaired vertices and the white-cover point of `pdf_label_on_stroke`
+  (GEOS InteriorPointLine on merged pieces) can differ in the last bits. Only contacts that
+  are exactly on a boundary can flip a result.
+- kNN ties: cKDTree's order among equidistant neighbours is not specified, so Rust breaks
+  ties by paint index. Only the k-th neighbour boundary and exact duplicate centres can
+  differ. No tie disagreed in 300 fuzzed grids; the cases are `n5_reg_knn_grid8`, `_rows`,
+  `_ring` and `_duplicates`.
 - Exception names in `pdf_check_skipped` notes follow pdfminer's for the common cases
   (`PDFSyntaxError`); other Python exceptions (assertions on bad octal escapes, odd
   dictionary tokens) are tolerated in Rust instead of stopping the check.
