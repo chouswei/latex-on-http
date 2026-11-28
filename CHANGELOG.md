@@ -11,8 +11,11 @@
   gone, and so are `python3-pip` and `python3-venv`. The image shrinks from 3.03 GB to
   2.73 GB (local build, x86_64).
 * ENDLEAF-R82-IMPL: `colophon/pdf_layout_check.py` stays, unchanged, as the reference
-  oracle of the binary, for tests and CI only; nothing in the image calls `check_pdf` or
-  `_preload`. Its pinned wheels moved (hashes unchanged) from
+  oracle of the binary, for tests and CI only, and is not in the image: `.dockerignore`
+  leaves it out and the image build asserts it is absent. The worker's wire contract
+  (prefixes, codes, writing and reading the `ENDLEAF_PDFLAYOUT` line) is the stdlib module
+  `colophon/pdf_layout_wire.py`, a verbatim copy that `test_pdf_layout_wire_r82.py` pins
+  to the oracle; `sandbox_render` and `runner` import it instead. Its pinned wheels moved (hashes unchanged) from
   `container/pdfcheck-requirements.txt` to `tests/requirements-pdfcheck-oracle.txt`,
   which the image build does not use.
 * ENDLEAF-R82-IFACE: `sandbox_render._pdf_layout_check` writes `/tmp/job-pdfcheck.pdf`

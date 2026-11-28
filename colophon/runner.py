@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from colophon.cgroup_caps import CpuControllerMissing
 from colophon.diagnostics import parse_stderr
 from colophon.layout_map import parse_layout_map
-from colophon.pdf_layout_check import parse_pdf_layout
+from colophon.pdf_layout_wire import parse_pdf_layout
 from colophon.layout_warn import parse_layout
 from colophon.enums import job_payload
 from colophon.tex_log import parse_tex_warnings

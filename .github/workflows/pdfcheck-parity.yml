@@ -11,9 +11,13 @@ on:
       - 'rust/endleaf-pdfcheck/**'
       - 'colophon/pdf_layout_check.py'
       - 'colophon/sandbox_render.py'
+      - 'colophon/pdf_layout_wire.py'
+      - 'colophon/runner.py'
+      - '.dockerignore'
       - 'tests/colophon/pdfcheck_support.py'
       - 'tests/colophon/test_pdf_layout_check_r81.py'
       - 'tests/colophon/test_pdfcheck_*_r82.py'
+      - 'tests/colophon/test_pdf_layout_wire_r82.py'
       - 'tests/fixtures/pdfcheck-real/**'
       - 'tests/requirements-pdfcheck-oracle.txt'
       - '.github/workflows/pdfcheck-parity.yml'
@@ -24,9 +28,13 @@ on:
       - 'rust/endleaf-pdfcheck/**'
       - 'colophon/pdf_layout_check.py'
       - 'colophon/sandbox_render.py'
+      - 'colophon/pdf_layout_wire.py'
+      - 'colophon/runner.py'
+      - '.dockerignore'
       - 'tests/colophon/pdfcheck_support.py'
       - 'tests/colophon/test_pdf_layout_check_r81.py'
       - 'tests/colophon/test_pdfcheck_*_r82.py'
+      - 'tests/colophon/test_pdf_layout_wire_r82.py'
       - 'tests/fixtures/pdfcheck-real/**'
       - 'tests/requirements-pdfcheck-oracle.txt'
       - '.github/workflows/pdfcheck-parity.yml'
@@ -75,4 +83,4 @@ jobs:
         env:
           ENDLEAF_PDFCHECK_BIN: rust/endleaf-pdfcheck/target/release/endleaf-pdfcheck
         # --noconftest: the worker conftest needs the whole app; the parity test needs only the oracle.
-        run: /tmp/oracle/bin/python -m pytest --noconftest -p no:cacheprovider -v tests/colophon/test_pdfcheck_parity_r82.py
+        run: /tmp/oracle/bin/python -m pytest --noconftest -p no:cacheprovider -v tests/colophon/test_pdfcheck_parity_r82.py tests/colophon/test_pdf_layout_wire_r82.py

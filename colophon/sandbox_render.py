@@ -120,7 +120,8 @@ def _run(command):
 
 
 # ENDLEAF-R82-IFACE. The PDF layout checker is the Rust binary; the Python module
-# colophon/pdf_layout_check.py is its test-only reference and is not run here.
+# colophon/pdf_layout_check.py is its test-only reference and is not in the image; the
+# wire contract (prefixes, codes, line in and out) is colophon/pdf_layout_wire.py.
 PDFCHECK_BIN = "/usr/local/bin/endleaf-pdfcheck"
 PDFCHECK_PDF = "/tmp/job-pdfcheck.pdf"
 PDFCHECK_SIDECAR = "/tmp/job-pdfcheck.json"
@@ -172,7 +173,7 @@ def _pdf_layout_check(job, data, log, body_start, body_lines):
     lines as ENDLEAF_PDFLOG lines. A non-zero exit, a timeout or bad output gives one
     ``pdfcheck error`` line. The binary's stderr is dropped. render_to_stdout deletes both files.
     """
-    from colophon.pdf_layout_check import PDF_LOG_PREFIX, pdf_layout_line
+    from colophon.pdf_layout_wire import PDF_LOG_PREFIX, pdf_layout_line
 
     try:
         sidecar = _pdfcheck_sidecar(job, log, body_start, body_lines)

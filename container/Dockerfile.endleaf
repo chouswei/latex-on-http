@@ -130,6 +130,8 @@ COPY container/run_kind_fixtures.py /tmp/run_kind_fixtures.py
 COPY vendor/diagram/diagram.lua /usr/local/share/colophon/diagram.lua
 COPY colophon/share/ /usr/local/share/colophon/
 COPY colophon/ /opt/colophon/colophon/
+# ENDLEAF-R82-IMPL: the Python reference checker stays out of the image (.dockerignore).
+RUN test ! -e /opt/colophon/colophon/pdf_layout_check.py && test -f /opt/colophon/colophon/pdf_layout_wire.py
 COPY container/stamp_reference_docx.py /tmp/stamp_reference_docx.py
 COPY container/bake_package_set.py /tmp/endleaf-bake-package-set.py
 
