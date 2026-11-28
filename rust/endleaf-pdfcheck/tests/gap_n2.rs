@@ -29,9 +29,16 @@ fn n2_encrypted_skip() {
 #[test]
 fn n2_version_exits_zero_and_names_the_crate() {
     let out = common::bin().arg("--version").output().expect("run");
-    assert!(out.status.success(), "--version exit {:?}", out.status.code());
+    assert!(
+        out.status.success(),
+        "--version exit {:?}",
+        out.status.code()
+    );
     let text = String::from_utf8_lossy(&out.stdout);
-    assert!(text.starts_with("endleaf-pdfcheck "), "version line: {text:?}");
+    assert!(
+        text.starts_with("endleaf-pdfcheck "),
+        "version line: {text:?}"
+    );
     assert_eq!(text.trim_end().lines().count(), 1);
 }
 

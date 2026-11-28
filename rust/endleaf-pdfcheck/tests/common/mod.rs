@@ -105,9 +105,9 @@ fn item_diff(want: &Value, got: &Value) -> Option<String> {
             let ok = match (a.and_then(|v| v.as_array()), b.and_then(|v| v.as_array())) {
                 (Some(a), Some(b)) => {
                     a.len() == b.len()
-                        && a.iter().zip(b).all(|(x, y)| {
-                            (x.as_f64().unwrap() - y.as_f64().unwrap()).abs() <= 0.5
-                        })
+                        && a.iter()
+                            .zip(b)
+                            .all(|(x, y)| (x.as_f64().unwrap() - y.as_f64().unwrap()).abs() <= 0.5)
                 }
                 (None, None) => true,
                 _ => false,
@@ -123,12 +123,23 @@ fn item_diff(want: &Value, got: &Value) -> Option<String> {
 }
 
 fn items_equal(want: &Value, got: &Value) -> Result<(), String> {
-    let (w, g) = (want.as_array().unwrap(), got.as_array().ok_or("items is not an array")?);
+    let (w, g) = (
+        want.as_array().unwrap(),
+        got.as_array().ok_or("items is not an array")?,
+    );
     if w.len() != g.len() {
         let codes = |v: &[Value]| -> Vec<String> {
-            v.iter().map(|i| format!("{}:{}", i["code"], i["message"])).collect()
+            v.iter()
+                .map(|i| format!("{}:{}", i["code"], i["message"]))
+                .collect()
         };
-        return Err(format!("{} items wanted {:?}, got {} {:?}", w.len(), codes(w), g.len(), codes(g)));
+        return Err(format!(
+            "{} items wanted {:?}, got {} {:?}",
+            w.len(),
+            codes(w),
+            g.len(),
+            codes(g)
+        ));
     }
     for (n, (a, b)) in w.iter().zip(g).enumerate() {
         if let Some(d) = item_diff(a, b) {
@@ -143,7 +154,10 @@ fn first_json(out: &Output) -> Result<Value, String> {
         return Err(format!(
             "exit {:?}; stderr: {}",
             out.status.code(),
-            String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("")
+            String::from_utf8_lossy(&out.stderr)
+                .lines()
+                .next()
+                .unwrap_or("")
         ));
     }
     let text = String::from_utf8_lossy(&out.stdout);
@@ -155,14 +169,28 @@ fn lines_equal(want: &Value, rows: &str) -> Result<(), String> {
     for row in rows.lines().filter(|l| !l.trim().is_empty()) {
         let v: Value = serde_json::from_str(row).map_err(|e| e.to_string())?;
         for li in v["line_items"].as_array().unwrap() {
-            let b = li[1].as_array().unwrap().iter().map(|x| x.as_f64().unwrap()).collect();
-            left.push((v["page"].as_i64().unwrap(), li[0].as_str().unwrap().to_string(), b));
+            let b = li[1]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_f64().unwrap())
+                .collect();
+            left.push((
+                v["page"].as_i64().unwrap(),
+                li[0].as_str().unwrap().to_string(),
+                b,
+            ));
         }
     }
     let mut missing = Vec::new();
     for l in want.as_array().unwrap() {
         let (page, text) = (l[0].as_i64().unwrap(), l[1].as_str().unwrap());
-        let b: Vec<f64> = l[2].as_array().unwrap().iter().map(|x| x.as_f64().unwrap()).collect();
+        let b: Vec<f64> = l[2]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_f64().unwrap())
+            .collect();
         let hit = left.iter().position(|(p, t, rb)| {
             *p == page && t == text && rb.iter().zip(&b).all(|(x, y)| (x - y).abs() <= 0.5)
         });
@@ -176,8 +204,13 @@ fn lines_equal(want: &Value, rows: &str) -> Result<(), String> {
     if missing.is_empty() && left.is_empty() {
         return Ok(());
     }
-    let extra: Vec<String> = left.iter().map(|(p, t, _)| format!("pg{p} {t:?}")).collect();
-    Err(format!("lines missing from the binary {missing:?}; extra {extra:?}"))
+    let extra: Vec<String> = left
+        .iter()
+        .map(|(p, t, _)| format!("pg{p} {t:?}"))
+        .collect();
+    Err(format!(
+        "lines missing from the binary {missing:?}; extra {extra:?}"
+    ))
 }
 
 /// Run one manifest row and compare with its expected JSON; Err carries the reason.
@@ -191,7 +224,9 @@ pub fn check(name: &str) -> Result<(), String> {
         if row["sidecar"] == true {
             let keys: Vec<&String> = got.as_object().ok_or("not an object")?.keys().collect();
             if keys != ["items", "log"] {
-                return Err(format!("sidecar run must print exactly {{items, log}}, got keys {keys:?}"));
+                return Err(format!(
+                    "sidecar run must print exactly {{items, log}}, got keys {keys:?}"
+                ));
             }
         }
         items_equal(&want["items"], &got["items"])?;

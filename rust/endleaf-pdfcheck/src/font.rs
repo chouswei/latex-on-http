@@ -729,7 +729,8 @@ impl Be<'_> {
         self.u16().map(|v| v as i16)
     }
     fn u32(&mut self) -> Option<u32> {
-        self.take(4).map(|s| u32::from_be_bytes([s[0], s[1], s[2], s[3]]))
+        self.take(4)
+            .map(|s| u32::from_be_bytes([s[0], s[1], s[2], s[3]]))
     }
     fn u16s(&mut self, n: usize) -> Option<Vec<u16>> {
         (0..n).map(|_| self.u16()).collect()
@@ -777,7 +778,10 @@ fn truetype_unicode_map(data: &[u8]) -> Option<HashMap<u32, String>> {
         if !(pid == 0 || (pid == 3 && (eid == 1 || eid == 10))) {
             continue;
         }
-        let mut r = Be { b: data, p: base.checked_add(off as usize)? };
+        let mut r = Be {
+            b: data,
+            p: base.checked_add(off as usize)?,
+        };
         match r.u16()? {
             0 => {
                 r.take(4)?;
@@ -824,10 +828,14 @@ fn truetype_unicode_map(data: &[u8]) -> Option<HashMap<u32, String>> {
                 let p = r.p;
                 let idrs = r.u16s(segs)?;
                 for i in 0..segs {
-                    let (sc, ec, idd, idr) = (scs[i] as i64, ecs[i] as i64, idds[i] as i64, idrs[i]);
+                    let (sc, ec, idd, idr) =
+                        (scs[i] as i64, ecs[i] as i64, idds[i] as i64, idrs[i]);
                     if idr != 0 {
                         // pdfminer seeks from the start of idRangeOffset[], not from entry i
-                        let mut r = Be { b: data, p: p + idr as usize };
+                        let mut r = Be {
+                            b: data,
+                            p: p + idr as usize,
+                        };
                         for c in sc..=ec {
                             let b = r.u16()? as i64;
                             set(c as u32, (b + idd) & 0xFFFF);
@@ -877,7 +885,9 @@ fn truetype_unicode_map(data: &[u8]) -> Option<HashMap<u32, String>> {
     let mut m: HashMap<u32, String> = HashMap::new();
     for (c, g) in order {
         let Ok(g) = u32::try_from(g) else { continue };
-        let Some(ch) = char::from_u32(c) else { continue };
+        let Some(ch) = char::from_u32(c) else {
+            continue;
+        };
         if ch == '\u{a0}' && m.get(&g).map(|x| x.as_str()) == Some(" ") {
             continue;
         }

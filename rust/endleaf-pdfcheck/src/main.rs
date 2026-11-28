@@ -57,7 +57,10 @@ fn apply_sidecar(v: &Value, opt: &mut Options) -> Result<(), String> {
     let obj = v.as_object().ok_or("sidecar: not a JSON object")?;
     let field = |k: &str| obj.get(k).filter(|x| !x.is_null());
     if let Some(t) = field("templateId") {
-        opt.template = t.as_str().ok_or("sidecar: templateId is not a string")?.into();
+        opt.template = t
+            .as_str()
+            .ok_or("sidecar: templateId is not a string")?
+            .into();
     }
     if let Some(b) = field("blocks") {
         if !b.is_object() {
@@ -83,12 +86,18 @@ fn apply_sidecar(v: &Value, opt: &mut Options) -> Result<(), String> {
             .collect::<Result<_, &str>>()?;
     }
     if let Some(s) = field("shellPages") {
-        let s = s.as_object().ok_or("sidecar: shellPages is not an object")?;
+        let s = s
+            .as_object()
+            .ok_or("sidecar: shellPages is not an object")?;
         opt.shell_pages = s
             .iter()
             .map(|(k, p)| {
-                let n: u64 = k.parse().map_err(|_| format!("sidecar: bad fence number {k}"))?;
-                let p = p.as_u64().ok_or(format!("sidecar: shellPages {k} is not a page"))?;
+                let n: u64 = k
+                    .parse()
+                    .map_err(|_| format!("sidecar: bad fence number {k}"))?;
+                let p = p
+                    .as_u64()
+                    .ok_or(format!("sidecar: shellPages {k} is not a page"))?;
                 Ok((n, p as usize))
             })
             .collect::<Result<_, String>>()?;
@@ -97,7 +106,11 @@ fn apply_sidecar(v: &Value, opt: &mut Options) -> Result<(), String> {
         let t = t.as_array().ok_or("sidecar: texPages is not an array")?;
         opt.tex_pages = t
             .iter()
-            .map(|p| p.as_u64().map(|p| p as usize).ok_or("sidecar: bad texPages entry"))
+            .map(|p| {
+                p.as_u64()
+                    .map(|p| p as usize)
+                    .ok_or("sidecar: bad texPages entry")
+            })
             .collect::<Result<_, _>>()?;
     }
     Ok(())

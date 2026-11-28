@@ -518,11 +518,7 @@ impl Region {
             }
         }
         // no edge contact: the core lies in the region, or a whole ring lies in the core
-        self.locate(core[0]) >= 0
-            || self
-                .rings
-                .iter()
-                .any(|r| point_in_polygon(r[0], core) >= 0)
+        self.locate(core[0]) >= 0 || self.rings.iter().any(|r| point_in_polygon(r[0], core) >= 0)
     }
 
     /// Area of the intersection with a convex polygon (each boundary ring clipped, signed sum).
@@ -545,7 +541,13 @@ impl Region {
             pieces_where(p, q, &self.edges, |m| self.locate(m) < 0, &mut pts);
         }
         for &(p, q) in &self.edges {
-            pieces_where(p, q, &core_edges, |m| point_in_polygon(m, core) > 0, &mut pts);
+            pieces_where(
+                p,
+                q,
+                &core_edges,
+                |m| point_in_polygon(m, core) > 0,
+                &mut pts,
+            );
         }
         if pts.is_empty() {
             None
@@ -879,29 +881,98 @@ mod tests {
         (a - b).abs() < 1e-6
     }
 
-    const A: &[(f64, f64)] = &[(109., 609.), (206., 625.), (135., 613.), (101., 598.), (191., 648.)];
-    const D: &[(f64, f64)] = &[(191., 601.), (169., 649.), (210., 625.), (180., 600.), (127., 631.), (133., 602.)];
+    const A: &[(f64, f64)] = &[
+        (109., 609.),
+        (206., 625.),
+        (135., 613.),
+        (101., 598.),
+        (191., 648.),
+    ];
+    const D: &[(f64, f64)] = &[
+        (191., 601.),
+        (169., 649.),
+        (210., 625.),
+        (180., 600.),
+        (127., 631.),
+        (133., 602.),
+    ];
     const BOW: &[(f64, f64)] = &[(100., 600.), (220., 640.), (220., 600.), (100., 640.)];
     const BOWR: &[(f64, f64)] = &[(100., 640.), (220., 600.), (220., 640.), (100., 600.)];
-    const PENT: &[(f64, f64)] = &[(160., 650.), (190., 580.), (110., 625.), (210., 625.), (130., 580.)];
-    const FIG8: &[(f64, f64)] = &[(0., 0.), (2., 0.), (2., 2.), (4., 2.), (4., 4.), (2., 4.), (2., 2.), (0., 2.)];
-    const SPIKE: &[(f64, f64)] = &[(100., 600.), (220., 600.), (220., 640.), (160., 640.), (160., 700.), (160., 640.), (100., 640.)];
+    const PENT: &[(f64, f64)] = &[
+        (160., 650.),
+        (190., 580.),
+        (110., 625.),
+        (210., 625.),
+        (130., 580.),
+    ];
+    const FIG8: &[(f64, f64)] = &[
+        (0., 0.),
+        (2., 0.),
+        (2., 2.),
+        (4., 2.),
+        (4., 4.),
+        (2., 4.),
+        (2., 2.),
+        (0., 2.),
+    ];
+    const SPIKE: &[(f64, f64)] = &[
+        (100., 600.),
+        (220., 600.),
+        (220., 640.),
+        (160., 640.),
+        (160., 700.),
+        (160., 640.),
+        (100., 640.),
+    ];
     const TOUCH: &[(f64, f64)] = &[(0., 0.), (4., 0.), (4., 4.), (2., 0.), (0., 4.)];
-    const ANNULUS: &[(f64, f64)] = &[(0., 0.), (10., 0.), (10., 10.), (0., 10.), (0., 0.), (3., 3.), (3., 7.), (7., 7.), (7., 3.), (3., 3.)];
+    const ANNULUS: &[(f64, f64)] = &[
+        (0., 0.),
+        (10., 0.),
+        (10., 10.),
+        (0., 10.),
+        (0., 0.),
+        (3., 3.),
+        (3., 7.),
+        (7., 7.),
+        (7., 3.),
+        (3., 3.),
+    ];
 
     #[test]
     fn ring_valid_follows_geos_is_valid() {
         let valid: &[&[(f64, f64)]] = &[
-            &[(100., 600.), (100., 600.), (220., 600.), (220., 600.), (220., 640.), (100., 640.), (100., 640.)],
+            &[
+                (100., 600.),
+                (100., 600.),
+                (220., 600.),
+                (220., 600.),
+                (220., 640.),
+                (100., 640.),
+                (100., 640.),
+            ],
             &[(105., 620.), (145., 595.), (120., 590.), (120., 590.)],
-            &[(130., 590.), (110., 610.), (110., 610.), (100., 620.), (160., 590.)],
+            &[
+                (130., 590.),
+                (110., 610.),
+                (110., 610.),
+                (100., 620.),
+                (160., 590.),
+            ],
             &[(0., 0.), (1., 0.), (1., 1.), (0., 1.), (0., 0.)],
         ];
         for r in valid {
             assert!(ring_valid(&ring(r)), "{r:?}");
         }
         let invalid: &[&[(f64, f64)]] = &[
-            A, D, BOW, BOWR, PENT, FIG8, SPIKE, TOUCH, ANNULUS,
+            A,
+            D,
+            BOW,
+            BOWR,
+            PENT,
+            FIG8,
+            SPIKE,
+            TOUCH,
+            ANNULUS,
             &[(100., 600.), (160., 600.), (220., 600.), (160., 600.)],
             &[(100., 600.), (160., 620.), (220., 640.), (160., 620.)],
             &[(0., 0.), (2., 0.), (1., 0.)],
@@ -941,7 +1012,10 @@ mod tests {
     fn bow_tie_keeps_the_clockwise_lobe() {
         // signed area 0 counts as clockwise: BOW keeps the right lobe, BOWR the left one
         let c = rect(150., 605., 200., 630.);
-        let (b, br) = (Region::from_ring(&ring(BOW)), Region::from_ring(&ring(BOWR)));
+        let (b, br) = (
+            Region::from_ring(&ring(BOW)),
+            Region::from_ring(&ring(BOWR)),
+        );
         assert!(near(b.clip_area(&c), 516.666667));
         assert!(near(br.clip_area(&c), 33.333333));
         assert_eq!(b.locate([200., 620.]), 1);
@@ -965,7 +1039,10 @@ mod tests {
         let t = Region::from_ring(&ring(TOUCH));
         assert!(near(t.clip_area(&c2), 4.75));
         let b = t.difference_bounds(&c2).unwrap();
-        assert!(near(b[0], 0.5) && near(b[1], 0.) && near(b[2], 3.) && near(b[3], 3.), "{b:?}");
+        assert!(
+            near(b[0], 0.5) && near(b[1], 0.) && near(b[2], 3.) && near(b[3], 3.),
+            "{b:?}"
+        );
         let f = Region::from_ring(&ring(FIG8));
         assert!(near(f.clip_area(&c2), 5.0) && f.intersects_convex(&c2));
         // the spike is dropped: the rectangle covers c1, nothing is left over

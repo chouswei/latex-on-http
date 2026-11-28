@@ -1483,9 +1483,7 @@ pub fn check_pdf(data: &[u8], opt: &Options, mut hook: Option<PageHook>) -> Outc
         Ok(()) => {}
         Err(Skip::Budget) => skipped = Some("time budget".into()),
         // R82-DECODE: an encrypted file is skipped, not decrypted (one note, no error name).
-        Err(Skip::Error(name)) if name == "PDFEncryptionError" => {
-            skipped = Some("encrypted".into())
-        }
+        Err(Skip::Error("PDFEncryptionError")) => skipped = Some("encrypted".into()),
         Err(Skip::Error(name)) => skipped = Some(format!("error {name}")),
     }
     if no_block > 0 {
@@ -1552,7 +1550,11 @@ mod sidecar_tests {
 
     #[test]
     fn part_for_open_part_runs_to_later_pages() {
-        let marks = [m("a", "s", 1.0, 300.0), m("b", "s", 2.0, 700.0), m("b", "e", 2.0, 400.0)];
+        let marks = [
+            m("a", "s", 1.0, 300.0),
+            m("b", "s", 2.0, 700.0),
+            m("b", "e", 2.0, 400.0),
+        ];
         assert_eq!(part_for(&marks, 1, 100.0).as_deref(), Some("a"));
         assert_eq!(part_for(&marks, 2, 500.0).as_deref(), Some("b"));
         assert_eq!(part_for(&marks, 2, 300.0).as_deref(), Some("a"));

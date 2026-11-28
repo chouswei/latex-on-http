@@ -14,12 +14,17 @@ const CHILD: u32 = 1 << 31;
 /// A predefined CMap: pdfminer's `CODE2CID` trie, one 256-slot node per trie dict.
 pub struct CMap {
     pub vertical: bool,
-    nodes: Vec<Box<[u32; 256]>>,
+    nodes: Vec<[u32; 256]>,
 }
 
 impl std::fmt::Debug for CMap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CMap(vertical={}, nodes={})", self.vertical, self.nodes.len())
+        write!(
+            f,
+            "CMap(vertical={}, nodes={})",
+            self.vertical,
+            self.nodes.len()
+        )
     }
 }
 
@@ -42,7 +47,7 @@ impl CMap {
     }
 
     fn from_leaves(vertical: bool, leaves: &HashMap<Vec<u8>, u32>) -> CMap {
-        let mut nodes = vec![Box::new([ABSENT; 256])];
+        let mut nodes = vec![[ABSENT; 256]];
         let mut codes: Vec<(&Vec<u8>, &u32)> = leaves.iter().collect();
         codes.sort();
         for (code, cid) in codes {
@@ -56,7 +61,7 @@ impl CMap {
                     (v & !CHILD) as usize
                 } else {
                     // A code that is a prefix of a longer one cannot occur: the data is a trie.
-                    nodes.push(Box::new([ABSENT; 256]));
+                    nodes.push([ABSENT; 256]);
                     let n = nodes.len() - 1;
                     nodes[d][b as usize] = CHILD | n as u32;
                     n
@@ -196,7 +201,12 @@ fn scheme_encode(s: u8, cp: Vec<u8>) -> Option<Vec<u8>> {
         UTF16 => {
             let c = char::from_u32(v)?;
             let mut buf = [0u16; 2];
-            Some(c.encode_utf16(&mut buf).iter().flat_map(|u| u.to_be_bytes()).collect())
+            Some(
+                c.encode_utf16(&mut buf)
+                    .iter()
+                    .flat_map(|u| u.to_be_bytes())
+                    .collect(),
+            )
         }
         UTF8 => {
             let c = char::from_u32(v)?;
@@ -329,7 +339,10 @@ mod tests {
     #[test]
     fn unicode_cmaps_decode_like_pdfminer() {
         // values from pdfminer CMapDB.get_cmap(name).decode(code)
-        let ucs2: Vec<u8> = "日本".encode_utf16().flat_map(|u| u.to_be_bytes()).collect();
+        let ucs2: Vec<u8> = "日本"
+            .encode_utf16()
+            .flat_map(|u| u.to_be_bytes())
+            .collect();
         assert_eq!(dec("UniJIS-UCS2-H", &ucs2), [3284, 3722]);
         assert_eq!(dec("UniJIS-UTF8-H", "日本".as_bytes()), [3284, 3722]);
         assert_eq!(dec("UniJIS-UTF32-H", &[0, 0, 0x65, 0xe5]), [3284]);

@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.85"
 resolver = "3"
 license = "AGPL-3.0-or-later"
-description = "Prototype Rust port of the Endleaf PDF layout checker (ENDLEAF-R81), for timing"
+description = "Endleaf PDF layout checker (ENDLEAF-R81 checks, Rust implementation per ENDLEAF-R82)"
 publish = false
 
 [[bin]]

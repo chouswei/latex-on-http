@@ -832,7 +832,10 @@ pub fn decode_stream(st: &Stream) -> Rc<Vec<u8>> {
     };
     let mut data = st.raw.clone();
     for (n, f) in filters.iter().enumerate() {
-        let parm = parms.get(n).or_else(|| parms.first()).and_then(|p| p.as_ref());
+        let parm = parms
+            .get(n)
+            .or_else(|| parms.first())
+            .and_then(|p| p.as_ref());
         data = match f.as_str() {
             "FlateDecode" | "Fl" => flate(&data),
             "LZWDecode" | "LZW" => {
