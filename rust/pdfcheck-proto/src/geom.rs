@@ -231,16 +231,39 @@ pub fn point_in_polygon(pt: P, ring: &[P]) -> i32 {
     }
 }
 
-/// shapely `is_valid` approximation for a simple ring: enough points, non-zero area,
-/// no crossing between non-adjacent edges.
+/// The ring as GEOS sees it: open (no closing point) and without consecutive repeated points.
+pub fn dedup_ring(ring: &[P]) -> Vec<P> {
+    let mut out: Vec<P> = Vec::with_capacity(ring.len());
+    for &p in ring {
+        if out.last() != Some(&p) {
+            out.push(p);
+        }
+    }
+    while out.len() > 1 && out[0] == out[out.len() - 1] {
+        out.pop();
+    }
+    out
+}
+
+/// shapely 2.2.0 `is_valid` of `shapely.polygons(ring)` (a shell, no holes), as GEOS IsValidOp
+/// decides it: repeated points are ignored; fewer than three distinct points is "Too few
+/// points"; any contact between non-adjacent edges, or adjacent edges that fold back on each
+/// other (a spike, a zero-area ring), is a self-intersection. Self-touching rings are invalid.
 pub fn ring_valid(ring: &[P]) -> bool {
-    let r = open_ring(ring);
+    let r = dedup_ring(ring);
     let n = r.len();
-    if n < 3 || area(r) == 0.0 {
+    if n < 3 {
         return false;
     }
     for i in 0..n {
         let (a, b) = (r[i], r[(i + 1) % n]);
+        // the next edge shares b: invalid only if it runs back along this one
+        let c = r[(i + 2) % n];
+        if cross(a, b, c) == 0.0
+            && (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]) < 0.0
+        {
+            return false;
+        }
         for j in (i + 2)..n {
             if i == 0 && j == n - 1 {
                 continue;
@@ -254,78 +277,347 @@ pub fn ring_valid(ring: &[P]) -> bool {
     true
 }
 
-/// Do two polygons (rings) intersect (boundary contact counts)?
-pub fn polygons_intersect(a: &[P], b: &[P]) -> bool {
-    let (a, b) = (open_ring(a), open_ring(b));
-    if a.is_empty() || b.is_empty() {
-        return false;
-    }
-    let (ba, bb) = (bounds(a), bounds(b));
-    if ba[2] < bb[0] || bb[2] < ba[0] || ba[3] < bb[1] || bb[3] < ba[1] {
-        return false;
-    }
-    for i in 0..a.len() {
-        let (p, q) = (a[i], a[(i + 1) % a.len()]);
-        for j in 0..b.len() {
-            if seg_intersect(p, q, b[j], b[(j + 1) % b.len()]) {
-                return true;
-            }
-        }
-    }
-    point_in_polygon(a[0], b) >= 0 || point_in_polygon(b[0], a) >= 0
+/// A polygonal region given by its boundary: directed edges with the region on their left.
+/// `polygon(ring)` is the shapely polygon if `ring_valid`, else `buffer(polygon, 0)`; see
+/// `Region::from_ring`.
+#[derive(Debug, Clone, Default)]
+pub struct Region {
+    /// The deduplicated input ring (open) and its orientation sign (+1 CCW, -1 CW).
+    ring: Vec<P>,
+    sign: f64,
+    /// Boundary edges, region on the left.
+    edges: Vec<(P, P)>,
+    /// The boundary edges chained into closed rings (outer rings CCW, holes CW).
+    rings: Vec<Vec<P>>,
 }
 
-/// Bounds of `core \ node` (core convex): the boundary pieces of the difference.
-pub fn difference_bounds(core: &[P], node: &[P]) -> Option<[f64; 4]> {
-    let (core, node) = (open_ring(core), open_ring(node));
-    let mut pts: Vec<P> = Vec::new();
-    let split = |p: P, q: P, other: &[P]| -> Vec<f64> {
-        let mut ts = vec![0.0, 1.0];
-        let d = [q[0] - p[0], q[1] - p[1]];
-        for j in 0..other.len() {
-            let (a, b) = (other[j], other[(j + 1) % other.len()]);
-            if let Some(x) = seg_point(p, q, a, b) {
-                let t = if d[0].abs() > d[1].abs() {
-                    (x[0] - p[0]) / d[0]
-                } else if d[1] != 0.0 {
-                    (x[1] - p[1]) / d[1]
-                } else {
-                    0.0
-                };
-                ts.push(t.clamp(0.0, 1.0));
-            }
+/// Winding number of `ring` at `p` along a ray towards +x (`vertical` false) or +y, half-open
+/// at edge ends; edges whose index is in `skip` are left out.
+fn winding(ring: &[P], p: P, vertical: bool, skip: &[usize]) -> i32 {
+    let n = ring.len();
+    let mut w = 0;
+    for i in 0..n {
+        if skip.contains(&i) {
+            continue;
         }
-        ts.sort_by(|a, b| a.total_cmp(b));
-        ts
-    };
-    let at = |p: P, q: P, t: f64| [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-    for i in 0..core.len() {
-        let (p, q) = (core[i], core[(i + 1) % core.len()]);
-        let ts = split(p, q, node);
-        for w in ts.windows(2) {
-            let mid = at(p, q, (w[0] + w[1]) / 2.0);
-            if w[1] > w[0] && point_in_polygon(mid, node) < 0 {
-                pts.push(at(p, q, w[0]));
-                pts.push(at(p, q, w[1]));
+        let (a, b) = (ring[i], ring[(i + 1) % n]);
+        let c = cross(a, b, p);
+        if !vertical {
+            if a[1] <= p[1] && p[1] < b[1] && c > 0.0 {
+                w += 1;
+            } else if b[1] <= p[1] && p[1] < a[1] && c < 0.0 {
+                w -= 1;
             }
+        } else if b[0] <= p[0] && p[0] < a[0] && c > 0.0 {
+            w += 1;
+        } else if a[0] <= p[0] && p[0] < b[0] && c < 0.0 {
+            w -= 1;
         }
     }
-    for i in 0..node.len() {
-        let (p, q) = (node[i], node[(i + 1) % node.len()]);
-        let ts = split(p, q, core);
-        for w in ts.windows(2) {
-            let mid = at(p, q, (w[0] + w[1]) / 2.0);
-            if w[1] > w[0] && point_in_polygon(mid, core) > 0 {
-                pts.push(at(p, q, w[0]));
-                pts.push(at(p, q, w[1]));
-            }
-        }
-    }
-    if pts.is_empty() {
-        None
+    w
+}
+
+fn on_segment(p: P, a: P, b: P) -> bool {
+    cross(a, b, p) == 0.0
+        && p[0] >= a[0].min(b[0])
+        && p[0] <= a[0].max(b[0])
+        && p[1] >= a[1].min(b[1])
+        && p[1] <= a[1].max(b[1])
+}
+
+/// Parameter of `x` along p->q (x on the segment).
+fn param(p: P, q: P, x: P) -> f64 {
+    let d = [q[0] - p[0], q[1] - p[1]];
+    if d[0].abs() > d[1].abs() {
+        (x[0] - p[0]) / d[0]
+    } else if d[1] != 0.0 {
+        (x[1] - p[1]) / d[1]
     } else {
-        Some(bounds(&pts))
+        0.0
     }
+}
+
+/// Reuse a pooled point within a relative 1e-9 of `x` so pieces of different edges share ends.
+fn snap(pool: &mut Vec<P>, x: P) -> P {
+    let tol = 1e-9 * (1.0 + x[0].abs().max(x[1].abs()));
+    for &q in pool.iter() {
+        if (q[0] - x[0]).abs() <= tol && (q[1] - x[1]).abs() <= tol {
+            return q;
+        }
+    }
+    pool.push(x);
+    x
+}
+
+fn key(p: P) -> [u64; 2] {
+    [p[0].to_bits(), p[1].to_bits()]
+}
+
+impl Region {
+    /// shapely `polygons(ring)` when valid, else `buffer(polygon, 0)`. GEOS builds the zero
+    /// buffer from the ring's offset curve with the ring's orientation taken from its signed
+    /// area (zero counts as clockwise), so the result is the set of points whose winding number
+    /// w has `sign * w >= 1`: one lobe of a bow-tie, the whole star of a pentagram (centre
+    /// included), nothing for a zero-area ring, spikes dropped.
+    pub fn from_ring(ring: &[P]) -> Region {
+        let r = dedup_ring(ring);
+        let sign = if signed_area(&r) > 0.0 { 1.0 } else { -1.0 };
+        let mut reg = Region {
+            ring: r,
+            sign,
+            ..Default::default()
+        };
+        if reg.ring.len() < 3 {
+            return reg;
+        }
+        if ring_valid(&reg.ring) {
+            let mut out = reg.ring.clone();
+            if sign < 0.0 {
+                out.reverse();
+            }
+            let n = out.len();
+            reg.edges = (0..n).map(|i| (out[i], out[(i + 1) % n])).collect();
+            reg.rings = vec![out];
+            return reg;
+        }
+        reg.edges = reg.zero_buffer_edges();
+        reg.rings = chain(&reg.edges);
+        reg
+    }
+
+    /// Node the ring, then keep each piece that has the region on exactly one side.
+    fn zero_buffer_edges(&self) -> Vec<(P, P)> {
+        let r = &self.ring;
+        let n = r.len();
+        let mut pool: Vec<P> = r.clone();
+        let mut cuts: Vec<Vec<P>> = (0..n).map(|i| vec![r[i], r[(i + 1) % n]]).collect();
+        for i in 0..n {
+            let (a, b) = (r[i], r[(i + 1) % n]);
+            for j in (i + 1)..n {
+                let (c, d) = (r[j], r[(j + 1) % n]);
+                if !seg_intersect(a, b, c, d) {
+                    continue;
+                }
+                if cross(a, b, c) == 0.0 && cross(a, b, d) == 0.0 {
+                    // collinear overlap: each edge is cut at the other's ends
+                    for x in [c, d] {
+                        if on_segment(x, a, b) {
+                            cuts[i].push(x);
+                        }
+                    }
+                    for x in [a, b] {
+                        if on_segment(x, c, d) {
+                            cuts[j].push(x);
+                        }
+                    }
+                    continue;
+                }
+                let x = [a, b, c, d]
+                    .into_iter()
+                    .find(|&v| on_segment(v, a, b) && on_segment(v, c, d))
+                    .unwrap_or_else(|| line_x(a, b, c, d).unwrap_or(a));
+                let x = snap(&mut pool, x);
+                cuts[i].push(x);
+                cuts[j].push(x);
+            }
+        }
+        // unique undirected pieces: net direction count and the ring edges they lie on
+        let mut pieces: Vec<(P, P, i32, Vec<usize>)> = Vec::new();
+        let mut index: std::collections::HashMap<[u64; 4], usize> =
+            std::collections::HashMap::new();
+        for (i, pts) in cuts.iter_mut().enumerate() {
+            let (a, b) = (r[i], r[(i + 1) % n]);
+            pts.sort_by(|x, y| param(a, b, *x).total_cmp(&param(a, b, *y)));
+            pts.dedup();
+            for w in pts.windows(2) {
+                let (p, q) = (w[0], w[1]);
+                let fwd = (key(p), p) < (key(q), q);
+                let (lo, hi) = if fwd { (p, q) } else { (q, p) };
+                let k = [key(lo)[0], key(lo)[1], key(hi)[0], key(hi)[1]];
+                let slot = *index.entry(k).or_insert_with(|| {
+                    pieces.push((lo, hi, 0, Vec::new()));
+                    pieces.len() - 1
+                });
+                pieces[slot].2 += if fwd { 1 } else { -1 };
+                pieces[slot].3.push(i);
+            }
+        }
+        let inside = |w: i32| self.sign * w as f64 >= 1.0;
+        let mut edges = Vec::new();
+        for (a, b, net, on) in pieces {
+            if net == 0 {
+                continue; // the same winding on both sides
+            }
+            let m = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+            // winding just beside m (to +x, or to +y for a horizontal piece), then the other side
+            let (wl, wr) = if a[1] != b[1] {
+                let w = winding(r, m, false, &on);
+                if b[1] > a[1] {
+                    (w + net, w)
+                } else {
+                    (w, w - net)
+                }
+            } else {
+                let w = winding(r, m, true, &on);
+                if b[0] > a[0] {
+                    (w, w - net)
+                } else {
+                    (w + net, w)
+                }
+            };
+            match (inside(wl), inside(wr)) {
+                (true, false) => edges.push((a, b)),
+                (false, true) => edges.push((b, a)),
+                _ => {}
+            }
+        }
+        edges
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
+
+    pub fn bounds(&self) -> [f64; 4] {
+        let pts: Vec<P> = self.edges.iter().map(|e| e.0).collect();
+        bounds(&pts)
+    }
+
+    #[cfg(test)]
+    pub fn area(&self) -> f64 {
+        self.rings.iter().map(|r| signed_area(r)).sum()
+    }
+
+    /// 1 inside, 0 on the boundary, -1 outside.
+    pub fn locate(&self, p: P) -> i32 {
+        if self.edges.iter().any(|&(a, b)| on_segment(p, a, b)) {
+            return 0;
+        }
+        if self.is_empty() {
+            return -1;
+        }
+        if self.sign * winding(&self.ring, p, false, &[]) as f64 >= 1.0 {
+            1
+        } else {
+            -1
+        }
+    }
+
+    /// `intersects` with a convex polygon (boundary contact counts).
+    pub fn intersects_convex(&self, core: &[P]) -> bool {
+        let core = open_ring(core);
+        if self.is_empty() || core.is_empty() {
+            return false;
+        }
+        let n = core.len();
+        for &(a, b) in &self.edges {
+            for j in 0..n {
+                if seg_intersect(a, b, core[j], core[(j + 1) % n]) {
+                    return true;
+                }
+            }
+        }
+        // no edge contact: the core lies in the region, or a whole ring lies in the core
+        self.locate(core[0]) >= 0
+            || self
+                .rings
+                .iter()
+                .any(|r| point_in_polygon(r[0], core) >= 0)
+    }
+
+    /// Area of the intersection with a convex polygon (each boundary ring clipped, signed sum).
+    pub fn clip_area(&self, core: &[P]) -> f64 {
+        let s: f64 = self
+            .rings
+            .iter()
+            .map(|r| signed_area(&clip_convex(r, core)))
+            .sum();
+        s.max(0.0)
+    }
+
+    /// Bounds of `core \ region` (core convex): the boundary pieces of the difference.
+    pub fn difference_bounds(&self, core: &[P]) -> Option<[f64; 4]> {
+        let core = open_ring(core);
+        let n = core.len();
+        let core_edges: Vec<(P, P)> = (0..n).map(|i| (core[i], core[(i + 1) % n])).collect();
+        let mut pts: Vec<P> = Vec::new();
+        for &(p, q) in &core_edges {
+            pieces_where(p, q, &self.edges, |m| self.locate(m) < 0, &mut pts);
+        }
+        for &(p, q) in &self.edges {
+            pieces_where(p, q, &core_edges, |m| point_in_polygon(m, core) > 0, &mut pts);
+        }
+        if pts.is_empty() {
+            None
+        } else {
+            Some(bounds(&pts))
+        }
+    }
+}
+
+/// Split p-q at its contacts with `others`; push the ends of each piece whose midpoint `keep`s.
+fn pieces_where(p: P, q: P, others: &[(P, P)], keep: impl Fn(P) -> bool, out: &mut Vec<P>) {
+    let mut ts = vec![0.0, 1.0];
+    for &(a, b) in others {
+        if let Some(x) = seg_point(p, q, a, b) {
+            ts.push(param(p, q, x).clamp(0.0, 1.0));
+        }
+        for v in [a, b] {
+            if on_segment(v, p, q) {
+                ts.push(param(p, q, v).clamp(0.0, 1.0));
+            }
+        }
+    }
+    ts.sort_by(|a, b| a.total_cmp(b));
+    let at = |t: f64| [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+    for w in ts.windows(2) {
+        if w[1] > w[0] && keep(at((w[0] + w[1]) / 2.0)) {
+            out.push(at(w[0]));
+            out.push(at(w[1]));
+        }
+    }
+}
+
+/// Chain directed edges into closed rings (end point to an unused edge starting there).
+fn chain(edges: &[(P, P)]) -> Vec<Vec<P>> {
+    let mut from: std::collections::HashMap<[u64; 2], Vec<usize>> =
+        std::collections::HashMap::new();
+    for (i, e) in edges.iter().enumerate() {
+        from.entry(key(e.0)).or_default().push(i);
+    }
+    let mut used = vec![false; edges.len()];
+    let mut rings = Vec::new();
+    for s in 0..edges.len() {
+        if used[s] {
+            continue;
+        }
+        used[s] = true;
+        let start = edges[s].0;
+        let mut ring = vec![start];
+        let mut at = edges[s].1;
+        while at != start {
+            ring.push(at);
+            let next = from
+                .get(&key(at))
+                .and_then(|l| l.iter().copied().find(|&i| !used[i]));
+            match next {
+                Some(i) => {
+                    used[i] = true;
+                    at = edges[i].1;
+                }
+                None => break, // not closed (rounding); clipping closes it
+            }
+        }
+        rings.push(ring);
+    }
+    rings
+}
+
+/// Bounds of `core \\ node` for a raw ring `node`: the buffer(0) region's difference bounds.
+/// Kept for the crate's unit tests; the checker calls `Region::difference_bounds`.
+#[cfg(test)]
+pub fn difference_bounds(core: &[P], node: &[P]) -> Option<[f64; 4]> {
+    Region::from_ring(node).difference_bounds(core)
 }
 
 /// Uniform grid over boxes for "boxes intersect" candidate pairs (STRtree stand-in).
@@ -567,5 +859,123 @@ pub fn np_sum(a: &[f64]) -> f64 {
         let mut n2 = n / 2;
         n2 -= n2 % 8;
         np_sum(&a[..n2]) + np_sum(&a[n2..])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Expected values are shapely 2.2.0 (GEOS) answers for the same rings.
+    use super::*;
+
+    fn ring(pts: &[(f64, f64)]) -> Vec<P> {
+        pts.iter().map(|&(x, y)| [x, y]).collect()
+    }
+
+    fn rect(x0: f64, y0: f64, x1: f64, y1: f64) -> Vec<P> {
+        vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+    }
+
+    fn near(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-6
+    }
+
+    const A: &[(f64, f64)] = &[(109., 609.), (206., 625.), (135., 613.), (101., 598.), (191., 648.)];
+    const D: &[(f64, f64)] = &[(191., 601.), (169., 649.), (210., 625.), (180., 600.), (127., 631.), (133., 602.)];
+    const BOW: &[(f64, f64)] = &[(100., 600.), (220., 640.), (220., 600.), (100., 640.)];
+    const BOWR: &[(f64, f64)] = &[(100., 640.), (220., 600.), (220., 640.), (100., 600.)];
+    const PENT: &[(f64, f64)] = &[(160., 650.), (190., 580.), (110., 625.), (210., 625.), (130., 580.)];
+    const FIG8: &[(f64, f64)] = &[(0., 0.), (2., 0.), (2., 2.), (4., 2.), (4., 4.), (2., 4.), (2., 2.), (0., 2.)];
+    const SPIKE: &[(f64, f64)] = &[(100., 600.), (220., 600.), (220., 640.), (160., 640.), (160., 700.), (160., 640.), (100., 640.)];
+    const TOUCH: &[(f64, f64)] = &[(0., 0.), (4., 0.), (4., 4.), (2., 0.), (0., 4.)];
+    const ANNULUS: &[(f64, f64)] = &[(0., 0.), (10., 0.), (10., 10.), (0., 10.), (0., 0.), (3., 3.), (3., 7.), (7., 7.), (7., 3.), (3., 3.)];
+
+    #[test]
+    fn ring_valid_follows_geos_is_valid() {
+        let valid: &[&[(f64, f64)]] = &[
+            &[(100., 600.), (100., 600.), (220., 600.), (220., 600.), (220., 640.), (100., 640.), (100., 640.)],
+            &[(105., 620.), (145., 595.), (120., 590.), (120., 590.)],
+            &[(130., 590.), (110., 610.), (110., 610.), (100., 620.), (160., 590.)],
+            &[(0., 0.), (1., 0.), (1., 1.), (0., 1.), (0., 0.)],
+        ];
+        for r in valid {
+            assert!(ring_valid(&ring(r)), "{r:?}");
+        }
+        let invalid: &[&[(f64, f64)]] = &[
+            A, D, BOW, BOWR, PENT, FIG8, SPIKE, TOUCH, ANNULUS,
+            &[(100., 600.), (160., 600.), (220., 600.), (160., 600.)],
+            &[(100., 600.), (160., 620.), (220., 640.), (160., 620.)],
+            &[(0., 0.), (2., 0.), (1., 0.)],
+            &[(0., 0.), (1., 1.), (0., 0.)],
+        ];
+        for r in invalid {
+            assert!(!ring_valid(&ring(r)), "{r:?}");
+        }
+    }
+
+    #[test]
+    fn zero_buffer_areas_match_geos() {
+        for (r, want) in [
+            (A, 213.766862),
+            (D, 676.93532),
+            (BOW, 1200.0),
+            (BOWR, 1200.0),
+            (PENT, 2293.261819),
+            (FIG8, 8.0),
+            (SPIKE, 4800.0),
+            (TOUCH, 8.0),
+            (ANNULUS, 84.0),
+        ] {
+            let g = Region::from_ring(&ring(r));
+            assert!(near(g.area(), want), "{r:?}: {} != {want}", g.area());
+        }
+        for r in [
+            &[(100., 600.), (160., 600.), (220., 600.), (160., 600.)][..],
+            &[(100., 600.), (160., 620.), (220., 640.), (160., 620.)],
+            &[(0., 0.), (2., 0.), (1., 0.)],
+        ] {
+            assert!(Region::from_ring(&ring(r)).is_empty(), "{r:?}");
+        }
+    }
+
+    #[test]
+    fn bow_tie_keeps_the_clockwise_lobe() {
+        // signed area 0 counts as clockwise: BOW keeps the right lobe, BOWR the left one
+        let c = rect(150., 605., 200., 630.);
+        let (b, br) = (Region::from_ring(&ring(BOW)), Region::from_ring(&ring(BOWR)));
+        assert!(near(b.clip_area(&c), 516.666667));
+        assert!(near(br.clip_area(&c), 33.333333));
+        assert_eq!(b.locate([200., 620.]), 1);
+        assert_eq!(b.locate([120., 620.]), -1);
+        assert_eq!(br.locate([120., 620.]), 1);
+    }
+
+    #[test]
+    fn clip_area_intersects_and_difference_bounds_match_geos() {
+        let c1 = rect(150., 605., 200., 630.);
+        let c2 = rect(0., 0., 3., 3.);
+        let a = Region::from_ring(&ring(A));
+        assert!(near(a.clip_area(&c1), 18.17906));
+        assert!(a.intersects_convex(&c1) && !a.intersects_convex(&c2));
+        let d = Region::from_ring(&ring(D));
+        assert!(near(d.clip_area(&c1), 137.601965));
+        let p = Region::from_ring(&ring(PENT));
+        assert!(near(p.clip_area(&c1), 917.464243));
+        assert_eq!(p.difference_bounds(&c1), Some([150., 605., 200., 630.]));
+        // self-touching: the bottom touch point splits the lobes; c2 \ region starts at x=0.5
+        let t = Region::from_ring(&ring(TOUCH));
+        assert!(near(t.clip_area(&c2), 4.75));
+        let b = t.difference_bounds(&c2).unwrap();
+        assert!(near(b[0], 0.5) && near(b[1], 0.) && near(b[2], 3.) && near(b[3], 3.), "{b:?}");
+        let f = Region::from_ring(&ring(FIG8));
+        assert!(near(f.clip_area(&c2), 5.0) && f.intersects_convex(&c2));
+        // the spike is dropped: the rectangle covers c1, nothing is left over
+        let s = Region::from_ring(&ring(SPIKE));
+        assert!(near(s.clip_area(&c1), 1250.0));
+        assert_eq!(s.difference_bounds(&c1), None);
+        // the hole of the slit ring stays a hole; c2 lies in the solid part
+        let an = Region::from_ring(&ring(ANNULUS));
+        assert!(near(an.clip_area(&c2), 9.0));
+        assert_eq!(an.difference_bounds(&c2), None);
+        assert_eq!(an.locate([5., 5.]), -1);
     }
 }
