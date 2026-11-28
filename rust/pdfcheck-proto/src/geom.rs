@@ -478,6 +478,12 @@ impl Region {
         self.edges.is_empty()
     }
 
+    pub fn bounds(&self) -> [f64; 4] {
+        let pts: Vec<P> = self.edges.iter().map(|e| e.0).collect();
+        bounds(&pts)
+    }
+
+    #[cfg(test)]
     pub fn area(&self) -> f64 {
         self.rings.iter().map(|r| signed_area(r)).sum()
     }
@@ -607,78 +613,11 @@ fn chain(edges: &[(P, P)]) -> Vec<Vec<P>> {
     rings
 }
 
-/// Do two polygons (rings) intersect (boundary contact counts)?
-pub fn polygons_intersect(a: &[P], b: &[P]) -> bool {
-    let (a, b) = (open_ring(a), open_ring(b));
-    if a.is_empty() || b.is_empty() {
-        return false;
-    }
-    let (ba, bb) = (bounds(a), bounds(b));
-    if ba[2] < bb[0] || bb[2] < ba[0] || ba[3] < bb[1] || bb[3] < ba[1] {
-        return false;
-    }
-    for i in 0..a.len() {
-        let (p, q) = (a[i], a[(i + 1) % a.len()]);
-        for j in 0..b.len() {
-            if seg_intersect(p, q, b[j], b[(j + 1) % b.len()]) {
-                return true;
-            }
-        }
-    }
-    point_in_polygon(a[0], b) >= 0 || point_in_polygon(b[0], a) >= 0
-}
-
-/// Bounds of `core \ node` (core convex): the boundary pieces of the difference.
+/// Bounds of `core \\ node` for a raw ring `node`: the buffer(0) region's difference bounds.
+/// Kept for the crate's unit tests; the checker calls `Region::difference_bounds`.
+#[cfg(test)]
 pub fn difference_bounds(core: &[P], node: &[P]) -> Option<[f64; 4]> {
-    let (core, node) = (open_ring(core), open_ring(node));
-    let mut pts: Vec<P> = Vec::new();
-    let split = |p: P, q: P, other: &[P]| -> Vec<f64> {
-        let mut ts = vec![0.0, 1.0];
-        let d = [q[0] - p[0], q[1] - p[1]];
-        for j in 0..other.len() {
-            let (a, b) = (other[j], other[(j + 1) % other.len()]);
-            if let Some(x) = seg_point(p, q, a, b) {
-                let t = if d[0].abs() > d[1].abs() {
-                    (x[0] - p[0]) / d[0]
-                } else if d[1] != 0.0 {
-                    (x[1] - p[1]) / d[1]
-                } else {
-                    0.0
-                };
-                ts.push(t.clamp(0.0, 1.0));
-            }
-        }
-        ts.sort_by(|a, b| a.total_cmp(b));
-        ts
-    };
-    let at = |p: P, q: P, t: f64| [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-    for i in 0..core.len() {
-        let (p, q) = (core[i], core[(i + 1) % core.len()]);
-        let ts = split(p, q, node);
-        for w in ts.windows(2) {
-            let mid = at(p, q, (w[0] + w[1]) / 2.0);
-            if w[1] > w[0] && point_in_polygon(mid, node) < 0 {
-                pts.push(at(p, q, w[0]));
-                pts.push(at(p, q, w[1]));
-            }
-        }
-    }
-    for i in 0..node.len() {
-        let (p, q) = (node[i], node[(i + 1) % node.len()]);
-        let ts = split(p, q, core);
-        for w in ts.windows(2) {
-            let mid = at(p, q, (w[0] + w[1]) / 2.0);
-            if w[1] > w[0] && point_in_polygon(mid, core) > 0 {
-                pts.push(at(p, q, w[0]));
-                pts.push(at(p, q, w[1]));
-            }
-        }
-    }
-    if pts.is_empty() {
-        None
-    } else {
-        Some(bounds(&pts))
-    }
+    Region::from_ring(node).difference_bounds(core)
 }
 
 /// Uniform grid over boxes for "boxes intersect" candidate pairs (STRtree stand-in).

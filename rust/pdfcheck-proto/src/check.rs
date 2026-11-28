@@ -787,43 +787,44 @@ fn check_label_on_stroke(page: &Page) -> Vec<Hit> {
 }
 
 fn check_text_escapes_node(page: &Page) -> Vec<Hit> {
-    let mut nodes: Vec<(&Vec<P>, f64)> = Vec::new();
+    // shapely polygons(ring), repaired with buffer(0) when not valid (ENDLEAF-R82-GEOM)
+    let mut nodes: Vec<(geom::Region, f64)> = Vec::new();
     for path in &page.paths {
         if path.image || !(path.stroke && path.closed && path.single) || path.polylines[0].len() < 4
         {
             continue;
         }
-        let ring = &path.polylines[0];
-        if !geom::ring_valid(ring) && geom::area(ring) == 0.0 {
-            continue; // buffer(0) of a zero-area ring is empty
+        let node = geom::Region::from_ring(&path.polylines[0]);
+        if node.is_empty() {
+            continue;
         }
-        nodes.push((ring, path.bbox[2] - path.bbox[0]));
+        nodes.push((node, path.bbox[2] - path.bbox[0]));
     }
     if nodes.is_empty() || page.words.is_empty() {
         return vec![];
     }
     let mut hits = Vec::new();
-    let mut grid = Grid::new(nodes.iter().map(|(r, _)| geom::bounds(r)).collect(), 50.0);
+    let mut grid = Grid::new(nodes.iter().map(|(r, _)| r.bounds()).collect(), 50.0);
     let mut cand = Vec::new();
     for w in &page.words {
         grid.query(&geom::bounds(&w.core), &mut cand);
         for &n in &cand {
-            let (node, width) = nodes[n];
+            let (node, width) = (&nodes[n].0, nodes[n].1);
             if width <= NODE_MIN_WIDTH_EM * w.size {
                 continue;
             }
-            if !geom::polygons_intersect(&w.core, node) {
+            if !node.intersects_convex(&w.core) {
                 continue;
             }
             let area = geom::area(&w.core);
             if area <= 0.0 {
                 continue;
             }
-            let fraction = geom::area(&geom::clip_convex(node, &w.core)) / area;
+            let fraction = node.clip_area(&w.core) / area;
             if !(NODE_INSIDE_MIN < fraction && fraction < NODE_INSIDE_MAX) {
                 continue;
             }
-            if let Some(b) = geom::difference_bounds(&w.core, node) {
+            if let Some(b) = node.difference_bounds(&w.core) {
                 if (b[2] - b[0]).max(b[3] - b[1]) <= NODE_ESCAPE_MIN_PT {
                     continue;
                 }
