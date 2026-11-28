@@ -148,8 +148,13 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
   format 12 code past U+10FFFF) Rust uses no Unicode map; surrogate code points are skipped.
 - Binary size: the CJK data adds about 0.6 MB to the release binary (3,181,024 ->
   3,799,520 bytes on x86_64, Rust 1.85).
-- Filters: Flate (with PNG predictors), ASCIIHex and ASCII85. LZW and RunLength streams
-  are left encoded. Encrypted PDFs are skipped, not decrypted: one note
+- Filters (ENDLEAF-R82-DECODE): Flate, LZW, RunLength, ASCIIHex and ASCII85, in filter
+  arrays, with the PNG (>= 10) and TIFF 2 predictors from DecodeParms. LZW follows pdfminer's
+  decoder (257 skipped, an unknown code ends the stream) and honours `/EarlyChange 0`, which
+  pdfminer ignores; the gap fixtures expect the correct (Flate twin) output there. TIFF 2
+  with other than 8 bits per component, and truncated RunLength runs, keep what they have
+  where pdfminer raises. DCT, JPX, JBIG2 and CCITT stay encoded (images are boxes only).
+  Encrypted PDFs are skipped, not decrypted: one note
   `pdf layout check stopped (encrypted) before pg1` (R82-DECODE; pdfminer would decrypt).
 - Geometry stands in for GEOS: invalid node outlines are used as drawn instead of
   `buffer(0)`; `is_valid` is a simple ring test; the point used for the white-cover test
