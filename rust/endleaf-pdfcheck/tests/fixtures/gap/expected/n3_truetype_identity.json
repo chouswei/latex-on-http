@@ -1,0 +1,56 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 25.2 mm past the text block: 'identity text past the right …'",
+   "page": 1,
+   "box": [
+    380.0,
+    482.8,
+    611.5,
+    494.8
+   ],
+   "regionCount": 1,
+   "overMm": 25.2
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck offpage page=1 glyphs=5"
+ ],
+ "lines": [
+  [
+   1,
+   "Identity encoded TrueType text",
+   [
+    72.0,
+    82.8,
+    261.6,
+    94.8
+   ]
+  ],
+  [
+   1,
+   "second line 12 34",
+   [
+    72.0,
+    122.8,
+    178.4,
+    134.8
+   ]
+  ],
+  [
+   1,
+   "identity text past the right edge of the",
+   [
+    380.0,
+    482.8,
+    611.5,
+    494.8
+   ]
+  ]
+ ]
+}

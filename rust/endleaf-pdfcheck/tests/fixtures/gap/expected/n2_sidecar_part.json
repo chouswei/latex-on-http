@@ -1,0 +1,63 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 24.7 mm past the text block: 'this line runs far past the r…'",
+   "page": 1,
+   "box": [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ],
+   "regionCount": 1,
+   "overMm": 24.7,
+   "partId": "p1"
+  },
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 24.7 mm past the text block: 'this line runs far past the r…'",
+   "page": 1,
+   "box": [
+    400.0,
+    184.1,
+    610.1,
+    194.1
+   ],
+   "regionCount": 1,
+   "overMm": 24.7,
+   "partId": "p2"
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ]
+  ],
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    184.1,
+    610.1,
+    194.1
+   ]
+  ]
+ ]
+}

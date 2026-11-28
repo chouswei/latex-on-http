@@ -1,7 +1,9 @@
-# Pinned wheels for the Endleaf render image (Debian 12, Python 3.11).
+# Pinned wheels of the PDF layout checker reference oracle (ENDLEAF-R82-IMPL): tests and CI only,
+# not used by the image build (the worker image runs the Rust binary endleaf-pdfcheck).
+# Python 3.11 (the versions that were in the Debian 12 render image).
 # Only cp311 (or abi3/py3-none-any) manylinux wheels for aarch64 and x86_64,
 # plus pure-python wheels. No sdists. Used with:
-#   pip install --require-hashes --only-binary :all: -r container/pdfcheck-requirements.txt
+#   pip install --require-hashes --only-binary :all: -r tests/requirements-pdfcheck-oracle.txt
 # Versions: shapely 2.2.0 (>=2), pdfminer.six 20260107 (>=20250506), scipy 1.17.1 (>=1.11).
 # numpy 2.4.6 is the last 2.4 with cp311 wheels (2.5 needs Python >=3.12).
 # scipy 1.17.1 is the last scipy with cp311 wheels (1.18 needs Python >=3.12).

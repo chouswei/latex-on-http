@@ -1,0 +1,55 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 7.1 mm past the text block: '窒活cm註恩窒活cm註恩窒活cm註恩'",
+   "page": 1,
+   "box": [
+    380.0,
+    483.3,
+    560.0,
+    495.3
+   ],
+   "regionCount": 1,
+   "overMm": 7.1
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "窒活cm註恩",
+   [
+    72.0,
+    83.3,
+    132.0,
+    95.3
+   ]
+  ],
+  [
+   1,
+   "汎氫狿扯 PDF 12",
+   [
+    72.0,
+    123.3,
+    160.5,
+    135.3
+   ]
+  ],
+  [
+   1,
+   "窒活cm註恩窒活cm註恩窒活cm註恩",
+   [
+    380.0,
+    483.3,
+    560.0,
+    495.3
+   ]
+  ]
+ ]
+}

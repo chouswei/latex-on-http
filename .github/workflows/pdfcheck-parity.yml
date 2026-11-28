@@ -1,0 +1,86 @@
+# ENDLEAF-R82-PARITY. The Rust PDF layout checker against its Python reference oracle.
+# Builds rust/endleaf-pdfcheck (--locked), installs the hash-pinned oracle wheels into a
+# Python 3.11 venv and runs the parity test; a missing binary or oracle fails the job
+# (ENDLEAF_PDFCHECK_REQUIRED=1) instead of skipping. No secrets, no image, no deploy.
+name: pdfcheck-parity
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'rust/endleaf-pdfcheck/**'
+      - 'colophon/pdf_layout_check.py'
+      - 'colophon/sandbox_render.py'
+      - 'colophon/pdf_layout_wire.py'
+      - 'colophon/runner.py'
+      - '.dockerignore'
+      - 'tests/colophon/pdfcheck_support.py'
+      - 'tests/colophon/test_pdf_layout_check_r81.py'
+      - 'tests/colophon/test_pdfcheck_*_r82.py'
+      - 'tests/colophon/test_pdf_layout_wire_r82.py'
+      - 'tests/fixtures/pdfcheck-real/**'
+      - 'tests/requirements-pdfcheck-oracle.txt'
+      - '.github/workflows/pdfcheck-parity.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'rust/endleaf-pdfcheck/**'
+      - 'colophon/pdf_layout_check.py'
+      - 'colophon/sandbox_render.py'
+      - 'colophon/pdf_layout_wire.py'
+      - 'colophon/runner.py'
+      - '.dockerignore'
+      - 'tests/colophon/pdfcheck_support.py'
+      - 'tests/colophon/test_pdf_layout_check_r81.py'
+      - 'tests/colophon/test_pdfcheck_*_r82.py'
+      - 'tests/colophon/test_pdf_layout_wire_r82.py'
+      - 'tests/fixtures/pdfcheck-real/**'
+      - 'tests/requirements-pdfcheck-oracle.txt'
+      - '.github/workflows/pdfcheck-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pdfcheck-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+      ENDLEAF_PDFCHECK_REQUIRED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/endleaf-pdfcheck/target
+          key: pdfcheck-${{ runner.os }}-${{ hashFiles('rust/endleaf-pdfcheck/Cargo.lock') }}
+      - name: Build and test the binary
+        run: |
+          cargo build --release --locked --manifest-path rust/endleaf-pdfcheck/Cargo.toml
+          cargo test --release --locked --manifest-path rust/endleaf-pdfcheck/Cargo.toml
+      - name: Set up Python 3.11 (the oracle wheels are cp311)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Oracle venv (hash-pinned wheels)
+        run: |
+          python -m venv /tmp/oracle
+          /tmp/oracle/bin/python -m pip install --no-cache-dir --require-hashes --only-binary :all: \
+            -r tests/requirements-pdfcheck-oracle.txt
+          /tmp/oracle/bin/python -m pip install --no-cache-dir "pytest==9.0.3"
+      - name: Parity test
+        env:
+          ENDLEAF_PDFCHECK_BIN: rust/endleaf-pdfcheck/target/release/endleaf-pdfcheck
+        # --noconftest: the worker conftest needs the whole app; the parity test needs only the oracle.
+        run: /tmp/oracle/bin/python -m pytest --noconftest -p no:cacheprovider -v tests/colophon/test_pdfcheck_parity_r82.py tests/colophon/test_pdf_layout_wire_r82.py

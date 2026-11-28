@@ -1,0 +1,34 @@
+{
+ "items": [
+  {
+   "code": "pdf_label_on_stroke",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: label 'label' sits on a stroked line",
+   "page": 1,
+   "box": [
+    162.9,
+    143.1,
+    184.0,
+    153.1
+   ],
+   "regionCount": 1
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "Escaping label wide",
+   [
+    119.0,
+    143.1,
+    207.4,
+    153.1
+   ]
+  ]
+ ]
+}

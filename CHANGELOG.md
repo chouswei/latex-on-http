@@ -1,5 +1,47 @@
 # CHANGELOG
 
+## 2026-11-28 (ENDLEAF-R82)
+
+* ENDLEAF-R82-IMPL: the PDF layout check in the worker image is the Rust binary
+  `/usr/local/bin/endleaf-pdfcheck`, built from `rust/endleaf-pdfcheck` (renamed from
+  `rust/pdfcheck-proto`) in a `rust:bookworm` builder stage of
+  `container/Dockerfile.endleaf` (`cargo build --release --locked`) and copied into the
+  runtime image; the build checks `endleaf-pdfcheck --version`. The venv
+  `/opt/colophon-pdfcheck`, its PATH entry, its wheels and the in-image library assert are
+  gone, and so are `python3-pip` and `python3-venv`. The image shrinks from 3.03 GB to
+  2.73 GB (local build, x86_64).
+* ENDLEAF-R82-IMPL: `colophon/pdf_layout_check.py` stays, unchanged, as the reference
+  oracle of the binary, for tests and CI only, and is not in the image: `.dockerignore`
+  leaves it out and the image build asserts it is absent. The worker's wire contract
+  (prefixes, codes, writing and reading the `ENDLEAF_PDFLAYOUT` line) is the stdlib module
+  `colophon/pdf_layout_wire.py`, a verbatim copy that `test_pdf_layout_wire_r82.py` pins
+  to the oracle; `sandbox_render` and `runner` import it instead. Its pinned wheels moved (hashes unchanged) from
+  `container/pdfcheck-requirements.txt` to `tests/requirements-pdfcheck-oracle.txt`,
+  which the image build does not use.
+* ENDLEAF-R82-IFACE: `sandbox_render._pdf_layout_check` writes `/tmp/job-pdfcheck.pdf`
+  and the sidecar `/tmp/job-pdfcheck.json` (`templateId`, `blocks`, `marks` for fulldoc,
+  `shellPages`, `texPages`), runs `endleaf-pdfcheck --sidecar SIDECAR PDF` with a 5.0 s
+  timeout (document budget + 3 s, then kill), drops the binary's stderr and writes the
+  same `ENDLEAF_PDFLOG` and `ENDLEAF_PDFLAYOUT` lines from its `{items, log}` stdout. A
+  non-zero exit, a timeout or other output gives the one line
+  `ENDLEAF_PDFLOG pdfcheck error`; the job status never changes. The `finally` block that
+  removes the job files deletes both. Sandbox start checks `endleaf-pdfcheck --version`
+  instead of `_preload()`.
+* ENDLEAF-R82-PARITY: `tests/colophon/test_pdfcheck_parity_r82.py` runs the 21
+  repository PDFs, the R81 synthetic cases, the crate's gap fixtures and the 15 real
+  samples in `tests/fixtures/pdfcheck-real` through both the binary and the oracle and
+  fails on any difference in items or log lines (and, for the corpus, real samples and
+  CJK/filter fixtures, in the line dump). Three gap fixtures are an explicit allow-list
+  with the binary's exact output pinned: the two encrypted PDFs (skip note, no
+  decryption) and LZW `/EarlyChange 0`. The new CI job `pdfcheck-parity` builds the
+  binary, installs the oracle wheels with `--require-hashes` and runs it.
+* ENDLEAF-R82-IFACE: `tests/colophon/test_pdfcheck_rust_r82.py` covers the contract
+  (sidecar, lines, error line on exit/timeout/bad output, missing binary, `--version`
+  start check, file cleanup) with a stand-in executable, and the real binary on the real
+  samples when it is built. The sandbox glue tests left `test_pdf_layout_check_r81.py`.
+* ENDLEAF-R82-CJK: the unused `src/japan1.bin` and the Japan1 part of
+  `scripts/gen_tables.py` are removed (the CJK maps are `src/cmapdata/`).
+
 ## 2026-11-28 (ENDLEAF-R81-LIBS)
 
 * ENDLEAF-R81-LIBS: the render image no longer takes `python3-shapely` (1.8.5),

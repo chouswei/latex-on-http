@@ -1,0 +1,6 @@
+{
+ "body": "# 펌프 시험 보고서\n\n이 문서는 한국어로 작성되었습니다. 수위는 허용 범위 안에 있습니다.\n\n```{.tikz caption=\"그림 1. 펌프 회로\"}\n\\begin{tikzpicture}\n\\draw (0,0) rectangle (4,1.5);\n\\node at (2,0.75) {펌프 시험 보고서};\n\\end{tikzpicture}\n```\n\n```\nprint('펌프 시험 보고서')\n```\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "document-shell"
+}

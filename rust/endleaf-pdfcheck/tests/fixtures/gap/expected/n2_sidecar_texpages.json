@@ -1,0 +1,38 @@
+{
+ "items": [],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    84.1,
+    610.1,
+    94.1
+   ]
+  ],
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    96.1,
+    610.1,
+    106.1
+   ]
+  ],
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    108.1,
+    610.1,
+    118.1
+   ]
+  ]
+ ]
+}

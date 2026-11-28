@@ -1,0 +1,6 @@
+{
+ "body": "% Reference caller body for templateId plots. The worker owns the preamble.\n\\begin{tikzpicture}\n\\begin{axis}[width=0.9\\linewidth, height=6cm,\n    xlabel={時間 Time (\\si{\\second})},\n    ylabel={電壓 Voltage (\\si{\\volt})},\n    grid=major, legend pos=north west, title={充電曲線 Charging}]\n  \\addplot[thick, domain=0:5, samples=50] {5*(1-exp(-x))};\n  \\addlegendentry{$V_C$}\n\\end{axis}\n\\end{tikzpicture}\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "plots"
+}

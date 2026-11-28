@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """ENDLEAF-R81. The warn-only PDF layout checker and its geometry logs.
 
+Since ENDLEAF-R82 this module tests colophon/pdf_layout_check.py as the reference oracle of
+the Rust binary (tests and CI only, not run in the worker image). The sandbox_render glue
+and the start-up check are tests/colophon/test_pdfcheck_rust_r82.py; the parity of the
+binary with this oracle is tests/colophon/test_pdfcheck_parity_r82.py.
+
 Most cases build a tiny PDF by hand (base-14 Helvetica, plain content streams), so they
 need neither TeX Live nor podman. The cases that compile with XeLaTeX skip when it is missing.
 """
@@ -516,38 +521,6 @@ def test_xelatex_logs_one_page_block_per_shipped_page_and_the_checker_reads_the_
     assert not [i for i in result.items if i["code"] == "pdf_check_skipped"]
 
 
-def test_sandbox_glue_sends_one_stderr_line_and_never_raises(monkeypatch, capsys):
-    from types import SimpleNamespace
-
-    from colophon import sandbox_render
-
-    job = SimpleNamespace(template_id="fulldoc")
-    faulty = pdf(
-        [text(400, 680, "this line runs far past the right edge of the block")]
-    )
-    blocks = "ENDLEAF_PAGEBLOCK 1 72.27pt 72.27pt 468.0pt 648.0pt\n"
-    sandbox_render._pdf_layout_check(job, faulty, blocks, None, 0)
-    err = capsys.readouterr().err
-    items = parse_pdf_layout(err)
-    assert [i["code"] for i in items] == ["pdf_margin_escape"]
-    # OD-PDF-4: TeX names page 1 with an overfull row, so the margin escape is dropped.
-    named = (
-        blocks
-        + "Overfull \\hbox (30.0pt too wide) in paragraph at lines 3--4\n []\n\n[1]\n"
-    )
-    sandbox_render._pdf_layout_check(job, faulty, named, 1, 10)
-    assert parse_pdf_layout(capsys.readouterr().err) == []
-
-    def boom(*args, **kwargs):
-        raise RuntimeError("boom")
-
-    monkeypatch.setattr(checker, "check_pdf", boom)
-    sandbox_render._pdf_layout_check(
-        job, faulty, blocks, None, 0
-    )  # warn-only: no exception
-    assert "ENDLEAF_PDFLOG" in capsys.readouterr().err
-
-
 def test_preload_exercises_shapely_polygons(monkeypatch):
     import shapely
 
@@ -572,18 +545,3 @@ def test_preload_raises_without_shapely_polygons(monkeypatch):
         plc._preload()
     with pytest.raises(AttributeError):
         plc.check_pdf(b"%PDF-1.4")
-
-
-def test_sandbox_main_preloads(monkeypatch):
-    from colophon import pdf_layout_check as plc
-    from colophon import sandbox_render as sr
-
-    order = []
-    monkeypatch.setattr(plc, "_preload", lambda: order.append("preload"))
-    monkeypatch.setattr(sr, "render_to_stdout", lambda raw: order.append("render") or 0)
-    monkeypatch.setattr(
-        sys, "stdin", type("S", (), {"buffer": __import__("io").BytesIO(b"{}")})()
-    )
-    with pytest.raises(SystemExit):
-        sr.main()
-    assert order == ["preload", "render"]

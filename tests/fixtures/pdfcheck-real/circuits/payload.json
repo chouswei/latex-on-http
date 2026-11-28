@@ -1,0 +1,6 @@
+{
+ "body": "\\begin{circuitikz}\n  \\draw (0,0) to[R] (2,0);\n\\end{circuitikz}\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "circuits"
+}

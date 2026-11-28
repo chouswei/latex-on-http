@@ -1,3 +1,6 @@
 data/
 .venv/
 __pycache__
+rust/*/target/
+# ENDLEAF-R82-IMPL: the Python checker is the test/CI reference oracle and never enters the image.
+colophon/pdf_layout_check.py

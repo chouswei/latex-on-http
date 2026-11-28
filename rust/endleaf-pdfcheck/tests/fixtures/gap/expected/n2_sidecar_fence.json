@@ -1,0 +1,115 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 24.7 mm past the text block: 'this line runs far past the r…'",
+   "page": 1,
+   "box": [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ],
+   "regionCount": 1,
+   "overMm": 24.7,
+   "fenceNumber": 1
+  },
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg3: text runs 24.7 mm past the text block: 'this line runs far past the r…'",
+   "page": 3,
+   "box": [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ],
+   "regionCount": 1,
+   "overMm": 24.7,
+   "fenceNumber": 2
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck guard page=2 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck guard page=3 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ]
+  ],
+  [
+   2,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    84.1,
+    235.4,
+    94.1
+   ]
+  ],
+  [
+   2,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    98.1,
+    235.4,
+    108.1
+   ]
+  ],
+  [
+   2,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    112.1,
+    235.4,
+    122.1
+   ]
+  ],
+  [
+   2,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    126.1,
+    235.4,
+    136.1
+   ]
+  ],
+  [
+   2,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    140.1,
+    235.4,
+    150.1
+   ]
+  ],
+  [
+   3,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ]
+  ]
+ ]
+}

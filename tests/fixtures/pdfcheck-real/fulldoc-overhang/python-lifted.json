@@ -1,0 +1,26 @@
+{
+ "items": [
+  {
+   "box": [
+    173.9,
+    148.5,
+    247.7,
+    158.5
+   ],
+   "code": "pdf_label_on_stroke",
+   "message": "pg4: label 'LABEL' sits on a stroked line",
+   "packages": [
+    "pdf"
+   ],
+   "page": 4,
+   "partId": "p4",
+   "regionCount": 3
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.020 usedEm=0.1",
+  "pdfcheck guard page=3 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck guard page=4 otsuEm=0.020 usedEm=0.1",
+  "pdfcheck offpage page=4 glyphs=196"
+ ]
+}

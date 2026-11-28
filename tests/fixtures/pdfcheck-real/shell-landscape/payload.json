@@ -1,0 +1,7 @@
+{
+ "body": "# Landscape page\n\nA wide figure on a landscape A4 page.\n\n```{.tikz caption=\"A wide box\"}\n\\begin{tikzpicture}\n\\draw (0,0) rectangle (20,6);\n\\node at (10,3) {wide};\n\\end{tikzpicture}\n```\n",
+ "lane": "Investor",
+ "orientation": "landscape",
+ "outputFormat": "pdf",
+ "templateId": "document-shell"
+}

@@ -1,0 +1,49 @@
+{
+ "items": [
+  {
+   "code": "pdf_label_on_stroke",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: label 'Escaping' sits on a stroked line",
+   "page": 1,
+   "box": [
+    132.0,
+    148.1,
+    220.4,
+    158.1
+   ],
+   "regionCount": 3
+  },
+  {
+   "code": "pdf_text_escapes_node",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: label 'Escaping' runs out of its node",
+   "page": 1,
+   "box": [
+    132.0,
+    148.1,
+    197.0,
+    158.1
+   ],
+   "regionCount": 2
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "Escaping label wide",
+   [
+    132.0,
+    148.1,
+    220.4,
+    158.1
+   ]
+  ]
+ ]
+}

@@ -1,0 +1,56 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 28.2 mm past the text block: 'こんにちは世界こんにちは世界こんにちは世'",
+   "page": 1,
+   "box": [
+    380.0,
+    482.9,
+    620.0,
+    494.9
+   ],
+   "regionCount": 1,
+   "overMm": 28.2
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck offpage page=1 glyphs=1"
+ ],
+ "lines": [
+  [
+   1,
+   "こんにちは世界",
+   [
+    72.0,
+    82.9,
+    156.0,
+    94.9
+   ]
+  ],
+  [
+   1,
+   "レイアウト検査 12",
+   [
+    72.0,
+    122.9,
+    171.0,
+    134.9
+   ]
+  ],
+  [
+   1,
+   "こんにちは世界こんにちは世界こんにちは世",
+   [
+    380.0,
+    482.9,
+    620.0,
+    494.9
+   ]
+  ]
+ ]
+}
