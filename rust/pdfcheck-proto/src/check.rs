@@ -1305,6 +1305,69 @@ pub struct Options {
     pub tex_pages: HashSet<usize>,
     pub page_budget: f64,
     pub doc_budget: f64,
+    /// Layout marks (fulldoc), in sidecar order; empty means no partId.
+    pub marks: Vec<Mark>,
+    /// `(fenceNumber, page)` pairs in sidecar order (document-shell).
+    pub shell_pages: Vec<(u64, usize)>,
+}
+
+/// One layout mark row `[id, tag, page, yFromBottomPt, orientation]`. The orientation is
+/// not read: positions are compared as (page, y from the bottom of that page's own box).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Mark {
+    pub id: String,
+    pub tag: String,
+    pub page: f64,
+    pub y: f64,
+}
+
+type MarkKey = (f64, f64);
+
+fn key_le(a: MarkKey, b: MarkKey) -> bool {
+    a.0 < b.0 || (a.0 == b.0 && a.1 <= b.1)
+}
+
+fn key_cmp(a: MarkKey, b: MarkKey) -> std::cmp::Ordering {
+    a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1))
+}
+
+/// Port of `part_for`: the part whose start and end marks span a position. A position is
+/// after a mark when it is on a later page or lower on the same page; the latest start wins.
+pub fn part_for(marks: &[Mark], page_number: usize, y_from_bottom: f64) -> Option<String> {
+    let here: MarkKey = (page_number as f64, -y_from_bottom);
+    let mut open_at: Vec<(String, MarkKey)> = Vec::new();
+    let mut best: Option<(MarkKey, String)> = None;
+    for m in marks {
+        let key: MarkKey = (m.page, -m.y);
+        if m.tag == "s" {
+            match open_at.iter_mut().find(|(p, _)| *p == m.id) {
+                Some(slot) => slot.1 = key,
+                None => open_at.push((m.id.clone(), key)),
+            }
+            if key_le(key, here) {
+                best = Some((key, m.id.clone()));
+            }
+        } else if m.tag == "e" {
+            let Some(at) = open_at.iter().position(|(p, _)| *p == m.id) else {
+                continue;
+            };
+            let start = open_at.remove(at).1;
+            let spans = key_le(start, here) && key_le(here, key);
+            if spans && best.as_ref().is_none_or(|b| key_le(b.0, start)) {
+                best = Some((start, m.id.clone()));
+            } else if best.as_ref().is_some_and(|b| b.1 == m.id) && !key_le(here, key) {
+                best = None;
+            }
+        }
+    }
+    let still_open = open_at
+        .into_iter()
+        .filter(|(_, k)| key_le(*k, here))
+        .map(|(p, k)| (k, p));
+    best.into_iter()
+        .chain(still_open)
+        .max_by(|a, b| key_cmp(a.0, b.0).then_with(|| a.1.cmp(&b.1)))
+        .map(|c| c.1)
 }
 
 pub struct Outcome {
@@ -1344,7 +1407,7 @@ fn run_page(page: &Page, last: bool, budget: &Budget) -> Result<Vec<Hit>, (Vec<H
     Ok(hits)
 }
 
-fn item(hit: &Hit) -> serde_json::Value {
+fn item(hit: &Hit, page_height: f64, opt: &Options) -> serde_json::Value {
     let mut m = serde_json::Map::new();
     m.insert("code".into(), hit.code.into());
     m.insert("packages".into(), serde_json::json!([PACKAGES]));
@@ -1358,6 +1421,16 @@ fn item(hit: &Hit) -> serde_json::Value {
     if let Some(o) = hit.over_mm {
         m.insert("overMm".into(), o.into());
     }
+    if !opt.marks.is_empty() {
+        if let Some(part) = part_for(&opt.marks, hit.page, page_height - hit.bx[1]) {
+            if !part.is_empty() {
+                m.insert("partId".into(), part.into());
+            }
+        }
+    }
+    if let Some((number, _)) = opt.shell_pages.iter().find(|(_, p)| *p == hit.page) {
+        m.insert("fenceNumber".into(), (*number).into());
+    }
     serde_json::Value::Object(m)
 }
 
@@ -1370,6 +1443,7 @@ pub fn check_pdf(data: &[u8], opt: &Options, mut hook: Option<PageHook>) -> Outc
     let mut hits = Vec::new();
     let mut page_sec = Vec::new();
     let mut skipped: Option<String> = None;
+    let mut heights: HashMap<usize, f64> = HashMap::new();
     let (mut last, mut no_block, mut total) = (0usize, 0usize, 0usize);
     let result = (|| -> Result<(), Skip> {
         let doc = Doc::open(data).map_err(|e| Skip::Error(e.0))?;
@@ -1382,6 +1456,7 @@ pub fn check_pdf(data: &[u8], opt: &Options, mut hook: Option<PageHook>) -> Outc
             let t0 = Instant::now();
             let raw = ex.page(index, attrs).map_err(|e| Skip::Error(e.0))?;
             budget.check()?;
+            heights.insert(index, raw.height);
             let block = opt.blocks.get(&index).map(|b| b.map(|x| x * TEX_PT_TO_BP));
             if block.is_none() {
                 no_block += 1;
@@ -1406,13 +1481,21 @@ pub fn check_pdf(data: &[u8], opt: &Options, mut hook: Option<PageHook>) -> Outc
     match result {
         Ok(()) => {}
         Err(Skip::Budget) => skipped = Some("time budget".into()),
+        // R82-DECODE: an encrypted file is skipped, not decrypted (one note, no error name).
+        Err(Skip::Error(name)) if name == "PDFEncryptionError" => {
+            skipped = Some("encrypted".into())
+        }
         Err(Skip::Error(name)) => skipped = Some(format!("error {name}")),
     }
     if no_block > 0 {
         log.push(format!("pdfcheck noblock pages={no_block}"));
     }
     let merged = dedupe(hits, &opt.tex_pages);
-    let mut items: Vec<serde_json::Value> = merged.iter().take(MAX_FINDINGS).map(item).collect();
+    let mut items: Vec<serde_json::Value> = merged
+        .iter()
+        .take(MAX_FINDINGS)
+        .map(|h| item(h, heights.get(&h.page).copied().unwrap_or(0.0), opt))
+        .collect();
     if merged.len() > MAX_FINDINGS {
         let more = merged.len() - MAX_FINDINGS;
         items.push(serde_json::json!({
@@ -1434,5 +1517,46 @@ pub fn check_pdf(data: &[u8], opt: &Options, mut hook: Option<PageHook>) -> Outc
         items,
         log,
         page_sec,
+    }
+}
+
+#[cfg(test)]
+mod sidecar_tests {
+    use super::{part_for, Mark};
+
+    fn m(id: &str, tag: &str, page: f64, y: f64) -> Mark {
+        Mark {
+            id: id.into(),
+            tag: tag.into(),
+            page,
+            y,
+        }
+    }
+
+    #[test]
+    fn part_for_spans_and_latest_start() {
+        let marks = [
+            m("p1", "s", 1.0, 750.0),
+            m("p1", "e", 1.0, 640.0),
+            m("p2", "s", 1.0, 640.0),
+            m("p2", "e", 1.0, 500.0),
+        ];
+        assert_eq!(part_for(&marks, 1, 700.0).as_deref(), Some("p1"));
+        assert_eq!(part_for(&marks, 1, 600.0).as_deref(), Some("p2"));
+        // On the shared mark the later start wins.
+        assert_eq!(part_for(&marks, 1, 640.0).as_deref(), Some("p2"));
+        assert_eq!(part_for(&marks, 1, 800.0), None);
+        assert_eq!(part_for(&marks, 2, 700.0), None);
+    }
+
+    #[test]
+    fn part_for_open_part_runs_to_later_pages() {
+        let marks = [m("a", "s", 1.0, 300.0), m("b", "s", 2.0, 700.0), m("b", "e", 2.0, 400.0)];
+        assert_eq!(part_for(&marks, 1, 100.0).as_deref(), Some("a"));
+        assert_eq!(part_for(&marks, 2, 500.0).as_deref(), Some("b"));
+        assert_eq!(part_for(&marks, 2, 300.0).as_deref(), Some("a"));
+        assert_eq!(part_for(&marks, 3, 300.0).as_deref(), Some("a"));
+        // An end without a start is ignored.
+        assert_eq!(part_for(&[m("z", "e", 1.0, 10.0)], 1, 5.0), None);
     }
 }

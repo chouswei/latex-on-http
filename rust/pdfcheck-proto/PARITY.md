@@ -130,8 +130,9 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
 
 ## Not ported / known deviations
 
-- Placement fields: `partId` (layout marks) and `fenceNumber` (shell pages) have no CLI
-  input yet; items never carry them. `--tex-pages` (OD-PDF-4) is supported.
+- Placement fields: `partId` (layout marks) and `fenceNumber` (shell pages) come only
+  from `--sidecar` (ported `part_for` / `item_for`); the R81 flags give items without them.
+  `--tex-pages` (OD-PDF-4) and the sidecar `texPages` are supported.
 - `_count_blocks` is not ported: the Python module defines it but never calls it.
 - Predefined CJK CMaps other than `Identity-H/V` and `OneByteIdentityH/V` (for example
   `UniJIS-UCS2-H`) decode to nothing, so such text is dropped (pdfminer would load them).
@@ -139,7 +140,8 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
   TrueType `cmap` fallback for Adobe-Identity fonts give `(cid:N)` text (geometry is the
   same; only text-based rules such as captions, folios and stray source could differ).
 - Filters: Flate (with PNG predictors), ASCIIHex and ASCII85. LZW and RunLength streams
-  are left encoded; encrypted PDFs stop with `error PDFEncryptionError`.
+  are left encoded. Encrypted PDFs are skipped, not decrypted: one note
+  `pdf layout check stopped (encrypted) before pg1` (R82-DECODE; pdfminer would decrypt).
 - Geometry stands in for GEOS: invalid node outlines are used as drawn instead of
   `buffer(0)`; `is_valid` is a simple ring test; the point used for the white-cover test
   of `pdf_label_on_stroke` follows GEOS InteriorPointLine on merged pieces, but may differ

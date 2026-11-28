@@ -1,4 +1,8 @@
-//! `endleaf-pdfcheck`: prototype Rust port of the ENDLEAF-R81 PDF layout checker.
+//! `endleaf-pdfcheck`: Rust port of the ENDLEAF-R81 PDF layout checker.
+//!
+//! Worker mode (ENDLEAF-R82-IFACE): `endleaf-pdfcheck --sidecar <sidecar.json> <file.pdf>`
+//! prints exactly one `{"items": [...], "log": [...]}` object and exits 0, also when there
+//! are findings or skip notes; exit 2 is a usage error. The R81 flags stay for parity runs.
 
 mod check;
 mod extract;
@@ -9,34 +13,94 @@ mod tables;
 #[cfg(test)]
 mod tests;
 
-use check::{check_pdf, round1, Options, Page};
+use check::{check_pdf, round1, Mark, Options, Page};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::time::Instant;
 
-const USAGE: &str =
-    "usage: endleaf-pdfcheck [--page-budget SEC] [--doc-budget SEC] [--template ID] \
-[--blocks FILE.json] [--tex-pages N,N] [--repeat N] [--timing] [--dump] PDF...";
+const USAGE: &str = "usage: endleaf-pdfcheck --sidecar FILE.json PDF
+       endleaf-pdfcheck [--page-budget SEC] [--doc-budget SEC] [--template ID] \
+[--blocks FILE.json] [--tex-pages N,N] [--repeat N] [--timing] [--dump] PDF...
+       endleaf-pdfcheck --version";
 
-fn parse_blocks(path: &str) -> Result<HashMap<usize, [f64; 4]>, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
-    let v: Value = serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+fn parse_blocks_value(v: &Value, src: &str) -> Result<HashMap<usize, [f64; 4]>, String> {
     let mut out = HashMap::new();
     if let Value::Object(m) = v {
         for (k, b) in m {
-            let page: usize = k.parse().map_err(|_| format!("{path}: bad page {k}"))?;
+            let page: usize = k.parse().map_err(|_| format!("{src}: bad page {k}"))?;
             let a: Vec<f64> = b
                 .as_array()
                 .map(|a| a.iter().filter_map(|x| x.as_f64()).collect())
                 .unwrap_or_default();
             if a.len() != 4 {
-                return Err(format!("{path}: page {k} needs 4 numbers"));
+                return Err(format!("{src}: page {k} needs 4 numbers"));
             }
             out.insert(page, [a[0], a[1], a[2], a[3]]);
         }
     }
     Ok(out)
+}
+
+fn read_json(path: &str) -> Result<Value, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))
+}
+
+fn parse_blocks(path: &str) -> Result<HashMap<usize, [f64; 4]>, String> {
+    parse_blocks_value(&read_json(path)?, path)
+}
+
+/// Fill `opt` from an R82-IFACE sidecar object: templateId, blocks, marks, shellPages,
+/// texPages. Missing or null fields are empty; unknown keys are ignored.
+fn apply_sidecar(v: &Value, opt: &mut Options) -> Result<(), String> {
+    let obj = v.as_object().ok_or("sidecar: not a JSON object")?;
+    let field = |k: &str| obj.get(k).filter(|x| !x.is_null());
+    if let Some(t) = field("templateId") {
+        opt.template = t.as_str().ok_or("sidecar: templateId is not a string")?.into();
+    }
+    if let Some(b) = field("blocks") {
+        if !b.is_object() {
+            return Err("sidecar: blocks is not an object".into());
+        }
+        opt.blocks = parse_blocks_value(b, "sidecar blocks")?;
+    }
+    if let Some(rows) = field("marks") {
+        let rows = rows.as_array().ok_or("sidecar: marks is not an array")?;
+        opt.marks = rows
+            .iter()
+            .map(|r| {
+                let r = r.as_array().filter(|r| r.len() >= 4);
+                let bad = || "sidecar: a marks row is not [id, tag, page, yFromBottomPt, ...]";
+                let r = r.ok_or_else(bad)?;
+                Ok(Mark {
+                    id: r[0].as_str().ok_or_else(bad)?.into(),
+                    tag: r[1].as_str().ok_or_else(bad)?.into(),
+                    page: r[2].as_f64().ok_or_else(bad)?,
+                    y: r[3].as_f64().ok_or_else(bad)?,
+                })
+            })
+            .collect::<Result<_, &str>>()?;
+    }
+    if let Some(s) = field("shellPages") {
+        let s = s.as_object().ok_or("sidecar: shellPages is not an object")?;
+        opt.shell_pages = s
+            .iter()
+            .map(|(k, p)| {
+                let n: u64 = k.parse().map_err(|_| format!("sidecar: bad fence number {k}"))?;
+                let p = p.as_u64().ok_or(format!("sidecar: shellPages {k} is not a page"))?;
+                Ok((n, p as usize))
+            })
+            .collect::<Result<_, String>>()?;
+    }
+    if let Some(t) = field("texPages") {
+        let t = t.as_array().ok_or("sidecar: texPages is not an array")?;
+        opt.tex_pages = t
+            .iter()
+            .map(|p| p.as_u64().map(|p| p as usize).ok_or("sidecar: bad texPages entry"))
+            .collect::<Result<_, _>>()?;
+    }
+    Ok(())
 }
 
 fn dump_page(file: &str, page: &Page) -> Value {
@@ -57,6 +121,7 @@ fn main() {
         ..Default::default()
     };
     let (mut repeat, mut timing, mut dump) = (1usize, false, false);
+    let (mut sidecar, mut r81_flags) = (None::<String>, false);
     let mut files = Vec::new();
     let fail = |m: String| -> ! {
         eprintln!("{m}\n{USAGE}");
@@ -78,9 +143,17 @@ fn main() {
                     .parse()
                     .unwrap_or_else(|_| fail("bad --doc-budget".into()))
             }
-            "--template" => opt.template = val(&a),
-            "--blocks" => opt.blocks = parse_blocks(&val(&a)).unwrap_or_else(|e| fail(e)),
+            "--sidecar" => sidecar = Some(val(&a)),
+            "--template" => {
+                r81_flags = true;
+                opt.template = val(&a)
+            }
+            "--blocks" => {
+                r81_flags = true;
+                opt.blocks = parse_blocks(&val(&a)).unwrap_or_else(|e| fail(e))
+            }
             "--tex-pages" => {
+                r81_flags = true;
                 opt.tex_pages = val(&a)
                     .split(',')
                     .filter(|s| !s.is_empty())
@@ -98,6 +171,10 @@ fn main() {
             }
             "--timing" => timing = true,
             "--dump" => dump = true,
+            "-V" | "--version" => {
+                println!("endleaf-pdfcheck {}", env!("CARGO_PKG_VERSION"));
+                return;
+            }
             "-h" | "--help" => {
                 println!("{USAGE}");
                 return;
@@ -108,6 +185,17 @@ fn main() {
     }
     if files.is_empty() {
         fail("no PDF given".into());
+    }
+    if let Some(path) = &sidecar {
+        if r81_flags || dump || repeat != 1 {
+            fail("--sidecar takes no --template, --blocks, --tex-pages, --dump or --repeat".into());
+        }
+        if files.len() != 1 {
+            fail("--sidecar takes exactly one PDF".into());
+        }
+        read_json(path)
+            .and_then(|v| apply_sidecar(&v, &mut opt))
+            .unwrap_or_else(|e| fail(e));
     }
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -140,6 +228,17 @@ fn main() {
         }
         let Some(r) = first else { continue };
         let mut row = serde_json::Map::new();
+        if sidecar.is_some() {
+            // Worker mode: exactly {items, log}; timing fields only on request.
+            row.insert("items".into(), Value::Array(r.items));
+            row.insert("log".into(), json!(r.log));
+            if timing {
+                row.insert("sec".into(), runs[0].into());
+                row.insert("page_sec".into(), json!(r.page_sec));
+            }
+            let _ = writeln!(out, "{}", Value::Object(row));
+            continue;
+        }
         row.insert("file".into(), file.as_str().into());
         row.insert("pages".into(), r.pages.into());
         row.insert("sec".into(), runs[0].into());

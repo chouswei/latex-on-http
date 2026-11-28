@@ -18,6 +18,26 @@ are own code; no AGPL PDF library is used.
 
 ## Use
 
+Worker mode (ENDLEAF-R82-IFACE), one PDF:
+
+    endleaf-pdfcheck --sidecar SIDECAR.json FILE.pdf
+
+- The sidecar is one JSON object `{templateId, blocks, marks, shellPages, texPages}`:
+  `blocks` `{"1": [left, top, width, height], ...}` in TeX pt; `marks` rows
+  `[id, tag, page, yFromBottomPt, orientation]` (fulldoc only); `shellPages`
+  `{"<fenceNumber>": page, ...}`; `texPages` `[page, ...]`. Keys are decimal strings;
+  missing fields are empty and unknown keys are ignored.
+- stdout is exactly one `{"items": [...], "log": [...]}` object (`sec` and `page_sec` only
+  with `--timing`); diagnostics go to stderr. Items carry `partId` (from `marks`, as
+  `part_for`) and `fenceNumber` (from `shellPages`) exactly as `item_for` adds them.
+- Exit 0 also when there are findings, `pdf_more_findings` or `pdf_check_skipped` notes
+  (an encrypted PDF gives one note, `pdf layout check stopped (encrypted) before pg1`);
+  exit 2 on a usage error (bad flag, bad sidecar, not exactly one PDF, or `--sidecar`
+  mixed with `--template`, `--blocks`, `--tex-pages`, `--dump` or `--repeat`).
+- `--version` prints `endleaf-pdfcheck <crate version>` and exits 0.
+
+Parity and timing mode (the R81 flags), any number of PDFs:
+
     endleaf-pdfcheck [--page-budget SEC] [--doc-budget SEC] [--template ID]
                      [--blocks FILE.json] [--tex-pages N,N] [--repeat N] [--timing]
                      [--dump] PDF...
@@ -27,7 +47,7 @@ are own code; no AGPL PDF library is used.
   stops the run, keeps the findings so far and adds one `pdf_check_skipped` note).
 - `--blocks` is a JSON object `{"1": [left, top, width, height], ...}` in TeX pt (the
   `ENDLEAF_PAGEBLOCK` values); `--tex-pages` are the pages TeX already names (OD-PDF-4).
-- Output: one JSON line per PDF:
+- Output (without `--sidecar`): one JSON line per PDF:
   `{"file", "pages", "sec", "page_sec": [...], "items": [...], "log": [...]}`. `items`
   have the Python `item_for` / `check_pdf` shape. With `--repeat N` the check runs N times
   in-process on the same bytes and `runs_sec` lists each run (`sec` is the first, cold run).
