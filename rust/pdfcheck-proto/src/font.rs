@@ -153,7 +153,9 @@ impl Font {
         out.clear();
         match self.decoder {
             Decoder::OneByte => out.extend(b.iter().map(|c| *c as u32)),
-            Decoder::Identity2 => out.extend(b.chunks_exact(2).map(|p| (p[0] as u32) << 8 | p[1] as u32)),
+            Decoder::Identity2 => {
+                out.extend(b.chunks_exact(2).map(|p| (p[0] as u32) << 8 | p[1] as u32))
+            }
             Decoder::Empty => {}
         }
     }
@@ -245,8 +247,14 @@ fn parse_tounicode(data: &[u8]) -> HashMap<u32, String> {
             "usecmap" => {
                 cur.pop();
             }
-            "begincodespacerange" | "endcodespacerange" | "begincidrange" | "begincidchar" | "beginbfrange"
-            | "beginbfchar" | "beginnotdefrange" | "endnotdefrange" => cur.clear(),
+            "begincodespacerange"
+            | "endcodespacerange"
+            | "begincidrange"
+            | "begincidchar"
+            | "beginbfrange"
+            | "beginbfchar"
+            | "beginnotdefrange"
+            | "endnotdefrange" => cur.clear(),
             "endcidrange" => {
                 let objs = std::mem::take(cur);
                 for c in objs.chunks_exact(3) {
@@ -286,7 +294,9 @@ fn parse_tounicode(data: &[u8]) -> HashMap<u32, String> {
             "endbfrange" => {
                 let objs = std::mem::take(cur);
                 for c in objs.chunks_exact(3) {
-                    let (Obj::Str(s), Obj::Str(e)) = (&c[0], &c[1]) else { continue };
+                    let (Obj::Str(s), Obj::Str(e)) = (&c[0], &c[1]) else {
+                        continue;
+                    };
                     if s.len() != e.len() {
                         continue;
                     }
@@ -335,13 +345,17 @@ fn parse_tounicode(data: &[u8]) -> HashMap<u32, String> {
 }
 
 fn nunpack(b: &[u8]) -> u64 {
-    b.iter().fold(0u64, |a, c| a.wrapping_mul(256).wrapping_add(*c as u64))
+    b.iter()
+        .fold(0u64, |a, c| a.wrapping_mul(256).wrapping_add(*c as u64))
 }
 
 /// Python `bytes.decode("UTF-16BE", "ignore")`.
 pub fn utf16be(b: &[u8]) -> String {
-    let units: Vec<u16> = b.chunks_exact(2).map(|p| (p[0] as u16) << 8 | p[1] as u16).collect();
-    char::decode_utf16(units.into_iter()).filter_map(|r| r.ok()).collect()
+    let units: Vec<u16> = b
+        .chunks_exact(2)
+        .map(|p| (p[0] as u16) << 8 | p[1] as u16)
+        .collect();
+    char::decode_utf16(units).filter_map(|r| r.ok()).collect()
 }
 
 /// Built-in encoding of an embedded Type 1 program (`Type1FontHeaderParser`).
@@ -370,7 +384,11 @@ fn num_or(doc: &Doc, d: &Dict, k: &str, default: f64) -> f64 {
 fn simple_encoding(doc: &Doc, spec: &Dict, default: &str) -> HashMap<u32, String> {
     match spec.get("Encoding").map(|e| doc.resolve(e)) {
         Some(Obj::Dict(d)) => {
-            let base = d.get("BaseEncoding").and_then(|x| x.name()).unwrap_or(default).to_string();
+            let base = d
+                .get("BaseEncoding")
+                .and_then(|x| x.name())
+                .unwrap_or(default)
+                .to_string();
             let mut map = base_encoding(&base);
             if let Some(diff) = doc.rarray(d.get("Differences")) {
                 let mut cid: i64 = 0;
@@ -419,11 +437,18 @@ fn apply_descriptor(doc: &Doc, f: &mut Font, desc: &Dict, missing: bool) {
 }
 
 pub fn load_font(doc: &Doc, spec: &Dict) -> Font {
-    let subtype = spec.get("Subtype").and_then(|x| x.name()).unwrap_or("Type1").to_string();
+    let subtype = spec
+        .get("Subtype")
+        .and_then(|x| x.name())
+        .unwrap_or("Type1")
+        .to_string();
     match subtype.as_str() {
         "Type0" => {
             let dfonts = doc.rarray(spec.get("DescendantFonts"));
-            let sub = dfonts.as_ref().and_then(|a| a.first()).and_then(|x| doc.rdict(Some(x)));
+            let sub = dfonts
+                .as_ref()
+                .and_then(|a| a.first())
+                .and_then(|x| doc.rdict(Some(x)));
             match sub {
                 Some(d) => {
                     let mut sub = Dict(d.0.clone());
@@ -432,7 +457,11 @@ pub fn load_font(doc: &Doc, spec: &Dict) -> Font {
                             sub.0.push((Rc::from(k), doc.resolve(v)));
                         }
                     }
-                    let st = sub.get("Subtype").and_then(|x| x.name()).unwrap_or("Type1").to_string();
+                    let st = sub
+                        .get("Subtype")
+                        .and_then(|x| x.name())
+                        .unwrap_or("Type1")
+                        .to_string();
                     if st == "CIDFontType0" || st == "CIDFontType2" {
                         cid_font(doc, &sub)
                     } else {
@@ -449,7 +478,10 @@ pub fn load_font(doc: &Doc, spec: &Dict) -> Font {
 }
 
 fn widths_from_list(doc: &Doc, spec: &Dict) -> HashMap<i64, Option<f64>> {
-    let first = doc.resolve(spec.get("FirstChar").unwrap_or(&Obj::Int(0))).int().unwrap_or(0);
+    let first = doc
+        .resolve(spec.get("FirstChar").unwrap_or(&Obj::Int(0)))
+        .int()
+        .unwrap_or(0);
     let mut w = HashMap::new();
     match doc.rarray(spec.get("Widths")) {
         Some(list) => {
@@ -468,7 +500,11 @@ fn widths_from_list(doc: &Doc, spec: &Dict) -> HashMap<i64, Option<f64>> {
 
 fn type1_font(doc: &Doc, spec: &Dict, subtype: &str) -> Font {
     let mut f = Font::blank();
-    let basefont = spec.get("BaseFont").and_then(|x| x.name()).unwrap_or("unknown").to_string();
+    let basefont = spec
+        .get("BaseFont")
+        .and_then(|x| x.name())
+        .unwrap_or("unknown")
+        .to_string();
     let base14 = tables::BASE14.iter().find(|b| b.0 == basefont);
     let mut descriptor: Option<Rc<Dict>> = None;
     match base14 {
@@ -484,7 +520,11 @@ fn type1_font(doc: &Doc, spec: &Dict, subtype: &str) -> Font {
             descriptor = Some(d);
         }
     }
-    let default = if subtype == "TrueType" { "WinAnsiEncoding" } else { "StandardEncoding" };
+    let default = if subtype == "TrueType" {
+        "WinAnsiEncoding"
+    } else {
+        "StandardEncoding"
+    };
     f.cid2unicode = Some(simple_encoding(doc, spec, default));
     if let Some(m) = tounicode_stream(doc, spec) {
         f.umap = UMap::File(m);
@@ -575,7 +615,11 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
     let cidcoding = format!("{}-{}", field("Registry").trim(), ordering.trim());
     let cmap_name = match spec.get("Encoding") {
         Some(Obj::Name(n)) => n.to_string(),
-        Some(o) => match doc.resolve(o).as_dict().and_then(|d| d.get("CMapName").cloned()) {
+        Some(o) => match doc
+            .resolve(o)
+            .as_dict()
+            .and_then(|d| d.get("CMapName").cloned())
+        {
             Some(Obj::Name(n)) => n.to_string(),
             _ => "unknown".into(),
         },
@@ -613,7 +657,10 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
         }
     }
     if vertical {
-        let w2 = doc.rarray(spec.get("W2")).map(|a| a.to_vec()).unwrap_or_default();
+        let w2 = doc
+            .rarray(spec.get("W2"))
+            .map(|a| a.to_vec())
+            .unwrap_or_default();
         let mut r: Vec<f64> = Vec::new();
         for v in &w2 {
             match v {
@@ -623,7 +670,8 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
                         for (i, t) in list.chunks_exact(3).enumerate() {
                             let cid = c1 + i as i64;
                             f.widths.insert(cid, t[0].num());
-                            f.disps.insert(cid as u32, (t[1].num(), t[2].num().unwrap_or(0.0)));
+                            f.disps
+                                .insert(cid as u32, (t[1].num(), t[2].num().unwrap_or(0.0)));
                         }
                     }
                     r.clear();
@@ -650,7 +698,10 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
         apply_descriptor(doc, &mut f, &desc, false);
         f.default_width = *dw2.get(1).unwrap_or(&-1000.0);
     } else {
-        let w = doc.rarray(spec.get("W")).map(|a| a.to_vec()).unwrap_or_default();
+        let w = doc
+            .rarray(spec.get("W"))
+            .map(|a| a.to_vec())
+            .unwrap_or_default();
         f.widths = cid_widths(doc, &w);
         apply_descriptor(doc, &mut f, &desc, false);
         f.default_width = doc.rnum(spec.get("DW")).unwrap_or(1000.0);

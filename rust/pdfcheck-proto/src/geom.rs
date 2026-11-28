@@ -28,7 +28,12 @@ pub fn area(ring: &[P]) -> f64 {
 }
 
 pub fn bounds(pts: &[P]) -> [f64; 4] {
-    let mut b = [f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
+    let mut b = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
     for p in pts {
         b[0] = b[0].min(p[0]);
         b[1] = b[1].min(p[1]);
@@ -168,11 +173,16 @@ pub fn seg_intersect(p1: P, p2: P, q1: P, q2: P) -> bool {
     let d2 = cross(q1, q2, p2);
     let d3 = cross(p1, p2, q1);
     let d4 = cross(p1, p2, q2);
-    if ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0)) && ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0)) {
+    if ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0))
+        && ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0))
+    {
         return true;
     }
     let on = |a: P, b: P, c: P| {
-        c[0] >= a[0].min(b[0]) && c[0] <= a[0].max(b[0]) && c[1] >= a[1].min(b[1]) && c[1] <= a[1].max(b[1])
+        c[0] >= a[0].min(b[0])
+            && c[0] <= a[0].max(b[0])
+            && c[1] >= a[1].min(b[1])
+            && c[1] <= a[1].max(b[1])
     };
     (d1 == 0.0 && on(q1, q2, p1))
         || (d2 == 0.0 && on(q1, q2, p2))
@@ -333,7 +343,12 @@ pub struct Grid {
 
 impl Grid {
     pub fn new(boxes: Vec<[f64; 4]>, cell: f64) -> Grid {
-        let mut b = [f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
+        let mut b = [
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ];
         for x in &boxes {
             if x.iter().all(|v| v.is_finite()) {
                 b[0] = b[0].min(x[0]);
@@ -378,7 +393,8 @@ impl Grid {
     }
 
     fn range(&self, b: &[f64; 4]) -> (usize, usize, usize, usize) {
-        let c = |v: f64, o: f64, n: usize| (((v - o) / self.cell).floor().max(0.0) as usize).min(n - 1);
+        let c =
+            |v: f64, o: f64, n: usize| (((v - o) / self.cell).floor().max(0.0) as usize).min(n - 1);
         (
             c(b[0], self.x0, self.nx),
             c(b[1], self.y0, self.ny),
@@ -424,7 +440,10 @@ impl KdTree {
     pub fn new(pts: &[P]) -> KdTree {
         let mut idx: Vec<usize> = (0..pts.len()).collect();
         Self::build(pts, &mut idx, 0);
-        KdTree { pts: pts.to_vec(), idx }
+        KdTree {
+            pts: pts.to_vec(),
+            idx,
+        }
     }
 
     fn build(pts: &[P], idx: &mut [usize], depth: usize) {
@@ -433,7 +452,9 @@ impl KdTree {
         }
         let axis = depth % 2;
         let mid = idx.len() / 2;
-        idx.select_nth_unstable_by(mid, |a, b| pts[*a][axis].total_cmp(&pts[*b][axis]).then(a.cmp(b)));
+        idx.select_nth_unstable_by(mid, |a, b| {
+            pts[*a][axis].total_cmp(&pts[*b][axis]).then(a.cmp(b))
+        });
         let (l, r) = idx.split_at_mut(mid);
         Self::build(pts, l, depth + 1);
         Self::build(pts, &mut r[1..], depth + 1);
@@ -506,13 +527,13 @@ pub fn components(n: usize, edges: impl Iterator<Item = (usize, usize)>) -> (usi
     let mut label = vec![usize::MAX; n];
     let mut labels = vec![0; n];
     let mut count = 0;
-    for i in 0..n {
+    for (i, slot) in labels.iter_mut().enumerate() {
         let r = find(&mut parent, i);
         if label[r] == usize::MAX {
             label[r] = count;
             count += 1;
         }
-        labels[i] = label[r];
+        *slot = label[r];
     }
     (count, labels)
 }

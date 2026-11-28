@@ -64,7 +64,8 @@ fn re() -> &'static Res {
     static R: OnceLock<Res> = OnceLock::new();
     R.get_or_init(|| Res {
         caption: Regex::new(r"^(Figure|Table|圖|表)\s*\d+[:：.]").expect("caption regex"),
-        stray: Regex::new(r"([`‘]{3,}|~~~+)\s*\w*|\\(?:[A-Za-z]{2,}|[\[\]])(?:\{[^}]*\})?").expect("stray regex"),
+        stray: Regex::new(r"([`‘]{3,}|~~~+)\s*\w*|\\(?:[A-Za-z]{2,}|[\[\]])(?:\{[^}]*\})?")
+            .expect("stray regex"),
         folio: Regex::new(r"^\d{1,4}\n?$").expect("folio regex"),
         mono: Regex::new(r"(?i)mono|courier|typewriter|cursor|consol|menlo").expect("mono regex"),
     })
@@ -192,13 +193,19 @@ pub fn link(
     for i in 0..n {
         tree.knn(x.center[i], kk, &mut near);
         for &(_, j) in near.iter().skip(1) {
-            let d = [x.center[j][0] - x.center[i][0], x.center[j][1] - x.center[i][1]];
+            let d = [
+                x.center[j][0] - x.center[i][0],
+                x.center[j][1] - x.center[i][1],
+            ];
             let smin = x.size[i].min(x.size[j]);
             let along = d[0] * x.u[i][0] + d[1] * x.u[i][1];
             let gap = along.abs() - (x.extent[i] + x.extent[j]) / 2.0;
             let cost = gap / smin;
             let same_angle = x.u[i][0] * x.u[j][0] + x.u[i][1] * x.u[j][1] > COS_SAME_ANGLE;
-            let od = [x.origin[j][0] - x.origin[i][0], x.origin[j][1] - x.origin[i][1]];
+            let od = [
+                x.origin[j][0] - x.origin[i][0],
+                x.origin[j][1] - x.origin[i][1],
+            ];
             let baseline = (od[0] * x.v[i][0] + od[1] * x.v[i][1]).abs();
             let mut on_line = same_angle && baseline <= tolerance_em * smin;
             if let Some(t) = size_tolerance {
@@ -226,7 +233,12 @@ fn glyph_core(g: &Glyph) -> [P; 4] {
         hi = lo;
     }
     let b = g.quad[0];
-    let at = |a: f64, c: f64| [b[0] + g.u[0] * a + g.v[0] * c, b[1] + g.u[1] * a + g.v[1] * c];
+    let at = |a: f64, c: f64| {
+        [
+            b[0] + g.u[0] * a + g.v[0] * c,
+            b[1] + g.u[1] * a + g.v[1] * c,
+        ]
+    };
     [at(lo, sv), at(hi, sv), at(hi, size - sv), at(lo, size - sv)]
 }
 
@@ -264,7 +276,12 @@ fn group_words(glyphs: &[Glyph], cores: &[[P; 4]], labels: &[usize]) -> Vec<Word
         let (umin, umax) = (fmin(cu.iter().copied()), fmax(cu.iter().copied()));
         let (vmin, vmax) = (fmin(cv.iter().copied()), fmax(cv.iter().copied()));
         let at = |a: f64, b: f64| [u[0] * a + v[0] * b, u[1] * a + v[1] * b];
-        let core = [at(umin, vmin), at(umax, vmin), at(umax, vmax), at(umin, vmax)];
+        let core = [
+            at(umin, vmin),
+            at(umax, vmin),
+            at(umax, vmax),
+            at(umin, vmax),
+        ];
         let bx = [
             fmin(quads.iter().map(|p| p[0])),
             fmin(quads.iter().map(|p| p[1])),
@@ -334,7 +351,11 @@ fn group_lines(words: &[Word]) -> Vec<Line> {
             }
         }
         lines.push(Line {
-            text: members.iter().map(|w| words[*w].text.as_str()).collect::<Vec<_>>().join(" "),
+            text: members
+                .iter()
+                .map(|w| words[*w].text.as_str())
+                .collect::<Vec<_>>()
+                .join(" "),
             bx,
             size: sizes[sizes.len() / 2],
             upright: u0[0].abs() > COS_SAME_ANGLE && u0[1].abs() < 0.1,
@@ -348,7 +369,13 @@ fn group_lines(words: &[Word]) -> Vec<Line> {
 /// numpy.histogram(np.clip(values, 0, high), bins, range=(0, high)) then Otsu.
 pub fn otsu(values: &[f64], bins: usize, high: f64) -> Option<f64> {
     let edges: Vec<f64> = (0..=bins)
-        .map(|k| if k == bins { high } else { k as f64 * (high / bins as f64) })
+        .map(|k| {
+            if k == bins {
+                high
+            } else {
+                k as f64 * (high / bins as f64)
+            }
+        })
         .collect();
     let mut hist = vec![0i64; bins];
     for &x in values {
@@ -409,20 +436,32 @@ fn guard(edges: &Option<Edges>, page: usize, log: &mut Vec<String>) {
     let vals: Vec<f64> = nearest.into_iter().filter(|x| x.is_finite()).collect();
     if let Some(t) = otsu(&vals, 50, 0.5) {
         if !(GUARD_LOW_EM..=GUARD_HIGH_EM).contains(&t) {
-            log.push(format!("pdfcheck guard page={page} otsuEm={t:.3} usedEm={WORD_GAP_EM}"));
+            log.push(format!(
+                "pdfcheck guard page={page} otsuEm={t:.3} usedEm={WORD_GAP_EM}"
+            ));
         }
     }
 }
 
 fn figure_regions(paths: &[Path], reference_width: f64) -> Vec<[f64; 4]> {
-    let kept: Vec<&Path> = paths.iter().filter(|p| (p.bbox[2] - p.bbox[0]) < 0.98 * reference_width).collect();
+    let kept: Vec<&Path> = paths
+        .iter()
+        .filter(|p| (p.bbox[2] - p.bbox[0]) < 0.98 * reference_width)
+        .collect();
     if kept.is_empty() {
         return vec![];
     }
     let half = FIGURE_REGION_GAP_PT / 2.0;
     let boxes: Vec<[f64; 4]> = kept
         .iter()
-        .map(|p| [p.bbox[0] - half, p.bbox[1] - half, p.bbox[2] + half, p.bbox[3] + half])
+        .map(|p| {
+            [
+                p.bbox[0] - half,
+                p.bbox[1] - half,
+                p.bbox[2] + half,
+                p.bbox[3] + half,
+            ]
+        })
         .collect();
     let mut grid = Grid::new(boxes.clone(), 20.0);
     let mut pairs = Vec::new();
@@ -432,7 +471,15 @@ fn figure_regions(paths: &[Path], reference_width: f64) -> Vec<[f64; 4]> {
         pairs.extend(out.iter().map(|&c| (a, c)));
     }
     let (count, labels) = components(kept.len(), pairs.into_iter());
-    let mut regions = vec![[f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY]; count];
+    let mut regions = vec![
+        [
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY
+        ];
+        count
+    ];
     for (n, p) in kept.iter().enumerate() {
         let r = &mut regions[labels[n]];
         r[0] = r[0].min(p.bbox[0]);
@@ -445,7 +492,11 @@ fn figure_regions(paths: &[Path], reference_width: f64) -> Vec<[f64; 4]> {
 
 /// Python `_start`.
 pub fn start(text: &str, limit: usize) -> String {
-    let t = text.split(crate::extract::py_isspace).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+    let t = text
+        .split(crate::extract::py_isspace)
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
     if t.chars().count() <= limit {
         t
     } else {
@@ -536,14 +587,20 @@ fn line_core_pieces(line: &[P], core: &[P; 4]) -> Vec<(P, P)> {
         if sb[0] > cb[2] || sb[2] < cb[0] || sb[1] > cb[3] || sb[3] < cb[1] {
             continue;
         }
-        let axis_aligned = core[0][1] == core[1][1] && core[1][0] == core[2][0] && core[2][1] == core[3][1];
+        let axis_aligned =
+            core[0][1] == core[1][1] && core[1][0] == core[2][0] && core[2][1] == core[3][1];
         let clip = if axis_aligned {
             geom::liang_barsky(s[0], s[1], cb)
         } else {
             geom::clip_segment_convex(s[0], s[1], core)
         };
         if let Some((t0, t1)) = clip {
-            let at = |t: f64| [s[0][0] + (s[1][0] - s[0][0]) * t, s[0][1] + (s[1][1] - s[0][1]) * t];
+            let at = |t: f64| {
+                [
+                    s[0][0] + (s[1][0] - s[0][0]) * t,
+                    s[0][1] + (s[1][1] - s[0][1]) * t,
+                ]
+            };
             let p = if t0 == 0.0 { s[0] } else { at(t0) };
             let q = if t1 == 1.0 { s[1] } else { at(t1) };
             out.push((p, q));
@@ -600,7 +657,12 @@ fn representative_point(pieces: &[(P, P)]) -> Option<P> {
 
 fn check_caption_overlap(page: &Page) -> Vec<Hit> {
     let r = re();
-    let captions: Vec<&Line> = page.body.iter().map(|l| &page.lines[*l]).filter(|l| r.caption.is_match(&l.text)).collect();
+    let captions: Vec<&Line> = page
+        .body
+        .iter()
+        .map(|l| &page.lines[*l])
+        .filter(|l| r.caption.is_match(&l.text))
+        .collect();
     if captions.is_empty() || page.paths.is_empty() {
         return vec![];
     }
@@ -615,10 +677,16 @@ fn check_caption_overlap(page: &Page) -> Vec<Hit> {
             .collect();
         for (n, path) in page.paths.iter().enumerate() {
             let [x0, y0, x1, y1] = path.bbox;
-            if x1.min(cx1) - x0.max(cx0) <= OVERLAP_MIN_PT || y1.min(cy1) - y0.max(cy0) <= OVERLAP_MIN_PT {
+            if x1.min(cx1) - x0.max(cx0) <= OVERLAP_MIN_PT
+                || y1.min(cy1) - y0.max(cy0) <= OVERLAP_MIN_PT
+            {
                 continue;
             }
-            if x0 >= cx0 - OVERLAP_MIN_PT && x1 <= cx1 + OVERLAP_MIN_PT && y0 >= cy0 - OVERLAP_MIN_PT && y1 <= cy1 + OVERLAP_MIN_PT {
+            if x0 >= cx0 - OVERLAP_MIN_PT
+                && x1 <= cx1 + OVERLAP_MIN_PT
+                && y0 >= cy0 - OVERLAP_MIN_PT
+                && y1 <= cy1 + OVERLAP_MIN_PT
+            {
                 continue;
             }
             let mut crosses = false;
@@ -640,7 +708,11 @@ fn check_caption_overlap(page: &Page) -> Vec<Hit> {
                     "pdf_caption_overlap",
                     page.number,
                     cap.bx,
-                    format!("pg{}: a drawing overlaps the caption '{}'", page.number, start(&cap.text, 30)),
+                    format!(
+                        "pg{}: a drawing overlaps the caption '{}'",
+                        page.number,
+                        start(&cap.text, 30)
+                    ),
                     cap.size * 1.2,
                 ));
                 break;
@@ -664,7 +736,11 @@ fn check_label_on_stroke(page: &Page) -> Vec<Hit> {
             let ring = &path.polylines[0];
             let b = path.bbox;
             let bx = vec![[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
-            let poly = if ring.len() >= 3 { ring.clone() } else { bx.clone() };
+            let poly = if ring.len() >= 3 {
+                ring.clone()
+            } else {
+                bx.clone()
+            };
             whites.push((path.z, if geom::ring_valid(&poly) { poly } else { bx }));
         }
     }
@@ -682,11 +758,13 @@ fn check_label_on_stroke(page: &Page) -> Vec<Hit> {
                 continue;
             }
             let pieces = line_core_pieces(line, &page.cores[c]);
-            let Some(point) = representative_point(&pieces) else { continue };
+            let Some(point) = representative_point(&pieces) else {
+                continue;
+            };
             let gz = page.glyphs[c].z;
-            let covered = whites
-                .iter()
-                .any(|(z, poly)| path.z < *z && *z < gz && geom::point_in_polygon(point, poly) == 1);
+            let covered = whites.iter().any(|(z, poly)| {
+                path.z < *z && *z < gz && geom::point_in_polygon(point, poly) == 1
+            });
             if covered {
                 continue;
             }
@@ -696,7 +774,11 @@ fn check_label_on_stroke(page: &Page) -> Vec<Hit> {
                 "pdf_label_on_stroke",
                 page.number,
                 w.bx,
-                format!("pg{}: label '{}' sits on a stroked line", page.number, start(&w.text, 30)),
+                format!(
+                    "pg{}: label '{}' sits on a stroked line",
+                    page.number,
+                    start(&w.text, 30)
+                ),
                 w.size * 1.2,
             ));
         }
@@ -707,7 +789,8 @@ fn check_label_on_stroke(page: &Page) -> Vec<Hit> {
 fn check_text_escapes_node(page: &Page) -> Vec<Hit> {
     let mut nodes: Vec<(&Vec<P>, f64)> = Vec::new();
     for path in &page.paths {
-        if path.image || !(path.stroke && path.closed && path.single) || path.polylines[0].len() < 4 {
+        if path.image || !(path.stroke && path.closed && path.single) || path.polylines[0].len() < 4
+        {
             continue;
         }
         let ring = &path.polylines[0];
@@ -749,7 +832,11 @@ fn check_text_escapes_node(page: &Page) -> Vec<Hit> {
                 "pdf_text_escapes_node",
                 page.number,
                 w.bx,
-                format!("pg{}: label '{}' runs out of its node", page.number, start(&w.text, 30)),
+                format!(
+                    "pg{}: label '{}' runs out of its node",
+                    page.number,
+                    start(&w.text, 30)
+                ),
                 w.size * 1.2,
             ));
             break;
@@ -795,7 +882,8 @@ fn check_text_overlap(page: &Page) -> Vec<Hit> {
             if ib[2] - ib[0] <= OVERLAP_MIN_PT || ib[3] - ib[1] <= OVERLAP_MIN_PT {
                 continue;
             }
-            let same_baseline = (dot(ga.origin, ga.v) - dot(gb.origin, ga.v)).abs() <= SAME_BASELINE_PT;
+            let same_baseline =
+                (dot(ga.origin, ga.v) - dot(gb.origin, ga.v)).abs() <= SAME_BASELINE_PT;
             let ext = |t: &str| {
                 let mut c = t.chars();
                 matches!((c.next(), c.next()), (Some(ch), None) if EXTENSIBLE.contains(ch))
@@ -805,15 +893,24 @@ fn check_text_overlap(page: &Page) -> Vec<Hit> {
             }
             let (wa, wb) = (page.word_of[a], page.word_of[b]);
             if wa == wb {
-                let along: Vec<f64> = inter.iter().map(|p| p[0] * ga.u[0] + p[1] * ga.u[1]).collect();
-                if fmax(along.iter().copied()) - fmin(along.iter().copied()) <= OVERPRINT_EM * ga.size.min(gb.size) {
+                let along: Vec<f64> = inter
+                    .iter()
+                    .map(|p| p[0] * ga.u[0] + p[1] * ga.u[1])
+                    .collect();
+                if fmax(along.iter().copied()) - fmin(along.iter().copied())
+                    <= OVERPRINT_EM * ga.size.min(gb.size)
+                {
                     continue;
                 }
             } else if tex_logo(page, wa, wb, &ga.text, &gb.text) {
                 continue;
             }
             let (ra, rb) = (page.run_of[a], page.run_of[b]);
-            let key = if page.runs[rb].1 < page.runs[ra].1 { (rb, ra) } else { (ra, rb) };
+            let key = if page.runs[rb].1 < page.runs[ra].1 {
+                (rb, ra)
+            } else {
+                (ra, rb)
+            };
             match index.get(&key) {
                 Some(&k) => found[k].1 = union(&[found[k].1, ib]),
                 None => {
@@ -857,7 +954,9 @@ fn check_label_gutter(page: &Page, regions: &[[f64; 4]]) -> Vec<Hit> {
         .iter()
         .filter(|w| {
             let [cx, cy] = w.center;
-            regions.iter().any(|r| r[0] <= cx && cx <= r[2] && r[1] <= cy && cy <= r[3])
+            regions
+                .iter()
+                .any(|r| r[0] <= cx && cx <= r[2] && r[1] <= cy && cy <= r[3])
         })
         .filter(|w| w.u[0].abs() > COS_SAME_ANGLE)
         .collect();
@@ -915,7 +1014,11 @@ fn check_stray_source(page: &Page) -> Vec<Hit> {
                 "pdf_stray_source",
                 page.number,
                 line.bx,
-                format!("pg{}: raw source printed as text: '{}'", page.number, start(m.as_str(), 30)),
+                format!(
+                    "pg{}: raw source printed as text: '{}'",
+                    page.number,
+                    start(m.as_str(), 30)
+                ),
                 line.size * 1.2,
             ));
         }
@@ -967,7 +1070,9 @@ pub fn dedupe(hits: Vec<Hit>, tex_pages: &HashSet<usize>) -> Vec<Hit> {
             for b in (a + 1)..n {
                 let gap = (group[a].pitch + group[b].pitch) / 2.0;
                 let (ba, bb) = (group[a].bx, group[b].bx);
-                if ba[2].min(bb[2]) - ba[0].max(bb[0]) >= -gap && ba[3].min(bb[3]) - ba[1].max(bb[1]) >= -gap {
+                if ba[2].min(bb[2]) - ba[0].max(bb[0]) >= -gap
+                    && ba[3].min(bb[3]) - ba[1].max(bb[1]) >= -gap
+                {
                     let ra = find(&mut parent, a);
                     let rb = find(&mut parent, b);
                     parent[ra] = rb;
@@ -1045,12 +1150,24 @@ fn glyph_runs(glyphs: &[Glyph]) -> (Vec<usize>, Vec<(String, usize)>) {
     }
     let runs = runs
         .into_iter()
-        .map(|r| (r.iter().map(|n| glyphs[*n].text.as_str()).collect::<String>(), glyphs[r[0]].z))
+        .map(|r| {
+            (
+                r.iter()
+                    .map(|n| glyphs[*n].text.as_str())
+                    .collect::<String>(),
+                glyphs[r[0]].z,
+            )
+        })
         .collect();
     (run_of, runs)
 }
 
-pub fn build_page(raw: RawPage, block: Option<[f64; 4]>, kind: &str, log: &mut Vec<String>) -> Page {
+pub fn build_page(
+    raw: RawPage,
+    block: Option<[f64; 4]>,
+    kind: &str,
+    log: &mut Vec<String>,
+) -> Page {
     let RawPage {
         index,
         width,
@@ -1085,7 +1202,14 @@ pub fn build_page(raw: RawPage, block: Option<[f64; 4]>, kind: &str, log: &mut V
             extent: &width_,
             origin: &origin,
         };
-        let (labels, e) = link(&x, WORD_NEIGHBOURS, WORD_GAP_EM, 0.1, -WORD_OVERLAP_EM, Some(SAME_SIZE_PT));
+        let (labels, e) = link(
+            &x,
+            WORD_NEIGHBOURS,
+            WORD_GAP_EM,
+            0.1,
+            -WORD_OVERLAP_EM,
+            Some(SAME_SIZE_PT),
+        );
         edges = e;
         words = group_words(&glyphs, &cores, &labels);
         lines = group_lines(&words);
@@ -1157,7 +1281,9 @@ impl Budget {
     }
     pub fn check(&self) -> Result<(), Skip> {
         let now = Instant::now();
-        if (now - self.page_start).as_secs_f64() > self.page_sec || (now - self.start).as_secs_f64() > self.document_sec {
+        if (now - self.page_start).as_secs_f64() > self.page_sec
+            || (now - self.start).as_secs_f64() > self.document_sec
+        {
             return Err(Skip::Budget);
         }
         Ok(())
@@ -1193,7 +1319,10 @@ fn run_page(page: &Page, last: bool, budget: &Budget) -> Result<Vec<Hit>, (Vec<H
     if let Err(e) = budget.check() {
         return Err((hits, e));
     }
-    let regions = figure_regions(&page.paths, page.block.map(|b| b[2]).unwrap_or(0.75 * page.width));
+    let regions = figure_regions(
+        &page.paths,
+        page.block.map(|b| b[2]).unwrap_or(0.75 * page.width),
+    );
     if let Err(e) = budget.check() {
         return Err((hits, e));
     }
@@ -1221,7 +1350,10 @@ fn item(hit: &Hit) -> serde_json::Value {
     m.insert("packages".into(), serde_json::json!([PACKAGES]));
     m.insert("message".into(), hit.message.clone().into());
     m.insert("page".into(), hit.page.into());
-    m.insert("box".into(), serde_json::json!(hit.bx.iter().map(|x| round1(*x)).collect::<Vec<_>>()));
+    m.insert(
+        "box".into(),
+        serde_json::json!(hit.bx.iter().map(|x| round1(*x)).collect::<Vec<_>>()),
+    );
     m.insert("regionCount".into(), hit.count.into());
     if let Some(o) = hit.over_mm {
         m.insert("overMm".into(), o.into());

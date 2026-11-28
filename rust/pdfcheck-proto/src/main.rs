@@ -15,7 +15,8 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::time::Instant;
 
-const USAGE: &str = "usage: endleaf-pdfcheck [--page-budget SEC] [--doc-budget SEC] [--template ID] \
+const USAGE: &str =
+    "usage: endleaf-pdfcheck [--page-budget SEC] [--doc-budget SEC] [--template ID] \
 [--blocks FILE.json] [--tex-pages N,N] [--repeat N] [--timing] [--dump] PDF...";
 
 fn parse_blocks(path: &str) -> Result<HashMap<usize, [f64; 4]>, String> {
@@ -62,20 +63,39 @@ fn main() {
         std::process::exit(2)
     };
     while let Some(a) = args.next() {
-        let mut val = |name: &str| args.next().unwrap_or_else(|| fail(format!("{name} needs a value")));
+        let mut val = |name: &str| {
+            args.next()
+                .unwrap_or_else(|| fail(format!("{name} needs a value")))
+        };
         match a.as_str() {
-            "--page-budget" => opt.page_budget = val(&a).parse().unwrap_or_else(|_| fail("bad --page-budget".into())),
-            "--doc-budget" => opt.doc_budget = val(&a).parse().unwrap_or_else(|_| fail("bad --doc-budget".into())),
+            "--page-budget" => {
+                opt.page_budget = val(&a)
+                    .parse()
+                    .unwrap_or_else(|_| fail("bad --page-budget".into()))
+            }
+            "--doc-budget" => {
+                opt.doc_budget = val(&a)
+                    .parse()
+                    .unwrap_or_else(|_| fail("bad --doc-budget".into()))
+            }
             "--template" => opt.template = val(&a),
             "--blocks" => opt.blocks = parse_blocks(&val(&a)).unwrap_or_else(|e| fail(e)),
             "--tex-pages" => {
                 opt.tex_pages = val(&a)
                     .split(',')
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.trim().parse().unwrap_or_else(|_| fail("bad --tex-pages".into())))
+                    .map(|s| {
+                        s.trim()
+                            .parse()
+                            .unwrap_or_else(|_| fail("bad --tex-pages".into()))
+                    })
                     .collect::<HashSet<usize>>()
             }
-            "--repeat" => repeat = val(&a).parse().unwrap_or_else(|_| fail("bad --repeat".into())),
+            "--repeat" => {
+                repeat = val(&a)
+                    .parse()
+                    .unwrap_or_else(|_| fail("bad --repeat".into()))
+            }
             "--timing" => timing = true,
             "--dump" => dump = true,
             "-h" | "--help" => {
@@ -131,7 +151,11 @@ fn main() {
         }
         let _ = writeln!(out, "{}", Value::Object(row));
         if timing {
-            let warm = if runs.len() > 1 { &runs[1..] } else { &runs[..] };
+            let warm = if runs.len() > 1 {
+                &runs[1..]
+            } else {
+                &runs[..]
+            };
             let mut sorted = warm.to_vec();
             sorted.sort_by(|a, b| a.total_cmp(b));
             let med = sorted[sorted.len() / 2];

@@ -61,7 +61,10 @@ pub fn mult(m1: &M, m0: &M) -> M {
 
 #[inline]
 pub fn apply(m: &M, p: P) -> P {
-    [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]]
+    [
+        m[0] * p[0] + m[2] * p[1] + m[4],
+        m[1] * p[0] + m[3] * p[1] + m[5],
+    ]
 }
 
 fn apply_rect(m: &M, r: [f64; 4]) -> [f64; 4] {
@@ -75,7 +78,12 @@ fn apply_rect(m: &M, r: [f64; 4]) -> [f64; 4] {
 }
 
 fn bound(pts: &[P]) -> [f64; 4] {
-    let mut b = [f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
+    let mut b = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
     for p in pts {
         b[0] = b[0].min(p[0]);
         b[1] = b[1].min(p[1]);
@@ -122,7 +130,10 @@ fn predefined(name: &str) -> Option<ColorSpace> {
         "DeviceCMYK" => 4,
         _ => return None,
     };
-    Some(ColorSpace { name: Rc::from(name), n })
+    Some(ColorSpace {
+        name: Rc::from(name),
+        n,
+    })
 }
 
 #[derive(Clone)]
@@ -192,8 +203,14 @@ fn bez(cur: &mut Vec<P>, p0: P, p1: P, p2: P, p3: P) {
         let t = step as f64 / BEZIER_CHORDS as f64;
         let s = 1.0 - t;
         cur.push([
-            s.powi(3) * p0[0] + 3.0 * s * s * t * p1[0] + 3.0 * s * t * t * p2[0] + t.powi(3) * p3[0],
-            s.powi(3) * p0[1] + 3.0 * s * s * t * p1[1] + 3.0 * s * t * t * p2[1] + t.powi(3) * p3[1],
+            s.powi(3) * p0[0]
+                + 3.0 * s * s * t * p1[0]
+                + 3.0 * s * t * t * p2[0]
+                + t.powi(3) * p3[0],
+            s.powi(3) * p0[1]
+                + 3.0 * s * s * t * p1[1]
+                + 3.0 * s * t * t * p2[1]
+                + t.powi(3) * p3[1],
         ]);
     }
 }
@@ -299,11 +316,22 @@ impl<'a, 'd> Extractor<'a, 'd> {
         let doc = self.doc;
         let mb: Vec<f64> = doc
             .rarray(attrs.get("MediaBox"))
-            .and_then(|a| a.iter().map(|x| doc.resolve(x).num()).collect::<Option<Vec<f64>>>())
+            .and_then(|a| {
+                a.iter()
+                    .map(|x| doc.resolve(x).num())
+                    .collect::<Option<Vec<f64>>>()
+            })
             .filter(|v| v.len() == 4)
             .unwrap_or_else(|| vec![0.0, 0.0, 612.0, 792.0]);
         let (x0, y0, x1, y1) = (mb[0], mb[1], mb[2], mb[3]);
-        let rotate = ((doc.resolve(attrs.get("Rotate").unwrap_or(&Obj::Int(0))).int().unwrap_or(0) + 360) % 360 + 360) % 360;
+        let rotate = ((doc
+            .resolve(attrs.get("Rotate").unwrap_or(&Obj::Int(0)))
+            .int()
+            .unwrap_or(0)
+            + 360)
+            % 360
+            + 360)
+            % 360;
         let ctm: M = match rotate {
             90 => [0.0, -1.0, 1.0, 0.0, -y0, x1],
             180 => [-1.0, 0.0, 0.0, -1.0, x1, y1],
@@ -347,7 +375,13 @@ impl<'a, 'd> Extractor<'a, 'd> {
         f
     }
 
-    fn render_contents(&mut self, resources: Option<Rc<Dict>>, streams: &[Obj], ctm: M, parents: &[u32]) {
+    fn render_contents(
+        &mut self,
+        resources: Option<Rc<Dict>>,
+        streams: &[Obj],
+        ctm: M,
+        parents: &[u32],
+    ) {
         let doc = self.doc;
         let mut it = Interp {
             resources: resources.clone(),
@@ -367,15 +401,31 @@ impl<'a, 'd> Extractor<'a, 'd> {
             },
             gs: GState {
                 ncolor: Color::Gray(0.0),
-                ncs: predefined("DeviceGray").unwrap_or(ColorSpace { name: Rc::from("DeviceGray"), n: 1 }),
-                scs: predefined("DeviceGray").unwrap_or(ColorSpace { name: Rc::from("DeviceGray"), n: 1 }),
+                ncs: predefined("DeviceGray").unwrap_or(ColorSpace {
+                    name: Rc::from("DeviceGray"),
+                    n: 1,
+                }),
+                scs: predefined("DeviceGray").unwrap_or(ColorSpace {
+                    name: Rc::from("DeviceGray"),
+                    n: 1,
+                }),
             },
             gstack: Vec::new(),
             curpath: Vec::new(),
             args: Vec::new(),
             parents: parents.to_vec(),
         };
-        for n in ["DeviceGray", "CalGray", "Separation", "Indexed", "Pattern", "DeviceRGB", "CalRGB", "Lab", "DeviceCMYK"] {
+        for n in [
+            "DeviceGray",
+            "CalGray",
+            "Separation",
+            "Indexed",
+            "Pattern",
+            "DeviceRGB",
+            "CalRGB",
+            "Lab",
+            "DeviceCMYK",
+        ] {
             if let Some(cs) = predefined(n) {
                 it.csmap.insert(n.to_string(), cs);
             }
@@ -396,10 +446,19 @@ impl<'a, 'd> Extractor<'a, 'd> {
                         Obj::Array(a) => {
                             let name = a.first().and_then(|x| x.name()).unwrap_or("").to_string();
                             if name == "ICCBased" && a.len() >= 2 {
-                                let n = doc.resolve(&a[1]).as_dict().and_then(|d| doc.rnum(d.get("N")));
-                                n.map(|n| ColorSpace { name: Rc::from("ICCBased"), n: n as usize })
+                                let n = doc
+                                    .resolve(&a[1])
+                                    .as_dict()
+                                    .and_then(|d| doc.rnum(d.get("N")));
+                                n.map(|n| ColorSpace {
+                                    name: Rc::from("ICCBased"),
+                                    n: n as usize,
+                                })
                             } else if name == "DeviceN" && a.len() >= 2 {
-                                doc.rarray(Some(&a[1])).map(|l| ColorSpace { name: Rc::from("DeviceN"), n: l.len() })
+                                doc.rarray(Some(&a[1])).map(|l| ColorSpace {
+                                    name: Rc::from("DeviceN"),
+                                    n: l.len(),
+                                })
                             } else {
                                 predefined(&name)
                             }
@@ -452,17 +511,22 @@ impl<'a, 'd> Extractor<'a, 'd> {
 
     fn op(&mut self, it: &mut Interp, k: &str) {
         let nargs = match k {
-            "q" | "Q" | "h" | "S" | "s" | "f" | "F" | "f*" | "B" | "B*" | "b" | "b*" | "n" | "W" | "W*" | "BT"
-            | "ET" | "BX" | "EX" | "EMC" | "T*" | "BI" | "ID" | "SCN" | "scn" | "SC" | "sc" => 0,
-            "w" | "J" | "j" | "M" | "ri" | "i" | "gs" | "CS" | "cs" | "G" | "g" | "sh" | "MP" | "BMC" | "Tc"
-            | "Tw" | "Tz" | "TL" | "Tr" | "Ts" | "TJ" | "Tj" | "'" | "EI" | "Do" => 1,
+            "q" | "Q" | "h" | "S" | "s" | "f" | "F" | "f*" | "B" | "B*" | "b" | "b*" | "n"
+            | "W" | "W*" | "BT" | "ET" | "BX" | "EX" | "EMC" | "T*" | "BI" | "ID" | "SCN"
+            | "scn" | "SC" | "sc" => 0,
+            "w" | "J" | "j" | "M" | "ri" | "i" | "gs" | "CS" | "cs" | "G" | "g" | "sh" | "MP"
+            | "BMC" | "Tc" | "Tw" | "Tz" | "TL" | "Tr" | "Ts" | "TJ" | "Tj" | "'" | "EI" | "Do" => {
+                1
+            }
             "d" | "m" | "l" | "DP" | "BDC" | "Tf" | "Td" | "TD" => 2,
             "RG" | "rg" | "\"" => 3,
             "v" | "y" | "re" | "K" | "k" => 4,
             "cm" | "c" | "Tm" => 6,
             _ => return,
         };
-        let Some(a) = Self::pop(it, nargs) else { return };
+        let Some(a) = Self::pop(it, nargs) else {
+            return;
+        };
         let f = |i: usize| a.get(i).and_then(|x| x.num());
         match k {
             "q" => it.gstack.push((it.ctm, it.ts.clone(), it.gs.clone())),
@@ -480,12 +544,17 @@ impl<'a, 'd> Extractor<'a, 'd> {
             }
             "m" | "l" => {
                 if let (Some(x), Some(y)) = (f(0), f(1)) {
-                    it.curpath.push(if k == "m" { Seg::M([x, y]) } else { Seg::L([x, y]) });
+                    it.curpath.push(if k == "m" {
+                        Seg::M([x, y])
+                    } else {
+                        Seg::L([x, y])
+                    });
                 }
             }
             "c" => {
                 if let Some(v) = nums(&a) {
-                    it.curpath.push(Seg::C([v[0], v[1]], [v[2], v[3]], [v[4], v[5]]));
+                    it.curpath
+                        .push(Seg::C([v[0], v[1]], [v[2], v[3]], [v[4], v[5]]));
                 }
             }
             "v" | "y" => {
@@ -636,7 +705,10 @@ impl<'a, 'd> Extractor<'a, 'd> {
                 let font = a[0].name().and_then(|n| it.fontmap.get(n)).cloned();
                 it.ts.font = Some(match font {
                     Some(f) => f,
-                    None => self.blank_font.get_or_insert_with(|| Rc::new(load_font(self.doc, &Dict::default()))).clone(),
+                    None => self
+                        .blank_font
+                        .get_or_insert_with(|| Rc::new(load_font(self.doc, &Dict::default())))
+                        .clone(),
                 });
                 if let Some(v) = f(1) {
                     it.ts.fontsize = v;
@@ -722,15 +794,27 @@ impl<'a, 'd> Extractor<'a, 'd> {
     fn do_xobject(&mut self, it: &mut Interp, name: &Obj) {
         let doc = self.doc;
         let Some(name) = name.name() else { return };
-        let Some(res) = it.resources.clone() else { return };
-        let Some(xd) = doc.rdict(res.get("XObject")) else { return };
-        let Some(xref) = xd.get(name).cloned() else { return };
-        let Obj::Stream(st) = doc.resolve(&xref) else { return };
+        let Some(res) = it.resources.clone() else {
+            return;
+        };
+        let Some(xd) = doc.rdict(res.get("XObject")) else {
+            return;
+        };
+        let Some(xref) = xd.get(name).cloned() else {
+            return;
+        };
+        let Obj::Stream(st) = doc.resolve(&xref) else {
+            return;
+        };
         let sub = st.dict.get("Subtype").and_then(|x| x.name()).unwrap_or("");
         if sub == "Form" && st.dict.has("BBox") {
             let m: M = doc
                 .rarray(st.dict.get("Matrix"))
-                .and_then(|a| a.iter().map(|x| doc.resolve(x).num()).collect::<Option<Vec<f64>>>())
+                .and_then(|a| {
+                    a.iter()
+                        .map(|x| doc.resolve(x).num())
+                        .collect::<Option<Vec<f64>>>()
+                })
                 .filter(|v| v.len() == 6)
                 .map(|v| [v[0], v[1], v[2], v[3], v[4], v[5]])
                 .unwrap_or(IDENT);
@@ -749,7 +833,9 @@ impl<'a, 'd> Extractor<'a, 'd> {
     }
 
     fn render_string(&mut self, it: &mut Interp, seq: &[Obj]) {
-        let Some(font) = it.ts.font.clone() else { return };
+        let Some(font) = it.ts.font.clone() else {
+            return;
+        };
         let matrix = mult(&it.ts.matrix, &it.ctm);
         let fontsize = it.ts.fontsize;
         let scaling = it.ts.scaling * 0.01;
@@ -785,7 +871,14 @@ impl<'a, 'd> Extractor<'a, 'd> {
                                 x += charspace;
                             }
                         }
-                        let m = [matrix[0], matrix[1], matrix[2], matrix[3], x * matrix[0] + y * matrix[2] + matrix[4], x * matrix[1] + y * matrix[3] + matrix[5]];
+                        let m = [
+                            matrix[0],
+                            matrix[1],
+                            matrix[2],
+                            matrix[3],
+                            x * matrix[0] + y * matrix[2] + matrix[4],
+                            x * matrix[1] + y * matrix[3] + matrix[5],
+                        ];
                         let adv = self.render_char(&m, &font, fontsize, scaling, rise, cid);
                         if vertical {
                             y += adv;
@@ -809,7 +902,15 @@ impl<'a, 'd> Extractor<'a, 'd> {
         it.ts.linematrix = [x, y];
     }
 
-    fn render_char(&mut self, m: &M, font: &Font, fontsize: f64, scaling: f64, rise: f64, cid: u32) -> f64 {
+    fn render_char(
+        &mut self,
+        m: &M,
+        font: &Font,
+        fontsize: f64,
+        scaling: f64,
+        rise: f64,
+        cid: u32,
+    ) -> f64 {
         self.counter += 1;
         let z = self.counter;
         let width = font.char_width(cid);
@@ -848,8 +949,14 @@ impl<'a, 'd> Extractor<'a, 'd> {
         let quad = [p00, p10, p11, p01];
         let xs = quad.iter().map(|p| p[0]);
         let ys = quad.iter().map(|p| p[1]);
-        let (xmax, xmin) = (xs.clone().fold(f64::NEG_INFINITY, f64::max), xs.fold(f64::INFINITY, f64::min));
-        let (ymax, ymin) = (ys.clone().fold(f64::NEG_INFINITY, f64::max), ys.fold(f64::INFINITY, f64::min));
+        let (xmax, xmin) = (
+            xs.clone().fold(f64::NEG_INFINITY, f64::max),
+            xs.fold(f64::INFINITY, f64::min),
+        );
+        let (ymax, ymin) = (
+            ys.clone().fold(f64::NEG_INFINITY, f64::max),
+            ys.fold(f64::INFINITY, f64::min),
+        );
         if xmax < 0.0 || xmin > self.width || ymax < 0.0 || ymin > self.height {
             self.offpage += 1;
             return adv;
@@ -900,7 +1007,10 @@ impl<'a, 'd> Extractor<'a, 'd> {
             return;
         }
         let first = path[0].last().unwrap_or([0.0, 0.0]);
-        let pts: Vec<P> = path.iter().map(|s| apply(&it.ctm, s.last().unwrap_or(first))).collect();
+        let pts: Vec<P> = path
+            .iter()
+            .map(|s| apply(&it.ctm, s.last().unwrap_or(first)))
+            .collect();
         let transformed: Vec<Seg> = path.iter().map(|s| s.map(&it.ctm)).collect();
         self.counter += 1;
         let (lines, closed, single) = flatten(&transformed, self.height);

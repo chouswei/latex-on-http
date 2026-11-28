@@ -37,14 +37,19 @@ fn link_joins_glyphs_on_one_baseline_and_splits_at_the_gap() {
     // a glyph off the baseline does not join
     let mut origin2 = origin.clone();
     origin2[1][1] = 12.0;
-    let x2 = LinkIn { origin: &origin2, ..x };
+    let x2 = LinkIn {
+        origin: &origin2,
+        ..x
+    };
     let (labels, _) = link(&x2, 12, 0.10, 0.1, -0.35, Some(0.1));
     assert_eq!(labels, vec![0, 1, 2, 3, 3]);
 }
 
 #[test]
 fn kdtree_knn_matches_brute_force() {
-    let pts: Vec<[f64; 2]> = (0..200).map(|i| [((i * 37) % 101) as f64, ((i * 53) % 97) as f64]).collect();
+    let pts: Vec<[f64; 2]> = (0..200)
+        .map(|i| [((i * 37) % 101) as f64, ((i * 53) % 97) as f64])
+        .collect();
     let tree = KdTree::new(&pts);
     let mut out = Vec::new();
     for q in pts.iter().step_by(7) {
@@ -62,10 +67,16 @@ fn kdtree_knn_matches_brute_force() {
 #[test]
 fn liang_barsky_clips_to_the_box() {
     let b = [0.0, 0.0, 10.0, 10.0];
-    assert_eq!(geom::liang_barsky([-5.0, 5.0], [15.0, 5.0], b), Some((0.25, 0.75)));
+    assert_eq!(
+        geom::liang_barsky([-5.0, 5.0], [15.0, 5.0], b),
+        Some((0.25, 0.75))
+    );
     assert_eq!(geom::liang_barsky([-5.0, 20.0], [15.0, 20.0], b), None);
     // touching the edge counts (shapely intersects)
-    assert_eq!(geom::liang_barsky([10.0, -5.0], [10.0, 15.0], b), Some((0.25, 0.75)));
+    assert_eq!(
+        geom::liang_barsky([10.0, -5.0], [10.0, 15.0], b),
+        Some((0.25, 0.75))
+    );
     let quad = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
     let cb = geom::clip_segment_convex([-5.0, 5.0], [15.0, 5.0], &quad).unwrap();
     assert!((cb.0 - 0.25).abs() < 1e-12 && (cb.1 - 0.75).abs() < 1e-12);
@@ -73,7 +84,14 @@ fn liang_barsky_clips_to_the_box() {
 
 #[test]
 fn point_in_polygon_inside_boundary_outside() {
-    let ring = [[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [2.0, 1.0], [0.0, 4.0], [0.0, 0.0]];
+    let ring = [
+        [0.0, 0.0],
+        [4.0, 0.0],
+        [4.0, 4.0],
+        [2.0, 1.0],
+        [0.0, 4.0],
+        [0.0, 0.0],
+    ];
     assert_eq!(geom::point_in_polygon([1.0, 0.5], &ring), 1);
     assert_eq!(geom::point_in_polygon([2.0, 0.0], &ring), 0);
     assert_eq!(geom::point_in_polygon([2.0, 3.0], &ring), -1);
@@ -144,7 +162,10 @@ fn rounding_and_start_match_python() {
     assert_eq!(round1(0.25), 0.2);
     assert_eq!(round1(616.96), 617.0);
     assert_eq!(start("  a  b\tc ", 30), "a b c");
-    assert_eq!(start("https://cstheory.stackexchange.com/q", 30), "https://cstheory.stackexchang…");
+    assert_eq!(
+        start("https://cstheory.stackexchange.com/q", 30),
+        "https://cstheory.stackexchang…"
+    );
 }
 
 #[test]

@@ -51,3 +51,6 @@ are own code; no AGPL PDF library is used.
   AFM files, the Adobe-Japan1 map from the Adobe CMap resources, BSD-3-Clause).
 - `scripts/` parity tools: `compare.py`, `py_dump.py`, `compare_dump.py`, `synth_cases.py`,
   `run_parity.sh`. See `PARITY.md` for results and known deviations.
+
+`src/tables.rs` is run through `cargo fmt` after `scripts/gen_tables.py` writes it.
+`cargo fmt --check` and `cargo clippy --release -- -D warnings` are clean on Rust 1.100.

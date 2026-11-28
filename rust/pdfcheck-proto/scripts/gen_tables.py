@@ -48,6 +48,7 @@ for key, var in (
         lines.append(f"    ({code}, {rs(table[code])}),")
     lines.append("];")
 lines.append("/// (basefont, FontName, Descent, Ascent, widths by unicode char)")
+lines.append("#[allow(clippy::type_complexity)] // generated table: (basefont, name, descent, ascent, widths)")
 lines.append("pub static BASE14: &[(&str, &str, f64, f64, &[(&str, f64)])] = &[")
 for base in sorted(FONT_METRICS):
     desc, widths = FONT_METRICS[base]

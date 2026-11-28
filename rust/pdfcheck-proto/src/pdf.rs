@@ -31,7 +31,11 @@ pub struct Dict(pub Vec<(Rc<str>, Obj)>);
 
 impl Dict {
     pub fn get(&self, key: &str) -> Option<&Obj> {
-        self.0.iter().rev().find(|(k, _)| &**k == key).map(|(_, v)| v)
+        self.0
+            .iter()
+            .rev()
+            .find(|(k, _)| &**k == key)
+            .map(|(_, v)| v)
     }
     pub fn has(&self, key: &str) -> bool {
         self.get(key).is_some()
@@ -119,7 +123,11 @@ pub fn is_ws(c: u8) -> bool {
 
 #[inline]
 fn ends_literal(c: u8) -> bool {
-    is_ws(c) || matches!(c, b'#' | b'/' | b'%' | b'[' | b']' | b'(' | b')' | b'<' | b'>' | b'{' | b'}')
+    is_ws(c)
+        || matches!(
+            c,
+            b'#' | b'/' | b'%' | b'[' | b']' | b'(' | b')' | b'<' | b'>' | b'{' | b'}'
+        )
 }
 
 fn hexval(c: u8) -> Option<u8> {
@@ -302,10 +310,7 @@ impl<'a> Lexer<'a> {
         let mut out = Vec::new();
         let mut depth = 1;
         loop {
-            let c = match self.peek() {
-                Some(c) => c,
-                None => return None,
-            };
+            let c = self.peek()?;
             self.pos += 1;
             match c {
                 b'\\' => {
@@ -325,21 +330,17 @@ impl<'a> Lexer<'a> {
                         out.push((oct & 0xff) as u8);
                         continue;
                     }
-                    match self.peek() {
-                        Some(e) => {
-                            self.pos += 1;
-                            match e {
-                                b'b' => out.push(8),
-                                b't' => out.push(9),
-                                b'n' => out.push(10),
-                                b'f' => out.push(12),
-                                b'r' => out.push(13),
-                                b'(' | b')' | b'\\' => out.push(e),
-                                b'\r' if self.peek() == Some(b'\n') => self.pos += 1,
-                                _ => {}
-                            }
-                        }
-                        None => return None,
+                    let e = self.peek()?;
+                    self.pos += 1;
+                    match e {
+                        b'b' => out.push(8),
+                        b't' => out.push(9),
+                        b'n' => out.push(10),
+                        b'f' => out.push(12),
+                        b'r' => out.push(13),
+                        b'(' | b')' | b'\\' => out.push(e),
+                        b'\r' if self.peek() == Some(b'\n') => self.pos += 1,
+                        _ => {}
                     }
                 }
                 b'(' => {
@@ -491,7 +492,11 @@ impl<'a> ContentParser<'a> {
                 Tok::DictBegin => self.start(Ctx::Dict),
                 Tok::ProcBegin => self.start(Ctx::Proc),
                 Tok::ArrEnd | Tok::ProcEnd => {
-                    let k = if matches!(t, Tok::ArrEnd) { Ctx::Array } else { Ctx::Proc };
+                    let k = if matches!(t, Tok::ArrEnd) {
+                        Ctx::Array
+                    } else {
+                        Ctx::Proc
+                    };
                     if let Some(objs) = self.end(k) {
                         self.cur.push(Obj::Array(Rc::new(objs)));
                     }
@@ -508,7 +513,9 @@ impl<'a> ContentParser<'a> {
                         let mut eos: &[u8] = b"EI";
                         if let Some(f) = d.get("F") {
                             let first = match f {
-                                Obj::Array(a) => a.first().and_then(|x| x.name()).map(|s| s.to_string()),
+                                Obj::Array(a) => {
+                                    a.first().and_then(|x| x.name()).map(|s| s.to_string())
+                                }
                                 Obj::Name(n) => Some(n.to_string()),
                                 _ => None,
                             };
@@ -520,7 +527,8 @@ impl<'a> ContentParser<'a> {
                         if eos != b"EI" {
                             data.extend_from_slice(eos);
                         }
-                        self.cur.push(Obj::Stream(Rc::new(Stream::new(Rc::new(d), data, None))));
+                        self.cur
+                            .push(Obj::Stream(Rc::new(Stream::new(Rc::new(d), data, None))));
                         if eos == b"EI" {
                             self.cur.push(Obj::Keyword(Rc::from("EI")));
                         }
@@ -671,7 +679,11 @@ fn png_predictor(data: &[u8], colors: usize, bpc: usize, columns: usize) -> Vec<
                 3 => x.wrapping_add(((a as u16 + b as u16) / 2) as u8),
                 4 => {
                     let p = a as i16 + b as i16 - c as i16;
-                    let (pa, pb, pc) = ((p - a as i16).abs(), (p - b as i16).abs(), (p - c as i16).abs());
+                    let (pa, pb, pc) = (
+                        (p - a as i16).abs(),
+                        (p - b as i16).abs(),
+                        (p - c as i16).abs(),
+                    );
                     let pr = if pa <= pb && pa <= pc {
                         a
                     } else if pb <= pc {
@@ -697,7 +709,10 @@ pub fn decode_stream(st: &Stream) -> Rc<Vec<u8>> {
     let d = &st.dict;
     let filters: Vec<String> = match d.get("Filter").or_else(|| d.get("F")) {
         Some(Obj::Name(n)) => vec![n.to_string()],
-        Some(Obj::Array(a)) => a.iter().filter_map(|x| x.name().map(|s| s.to_string())).collect(),
+        Some(Obj::Array(a)) => a
+            .iter()
+            .filter_map(|x| x.name().map(|s| s.to_string()))
+            .collect(),
         _ => vec![],
     };
     let parms: Vec<Option<Rc<Dict>>> = match d.get("DecodeParms").or_else(|| d.get("DP")) {
@@ -717,7 +732,11 @@ pub fn decode_stream(st: &Stream) -> Rc<Vec<u8>> {
             let pred = p.get("Predictor").and_then(|x| x.int()).unwrap_or(1);
             if pred >= 10 {
                 let colors = p.get("Colors").and_then(|x| x.int()).unwrap_or(1).max(1) as usize;
-                let bpc = p.get("BitsPerComponent").and_then(|x| x.int()).unwrap_or(8).max(1) as usize;
+                let bpc = p
+                    .get("BitsPerComponent")
+                    .and_then(|x| x.int())
+                    .unwrap_or(8)
+                    .max(1) as usize;
                 let cols = p.get("Columns").and_then(|x| x.int()).unwrap_or(1).max(1) as usize;
                 data = png_predictor(&data, colors, bpc, cols);
             }
@@ -916,7 +935,10 @@ impl<'a> Doc<'a> {
     fn parser(&self, pos: usize) -> ObjParser<'a, '_> {
         let mut lex = Lexer::new(self.data);
         lex.pos = pos;
-        ObjParser { lex, doc: Some(self) }
+        ObjParser {
+            lex,
+            doc: Some(self),
+        }
     }
 
     fn load_xrefs(&mut self) -> Res<()> {
@@ -985,7 +1007,9 @@ impl<'a> Doc<'a> {
                         let id = (start + n) as u32;
                         if let (Some(Tok::Int(o)), Some(Tok::Kw(k))) = (off, kind) {
                             if &*k == "n" {
-                                self.xref.entry(id).or_insert(XRef::Offset(o.max(0) as usize));
+                                self.xref
+                                    .entry(id)
+                                    .or_insert(XRef::Offset(o.max(0) as usize));
                             }
                         } else {
                             return Err(Error("PDFNoValidXRef"));
@@ -1000,7 +1024,8 @@ impl<'a> Doc<'a> {
             }
             _ => {
                 lex.pos = save;
-                let (Some(Tok::Int(_)), Some(Tok::Int(_)), Some(Tok::Kw(k))) = (lex.next(), lex.next(), lex.next())
+                let (Some(Tok::Int(_)), Some(Tok::Int(_)), Some(Tok::Kw(k))) =
+                    (lex.next(), lex.next(), lex.next())
                 else {
                     return Err(Error("PDFNoValidXRef"));
                 };
@@ -1017,7 +1042,11 @@ impl<'a> Doc<'a> {
                 let w: Vec<usize> = d
                     .get("W")
                     .and_then(|x| x.as_array().cloned())
-                    .map(|a| a.iter().map(|x| x.int().unwrap_or(0).max(0) as usize).collect())
+                    .map(|a| {
+                        a.iter()
+                            .map(|x| x.int().unwrap_or(0).max(0) as usize)
+                            .collect()
+                    })
                     .unwrap_or_default();
                 if w.len() < 3 {
                     return Err(Error("PDFNoValidXRef"));
@@ -1051,7 +1080,9 @@ impl<'a> Doc<'a> {
                                 self.xref.entry(id).or_insert(XRef::Offset(f1 as usize));
                             }
                             2 => {
-                                self.xref.entry(id).or_insert(XRef::InStream(f1 as u32, f2 as usize));
+                                self.xref
+                                    .entry(id)
+                                    .or_insert(XRef::InStream(f1 as u32, f2 as usize));
                             }
                             _ => {}
                         }
@@ -1081,9 +1112,12 @@ impl<'a> Doc<'a> {
                 }
             } else {
                 let mut lex = Lexer::new(line);
-                if let (Some(Tok::Int(id)), Some(Tok::Int(_)), Some(Tok::Kw(k))) = (lex.next(), lex.next(), lex.next())
+                if let (Some(Tok::Int(id)), Some(Tok::Int(_)), Some(Tok::Kw(k))) =
+                    (lex.next(), lex.next(), lex.next())
                 {
-                    if line.first().is_some_and(|c| c.is_ascii_digit()) && (&*k == "obj" || k.starts_with("obj")) {
+                    if line.first().is_some_and(|c| c.is_ascii_digit())
+                        && (&*k == "obj" || k.starts_with("obj"))
+                    {
                         self.xref.insert(id as u32, XRef::Offset(start));
                         stms.push(id as u32);
                     }
@@ -1132,7 +1166,8 @@ impl<'a> Doc<'a> {
         let obj = match entry {
             XRef::Offset(off) => {
                 let mut p = self.parser(off);
-                let (Some(Tok::Int(_)), Some(Tok::Int(_)), Some(Tok::Kw(k))) = (p.lex.next(), p.lex.next(), p.lex.next())
+                let (Some(Tok::Int(_)), Some(Tok::Int(_)), Some(Tok::Kw(k))) =
+                    (p.lex.next(), p.lex.next(), p.lex.next())
                 else {
                     return Err(Error("PDFSyntaxError"));
                 };
@@ -1160,7 +1195,12 @@ impl<'a> Doc<'a> {
             _ => return Err(Error("PDFSyntaxError")),
         };
         let n = s.dict.get("N").and_then(|x| x.int()).unwrap_or(0).max(0) as usize;
-        let first = s.dict.get("First").and_then(|x| x.int()).unwrap_or(0).max(0) as usize;
+        let first = s
+            .dict
+            .get("First")
+            .and_then(|x| x.int())
+            .unwrap_or(0)
+            .max(0) as usize;
         let data = decode_stream(&s);
         let mut lex = Lexer::new(&data);
         let mut offs = Vec::new();
@@ -1195,11 +1235,13 @@ impl<'a> Doc<'a> {
     }
 
     pub fn rdict(&self, o: Option<&Obj>) -> Option<Rc<Dict>> {
-        o.map(|o| self.resolve(o)).and_then(|o| o.as_dict().cloned())
+        o.map(|o| self.resolve(o))
+            .and_then(|o| o.as_dict().cloned())
     }
 
     pub fn rarray(&self, o: Option<&Obj>) -> Option<Rc<Vec<Obj>>> {
-        o.map(|o| self.resolve(o)).and_then(|o| o.as_array().cloned())
+        o.map(|o| self.resolve(o))
+            .and_then(|o| o.as_array().cloned())
     }
 
     pub fn rnum(&self, o: Option<&Obj>) -> Option<f64> {
@@ -1208,7 +1250,9 @@ impl<'a> Doc<'a> {
 
     /// The pages in pdfminer's `PDFPage.create_pages` order, with inherited attributes.
     pub fn pages(&self) -> Res<Vec<(u32, Dict)>> {
-        let root = self.rdict(self.trailer.get("Root")).ok_or(Error("PDFSyntaxError"))?;
+        let root = self
+            .rdict(self.trailer.get("Root"))
+            .ok_or(Error("PDFSyntaxError"))?;
         let mut out = Vec::new();
         if let Some(pages) = root.get("Pages") {
             let mut visited = HashSet::new();
@@ -1228,7 +1272,14 @@ impl<'a> Doc<'a> {
         Ok(out)
     }
 
-    fn dfs(&self, obj: &Obj, parent: &Dict, visited: &mut HashSet<u32>, out: &mut Vec<(u32, Dict)>, depth: usize) {
+    fn dfs(
+        &self,
+        obj: &Obj,
+        parent: &Dict,
+        visited: &mut HashSet<u32>,
+        out: &mut Vec<(u32, Dict)>,
+        depth: usize,
+    ) {
         if depth > 64 {
             return;
         }
@@ -1249,7 +1300,11 @@ impl<'a> Doc<'a> {
                 props.0.push((k.clone(), v.clone()));
             }
         }
-        let ty = props.get("Type").or_else(|| props.get("type")).and_then(|x| x.name()).map(|s| s.to_string());
+        let ty = props
+            .get("Type")
+            .or_else(|| props.get("type"))
+            .and_then(|x| x.name())
+            .map(|s| s.to_string());
         match ty.as_deref() {
             Some("Pages") if props.has("Kids") => {
                 if let Some(kids) = self.rarray(props.get("Kids")) {
