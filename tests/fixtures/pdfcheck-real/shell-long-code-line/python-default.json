@@ -1,0 +1,40 @@
+{
+ "items": [
+  {
+   "box": [
+    124.8,
+    172.6,
+    597.0,
+    182.6
+   ],
+   "code": "pdf_margin_escape",
+   "message": "pg1: text runs 45.3 mm past the text block: 'x = '012345678901234567890123…'",
+   "overMm": 45.3,
+   "packages": [
+    "pdf"
+   ],
+   "page": 1,
+   "regionCount": 1
+  },
+  {
+   "box": [
+    124.8,
+    207.5,
+    491.0,
+    229.4
+   ],
+   "code": "pdf_margin_escape",
+   "message": "pg1: text runs 7.9 mm past the text block: 'long-path-segment-without-any…'",
+   "overMm": 7.9,
+   "packages": [
+    "pdf"
+   ],
+   "page": 1,
+   "regionCount": 2
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.020 usedEm=0.1",
+  "pdfcheck offpage page=1 glyphs=147"
+ ]
+}

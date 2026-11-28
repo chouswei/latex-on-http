@@ -1,0 +1,6 @@
+{
+ "body": "# ポンプ試験報告書\n\nこの文書は日本語で書かれています。水位は範囲内に保たれています。\n\n```{.tikz caption=\"図1　ポンプ回路\"}\n\\begin{tikzpicture}\n\\draw (0,0) rectangle (4,1.5);\n\\node at (2,0.75) {ポンプ試験報告書};\n\\end{tikzpicture}\n```\n\n```\nprint('ポンプ試験報告書')\n```\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "document-shell"
+}

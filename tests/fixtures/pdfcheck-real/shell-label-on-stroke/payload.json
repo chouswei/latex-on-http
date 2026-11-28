@@ -1,0 +1,6 @@
+{
+ "body": "# Label on a stroke\n\nThe node text sits on top of the drawn line.\n\n```{.tikz caption=\"Label on a line\"}\n\\begin{tikzpicture}\n\\draw[line width=2pt] (0,0) -- (6,0);\n\\node at (3,0) {LABEL ON LINE};\n\\end{tikzpicture}\n```\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "document-shell"
+}
