@@ -116,8 +116,10 @@ kerning, simple-font `/Widths`+`/FirstChar`+`MissingWidth`, CID `/W` + `/DW`, ba
 widths by character, Type 3 `/FontMatrix` scales and `FontBBox` descent, descriptor
 descent forced negative, ToUnicode bfchar/bfrange/cidrange, standard/WinAnsi/MacRoman/
 PDFDoc encodings with Differences and glyph-name fallbacks (`uniXXXX`, `uXXXX`, ligature
-`_` names), the built-in encoding of an embedded Type 1 program, Adobe-Japan1 for CID fonts
-without ToUnicode, `(cid:N)` for undefined codes, NFKC and Python `isspace` blank test);
+`_` names), the built-in encoding of an embedded Type 1 program, the predefined CMaps and the
+Adobe-CNS1/GB1/Japan1/Korea1 CID -> Unicode maps (horizontal and vertical) for CID fonts
+without ToUnicode, the TrueType `cmap` fallback for Adobe-Identity fonts, `(cid:N)` for
+undefined codes, NFKC and Python `isspace` blank test);
 paths split at each `m` the way pdfminer does, `re` as `mlllh`, Beziers (`c`/`v`/`y`) cut to
 8 chords, stroke/fill flags, non-stroking colour and the white test (gray, RGB, CMYK,
 uncolored patterns), images (XObject and inline `BI/ID/EI`) as filled boxes, Form XObject
@@ -134,11 +136,18 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
   from `--sidecar` (ported `part_for` / `item_for`); the R81 flags give items without them.
   `--tex-pages` (OD-PDF-4) and the sidecar `texPages` are supported.
 - `_count_blocks` is not ported: the Python module defines it but never calls it.
-- Predefined CJK CMaps other than `Identity-H/V` and `OneByteIdentityH/V` (for example
-  `UniJIS-UCS2-H`) decode to nothing, so such text is dropped (pdfminer would load them).
-- CID fonts without ToUnicode: only Adobe-Japan1 is mapped; GB1, CNS1, Korea1 and the
-  TrueType `cmap` fallback for Adobe-Identity fonts give `(cid:N)` text (geometry is the
-  same; only text-based rules such as captions, folios and stray source could differ).
+- CJK (ENDLEAF-R82-CJK): all 144 predefined CMaps pdfminer ships (the `Uni*` UCS2/UTF16/
+  UTF8/UTF32 H and V maps and the byte CMaps such as `GBK-EUC-H`, `B5pc-H`, `KSCms-UHC-H`,
+  `90ms-RKSJ-H`) and the four CID -> Unicode maps are embedded (`src/cmapdata/`, made by
+  `scripts/gen_cmaps.py`; the dump of every decoded trie and map equals pdfminer's JSON,
+  1,994,150 lines). Decoding, WMode and the vertical Unicode map follow `CMapDB`; a CMap
+  name pdfminer cannot find is an empty CMap. Route checks `n3_*` (tests/gap_n3.rs) agree.
+- TrueType `cmap` fallback (Adobe-Identity / Adobe-UCS with `FontFile2`, no ToUnicode):
+  formats 0, 2, 4, 6, 10, 12 as pdfminer reads them, including its format 4 seek from the
+  start of `idRangeOffset[]`. Where Python would raise (short read, unhandled format, a
+  format 12 code past U+10FFFF) Rust uses no Unicode map; surrogate code points are skipped.
+- Binary size: the CJK data adds about 0.6 MB to the release binary (3,181,024 ->
+  3,799,520 bytes on x86_64, Rust 1.85).
 - Filters: Flate (with PNG predictors), ASCIIHex and ASCII85. LZW and RunLength streams
   are left encoded. Encrypted PDFs are skipped, not decrypted: one note
   `pdf layout check stopped (encrypted) before pg1` (R82-DECODE; pdfminer would decrypt).
@@ -152,6 +161,7 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
   (`PDFSyntaxError`); other Python exceptions (assertions on bad octal escapes, odd
   dictionary tokens) are tolerated in Rust instead of stopping the check.
 - Vertical writing (`Identity-V`) advances along y as pdfminer does, but the glyph quad is
-  the same horizontal formula as the Python `add_glyph`; not exercised by the corpus.
+  the same horizontal formula as the Python `add_glyph`; covered by `n3_japan1_vertical`
+  (UniJIS-UCS2-V), not by the sample corpus.
 - `cargo fmt --check` and `cargo clippy --release -- -D warnings` are clean on Rust 1.100
   (aarch64); the first commit was built on 1.85 without them.

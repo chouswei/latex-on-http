@@ -4,7 +4,10 @@ use crate::pdf::{decode_stream, ps_run, Dict, Doc, Obj};
 use crate::tables;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::OnceLock;
+use std::sync::Arc;
+
+#[path = "cmapdata/mod.rs"]
+mod cmapdata;
 
 pub fn glyph_lookup(name: &str) -> Option<&'static str> {
     tables::GLYPHLIST
@@ -75,27 +78,11 @@ fn base_encoding(name: &str) -> HashMap<u32, String> {
     t.iter().map(|(c, s)| (*c as u32, s.to_string())).collect()
 }
 
-fn japan1() -> &'static HashMap<u32, String> {
-    static MAP: OnceLock<HashMap<u32, String>> = OnceLock::new();
-    MAP.get_or_init(|| {
-        let blob: &[u8] = include_bytes!("japan1.bin");
-        let mut m = HashMap::new();
-        let mut i = 0;
-        while i + 3 <= blob.len() {
-            let cid = u16::from_le_bytes([blob[i], blob[i + 1]]) as u32;
-            let n = blob[i + 2] as usize;
-            let end = (i + 3 + n).min(blob.len());
-            m.insert(cid, String::from_utf8_lossy(&blob[i + 3..end]).into_owned());
-            i = end;
-        }
-        m
-    })
-}
-
 #[derive(Debug)]
 enum Decoder {
     OneByte,
     Identity2,
+    Map(Arc<cmapdata::CMap>),
     Empty,
 }
 
@@ -104,7 +91,7 @@ enum UMap {
     None,
     File(HashMap<u32, String>),
     Identity,
-    Japan1,
+    Collection(&'static HashMap<u32, String>),
 }
 
 #[derive(Debug)]
@@ -156,6 +143,7 @@ impl Font {
             Decoder::Identity2 => {
                 out.extend(b.chunks_exact(2).map(|p| (p[0] as u32) << 8 | p[1] as u32))
             }
+            Decoder::Map(ref m) => m.decode(b, out),
             Decoder::Empty => {}
         }
     }
@@ -172,8 +160,8 @@ impl Font {
                     return char::from_u32(cid).map(|c| c.to_string());
                 }
             }
-            UMap::Japan1 => {
-                if let Some(s) = japan1().get(&cid) {
+            UMap::Collection(m) => {
+                if let Some(s) = m.get(&cid) {
                     return Some(s.clone());
                 }
             }
@@ -630,12 +618,19 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
         "DLIdent-V" => "Identity-V".to_string(),
         _ => cmap_name,
     };
+    // CMapDB.get_cmap; a name it cannot find is an empty CMap (WMode 0)
     let (decoder, vertical) = match cmap_name.as_str() {
         "Identity-H" => (Decoder::Identity2, false),
         "Identity-V" => (Decoder::Identity2, true),
         "OneByteIdentityH" => (Decoder::OneByte, false),
         "OneByteIdentityV" => (Decoder::OneByte, true),
-        _ => (Decoder::Empty, false), // predefined CMaps other than Identity are not ported
+        name => match cmapdata::get_cmap(name) {
+            Some(m) => {
+                let v = m.vertical;
+                (Decoder::Map(m), v)
+            }
+            None => (Decoder::Empty, false),
+        },
     };
     f.decoder = decoder;
     f.vertical = vertical;
@@ -649,11 +644,17 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
             }
         }
         Some(_) => {}
-        None => {
-            if cidcoding == "Adobe-Japan1" && !vertical {
-                f.umap = UMap::Japan1;
+        None if cidcoding == "Adobe-Identity" || cidcoding == "Adobe-UCS" => {
+            if let Some(Obj::Stream(ff)) = desc.get("FontFile2").map(|o| doc.resolve(o)) {
+                if let Some(m) = truetype_unicode_map(&decode_stream(&ff)) {
+                    f.umap = UMap::File(m);
+                }
             }
-            // Adobe-Identity TrueType cmap tables and the GB1/CNS1/Korea1 maps are not ported.
+        }
+        None => {
+            if let Some(m) = cmapdata::get_unicode_map(&cidcoding, vertical) {
+                f.umap = UMap::Collection(m);
+            }
         }
     }
     if vertical {
@@ -707,4 +708,180 @@ fn cid_font(doc: &Doc, spec: &Dict) -> Font {
         f.default_width = doc.rnum(spec.get("DW")).unwrap_or(1000.0);
     }
     f
+}
+
+/// Big-endian reader over a font program; `None` is Python's `struct.error` on a short read.
+struct Be<'a> {
+    b: &'a [u8],
+    p: usize,
+}
+
+impl Be<'_> {
+    fn take(&mut self, n: usize) -> Option<&[u8]> {
+        let s = self.b.get(self.p..self.p.checked_add(n)?)?;
+        self.p += n;
+        Some(s)
+    }
+    fn u16(&mut self) -> Option<u16> {
+        self.take(2).map(|s| u16::from_be_bytes([s[0], s[1]]))
+    }
+    fn i16(&mut self) -> Option<i16> {
+        self.u16().map(|v| v as i16)
+    }
+    fn u32(&mut self) -> Option<u32> {
+        self.take(4).map(|s| u32::from_be_bytes([s[0], s[1], s[2], s[3]]))
+    }
+    fn u16s(&mut self, n: usize) -> Option<Vec<u16>> {
+        (0..n).map(|_| self.u16()).collect()
+    }
+}
+
+/// pdfminer `TrueTypeFont(...).create_unicode_map()` for an Adobe-Identity / Adobe-UCS CID
+/// font with a `FontFile2` and no ToUnicode: char -> glyph id from the Unicode `cmap`
+/// subtables (formats 0, 2, 4, 6, 10, 12), inverted to glyph id -> char. `None` is
+/// `CMapNotFound`; a short read or an unhandled format (a Python exception) is `None` too.
+fn truetype_unicode_map(data: &[u8]) -> Option<HashMap<u32, String>> {
+    let mut r = Be { b: data, p: 4 };
+    let mut tables: HashMap<[u8; 4], (u32, u32)> = HashMap::new();
+    if let Some(ntables) = r.u16() {
+        r.p += 6;
+        for _ in 0..ntables {
+            let Some(name) = r.take(4).map(|s| [s[0], s[1], s[2], s[3]]) else {
+                break;
+            };
+            let (Some(_sum), Some(off), Some(len)) = (r.u32(), r.u32(), r.u32()) else {
+                break;
+            };
+            tables.insert(name, (off, len));
+        }
+    }
+    let (base, _) = *tables.get(b"cmap")?;
+    let base = base as usize;
+    let mut r = Be { b: data, p: base };
+    let (_version, nsub) = (r.u16()?, r.u16()?);
+    let mut subtables = Vec::new();
+    for _ in 0..nsub {
+        subtables.push((r.u16()?, r.u16()?, r.u32()?));
+    }
+    // Python dict semantics: a key keeps its first insertion position when overwritten.
+    let mut order: Vec<(u32, i64)> = Vec::new();
+    let mut pos: HashMap<u32, usize> = HashMap::new();
+    let mut set = |c: u32, g: i64| match pos.get(&c) {
+        Some(&i) => order[i].1 = g,
+        None => {
+            pos.insert(c, order.len());
+            order.push((c, g));
+        }
+    };
+    for (pid, eid, off) in subtables {
+        if !(pid == 0 || (pid == 3 && (eid == 1 || eid == 10))) {
+            continue;
+        }
+        let mut r = Be { b: data, p: base.checked_add(off as usize)? };
+        match r.u16()? {
+            0 => {
+                r.take(4)?;
+                for (c, g) in r.take(256)?.iter().enumerate() {
+                    set(c as u32, *g as i64);
+                }
+            }
+            2 => {
+                r.take(4)?;
+                let keys = r.u16s(256)?;
+                let mut firstbytes = [0u32; 8192];
+                for (i, k) in keys.iter().enumerate() {
+                    firstbytes[(*k / 8) as usize] = i as u32;
+                }
+                let nhdrs = *keys.iter().max().unwrap() as usize / 8 + 1;
+                let mut hdrs = Vec::new();
+                for i in 0..nhdrs {
+                    let (first, count, delta, roff) = (r.u16()?, r.u16()?, r.i16()?, r.u16()?);
+                    hdrs.push((i, first, count, delta, r.p - 2 + roff as usize));
+                }
+                for (i, first, count, delta, p) in hdrs {
+                    if count == 0 {
+                        continue;
+                    }
+                    let first = first as u32 + (firstbytes[i] << 8);
+                    let mut r = Be { b: data, p };
+                    for c in 0..count as u32 {
+                        let mut g = r.u16()? as i64;
+                        if g != 0 {
+                            g += delta as i64;
+                        }
+                        set(first + c, g);
+                    }
+                }
+            }
+            4 => {
+                r.take(4)?;
+                let segs = (r.u16()? / 2) as usize;
+                r.take(6)?;
+                let ecs = r.u16s(segs)?;
+                r.take(2)?;
+                let scs = r.u16s(segs)?;
+                let idds: Vec<i16> = (0..segs).map(|_| r.i16()).collect::<Option<_>>()?;
+                let p = r.p;
+                let idrs = r.u16s(segs)?;
+                for i in 0..segs {
+                    let (sc, ec, idd, idr) = (scs[i] as i64, ecs[i] as i64, idds[i] as i64, idrs[i]);
+                    if idr != 0 {
+                        // pdfminer seeks from the start of idRangeOffset[], not from entry i
+                        let mut r = Be { b: data, p: p + idr as usize };
+                        for c in sc..=ec {
+                            let b = r.u16()? as i64;
+                            set(c as u32, (b + idd) & 0xFFFF);
+                        }
+                    } else {
+                        for c in sc..=ec {
+                            set(c as u32, (c + idd) & 0xFFFF);
+                        }
+                    }
+                }
+            }
+            6 => {
+                r.take(4)?;
+                let (first, count) = (r.u16()? as u32, r.u16()? as usize);
+                for (i, g) in r.u16s(count)?.into_iter().enumerate() {
+                    set(first + i as u32, g as i64);
+                }
+            }
+            10 => {
+                r.take(10)?;
+                let (start, n) = (r.u32()?, r.u32()? as usize);
+                for (i, g) in r.u16s(n)?.into_iter().enumerate() {
+                    set(start.wrapping_add(i as u32), g as i64);
+                }
+            }
+            12 => {
+                r.take(10)?;
+                for _ in 0..r.u32()? {
+                    let (sc, ec, mut g) = (r.u32()?, r.u32()?, r.u32()? as i64);
+                    // chr() fails past U+10FFFF in Python, so no larger code can be mapped
+                    if ec > 0x10FFFF || ec.saturating_sub(sc) > 0x10FFFF {
+                        return None;
+                    }
+                    for c in sc..=ec {
+                        set(c, g);
+                        g += 1;
+                    }
+                }
+            }
+            _ => return None,
+        }
+    }
+    if order.is_empty() {
+        return None;
+    }
+    // FileUnicodeMap.add_cid2unichr(gid, chr(char)), in char2gid insertion order
+    let mut m: HashMap<u32, String> = HashMap::new();
+    for (c, g) in order {
+        let Ok(g) = u32::try_from(g) else { continue };
+        let Some(ch) = char::from_u32(c) else { continue };
+        if ch == '\u{a0}' && m.get(&g).map(|x| x.as_str()) == Some(" ") {
+            continue;
+        }
+        m.insert(g, ch.to_string());
+    }
+    Some(m)
 }
