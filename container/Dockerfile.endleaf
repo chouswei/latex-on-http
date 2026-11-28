@@ -2,9 +2,9 @@
 #
 # arm64 and amd64. Everything the job needs is installed here. The container
 # has no network at runtime, and tlmgr is removed so a job cannot fetch
-# packages. The only build-time downloads are Pandoc, the pinned circuitikz zip and the pinned
-# Python wheels of the PDF layout checker (hash-checked). Mermaid, D2, Chromium,
-# and Node are not installed.
+# packages. The only build-time downloads are Pandoc, the pinned circuitikz zip and, in the
+# builder stage, the crates pinned by rust/endleaf-pdfcheck/Cargo.lock. Mermaid, D2,
+# Chromium, and Node are not installed.
 #
 # PIDcircuitTikZ has no CTAN package name (checked 2026-09-26). It is vendored
 # from jellespijker/PIDcircuitTikZ (MIT). CircuiTikZ is the separate CTAN
@@ -22,12 +22,26 @@
 # into TEXMFLOCAL (/usr/local/share/texmf), which kpathsea searches before the
 # Debian tree, and the build fails unless \pgfcircversion is that release.
 
+# ENDLEAF-R82-IMPL. The PDF layout checker is the Rust binary endleaf-pdfcheck, built
+# from rust/endleaf-pdfcheck in this builder stage (cargo --locked, Cargo.lock committed)
+# and copied to /usr/local/bin. rust:bookworm and debian:12-slim share the bookworm
+# glibc, so the dynamically linked binary runs as built. The Python checker
+# colophon/pdf_layout_check.py is its test/CI reference only; its libraries are not
+# installed here.
+FROM rust:bookworm AS pdfcheck-build
+WORKDIR /src
+COPY rust/endleaf-pdfcheck/ /src/rust/endleaf-pdfcheck/
+RUN set -eu; \
+    cargo build --release --locked --manifest-path rust/endleaf-pdfcheck/Cargo.toml; \
+    install -D -m 0755 rust/endleaf-pdfcheck/target/release/endleaf-pdfcheck /out/endleaf-pdfcheck; \
+    /out/endleaf-pdfcheck --version
+
 FROM debian:12-slim
 
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     DEBIAN_FRONTEND=noninteractive \
-    PATH="/opt/colophon-pdfcheck/bin:/usr/local/bin:${PATH}" \
+    PATH="/usr/local/bin:${PATH}" \
     PYTHONPATH=/opt/colophon
 
 RUN apt-get update -qq \
@@ -39,8 +53,6 @@ RUN apt-get update -qq \
         inkscape \
         librsvg2-bin \
         python3 \
-        python3-pip \
-        python3-venv \
         xz-utils \
     && apt-get install -y \
         texlive-xetex \
@@ -89,25 +101,12 @@ RUN set -eu; \
     install -m 0755 "/tmp/pandoc-${PANDOC_VERSION}/bin/pandoc" /usr/local/bin/pandoc; \
     rm -rf /tmp/pandoc.tar.gz "/tmp/pandoc-${PANDOC_VERSION}"
 
-# PDF layout checker libraries: pinned, hash-checked cp311 wheels in a venv that
-# does not see the Debian site-packages (bookworm ships Shapely 1.8, which lacks
-# shapely.polygons). The venv is first on PATH, so `python3` is the venv python.
-COPY container/pdfcheck-requirements.txt /tmp/pdfcheck-requirements.txt
+# ENDLEAF-R82-IFACE. sandbox_render runs the binary; --version is also its start-up check.
+COPY --from=pdfcheck-build /out/endleaf-pdfcheck /usr/local/bin/endleaf-pdfcheck
 RUN set -eu; \
-    python3 -m venv /opt/colophon-pdfcheck; \
-    /opt/colophon-pdfcheck/bin/pip install --no-cache-dir --require-hashes --only-binary :all: \
-        -r /tmp/pdfcheck-requirements.txt; \
-    rm -f /tmp/pdfcheck-requirements.txt; \
-    python3 -c 'import shapely, pdfminer, scipy, pathlib; \
-assert shapely.__version__.startswith("2"), shapely.__version__; \
-shapely.polygons([[[0,0],[1,0],[1,1],[0,1]]]); \
-from importlib.metadata import version; \
-assert version("pdfminer.six") >= "20250506"; \
-assert tuple(map(int, scipy.__version__.split(".")[:2])) >= (1, 11); \
-exec("for m in (shapely, pdfminer, scipy):\n assert str(pathlib.Path(m.__file__)).startswith(\"/opt/colophon-pdfcheck\"), m.__file__")'; \
-    apt-get purge -y python3-pip; \
-    apt-get autoremove -y; \
-    rm -rf /var/lib/apt/lists/* /root/.cache
+    chmod 0755 /usr/local/bin/endleaf-pdfcheck; \
+    endleaf-pdfcheck --version | grep -Eqx 'endleaf-pdfcheck [0-9]+\.[0-9]+\.[0-9]+'; \
+    test ! -e /opt/colophon-pdfcheck
 
 COPY container/xelatex-nonescape /usr/local/bin/xelatex-nonescape
 COPY container/pdflatex-nonescape /usr/local/bin/pdflatex

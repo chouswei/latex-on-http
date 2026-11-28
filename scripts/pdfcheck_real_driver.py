@@ -5,6 +5,10 @@ worker does, captures the final TeX log at the point where ``_pdf_layout_check``
 builds the R82-IFACE sidecar with the image's own functions (same calls as
 sandbox_render.py), runs the in-image Python check twice (budgets lifted, default budgets)
 and prints ONE JSON object on stdout. The worker's own stdout (the PDF) is captured.
+
+It needs an image that still has the Python checker libraries (built before ENDLEAF-R82).
+Since R82 the image runs the Rust binary only; the oracle findings for these samples come
+from tests/colophon/test_pdfcheck_parity_r82.py on the host (pinned oracle venv).
 """
 import io
 import json

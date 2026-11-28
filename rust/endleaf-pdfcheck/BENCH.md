@@ -1,6 +1,6 @@
-# Timing on the ARM build host (ENDLEAF-R81 Rust prototype)
+# Timing on the ARM build host (ENDLEAF-R81 Rust prototype, now endleaf-pdfcheck)
 
-Host: Raspberry Pi 5 (4x Cortex-A76 at 2.4 GHz, ondemand governor), 15 GiB RAM, NVMe,
+Host: ARM64 board (4x Cortex-A76 at 2.4 GHz, ondemand governor), 15 GiB RAM, NVMe,
 Debian 13, glibc 2.41. The same board model as the worker; Python on it matches the worker
 image's measured 0.92 s for `Dossier_Eleve.pdf`.
 

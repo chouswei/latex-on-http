@@ -1,15 +1,12 @@
-"""Generate src/tables.rs and src/japan1.bin from the pinned pdfminer.six data (MIT).
+"""Generate src/tables.rs from the pinned pdfminer.six data (MIT).
 
 Usage: python scripts/gen_tables.py   (run with the venv that has pdfminer.six 20260107)
 The tables are the Adobe Glyph List, the four latin encodings, the base-14 AFM
-metrics (as pdfminer ships them) and the Adobe-Japan1 CID -> Unicode map.
+metrics (as pdfminer ships them). The CJK CMaps and CID -> Unicode maps are
+scripts/gen_cmaps.py (src/cmapdata/).
 """
-import gzip
-import json
 import os
-import struct
 
-import pdfminer
 from pdfminer.encodingdb import EncodingDB
 from pdfminer.fontmetrics import FONT_METRICS
 from pdfminer.glyphlist import glyphname2unicode
@@ -61,12 +58,4 @@ lines.append("];")
 with open(os.path.join(src, "tables.rs"), "w", encoding="utf-8") as fh:
     fh.write("\n".join(lines) + "\n")
 
-path = os.path.join(os.path.dirname(pdfminer.__file__), "cmap", "to-unicode-Adobe-Japan1.json.gz")
-data = json.load(gzip.open(path, "rt", encoding="utf-8"))["CID2UNICHR_H"]
-blob = bytearray()
-for cid in sorted(data, key=int):
-    text = data[cid].encode("utf-8")
-    blob += struct.pack("<HB", int(cid), len(text)) + text
-with open(os.path.join(src, "japan1.bin"), "wb") as fh:
-    fh.write(bytes(blob))
-print("tables.rs and japan1.bin written;", len(data), "Japan1 entries,", len(blob), "bytes")
+print("tables.rs written")

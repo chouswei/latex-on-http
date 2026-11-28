@@ -1,4 +1,11 @@
-# Parity with the Python checker (ENDLEAF-R81)
+# Parity with the Python checker (ENDLEAF-R81, ENDLEAF-R82-PARITY)
+
+The executable form of this file is `tests/colophon/test_pdfcheck_parity_r82.py` (CI job
+`pdfcheck-parity`): corpus, synthetic cases, gap fixtures and real samples through both
+checkers, identical items and log lines required. Its allow-list (`ACCEPTED`) has three
+cases, each a deviation below: `n2_encrypted_skip` and `n4_encrypted` (encrypted PDFs are
+skipped) and `n4_lzw_early0` (`/EarlyChange 0`). Real worker output (XeLaTeX through
+xdvipdfmx) is never encrypted and uses only Flate, so it never takes those paths.
 
 Reference: `colophon/pdf_layout_check.py` at master `0ab481a` with the pinned wheels
 (pdfminer.six 20260107, shapely 2.2.0, scipy 1.17.1, numpy 2.4.6), Python 3.11. Both

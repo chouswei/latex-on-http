@@ -119,35 +119,100 @@ def _run(command):
     return completed.stdout
 
 
+# ENDLEAF-R82-IFACE. The PDF layout checker is the Rust binary; the Python module
+# colophon/pdf_layout_check.py is its test-only reference and is not run here.
+PDFCHECK_BIN = "/usr/local/bin/endleaf-pdfcheck"
+PDFCHECK_PDF = "/tmp/job-pdfcheck.pdf"
+PDFCHECK_SIDECAR = "/tmp/job-pdfcheck.json"
+PDFCHECK_TIMEOUT_SEC = 5.0  # the 2.0 s document budget + 3 s
+PDFCHECK_ERROR = "ENDLEAF_PDFLOG pdfcheck error\n"
+
+
+def _pdfcheck_sidecar(job, log, body_start, body_lines):
+    """The R82-IFACE sidecar object, from the final pass's TeX log."""
+    from colophon.overfull import overfull_rows
+
+    warnings = layout_warnings(log)
+    rows, _ = overfull_rows(log, body_start=body_start, body_lines=body_lines)
+    named = {row["page"] for row in rows if "page" in row}
+    named |= {item["page"] for item in warnings if isinstance(item.get("page"), int)}
+    sidecar = {
+        "templateId": job.template_id,
+        "blocks": {str(p): list(v) for p, v in sorted(page_blocks(log).items())},
+    }
+    if job.template_id == "fulldoc":
+        sidecar["marks"] = page_marks(log)
+    sidecar["shellPages"] = {str(n): p for n, p in sorted(shell_pages(log).items())}
+    sidecar["texPages"] = sorted(named)
+    return sidecar
+
+
+def _pdfcheck_output(stdout):
+    """``(items, log)`` from the binary's stdout; ``ValueError`` unless it is one {items, log} object."""
+    parsed = json.loads(stdout.decode("utf-8"))
+    if not isinstance(parsed, dict):
+        raise ValueError("not an object")
+    items, lines = parsed.get("items"), parsed.get("log")
+    if not (
+        isinstance(items, list)
+        and all(isinstance(item, dict) for item in items)
+        and isinstance(lines, list)
+        and all(isinstance(line, str) for line in lines)
+    ):
+        raise ValueError("not {items, log}")
+    return items, lines
+
+
 def _pdf_layout_check(job, data, log, body_start, body_lines):
-    """ENDLEAF-R81. Warn-only read of the finished PDF; it never changes the status.
+    """ENDLEAF-R81, ENDLEAF-R82-IFACE. Warn-only read of the finished PDF; it never changes the status.
 
-    ``log`` is the final pass's TeX log (for Markdown, Pandoc's last LaTeX run). Findings go
-    out as one ENDLEAF_PDFLAYOUT stderr line; guard and off-page counts go to the worker log.
+    ``log`` is the final pass's TeX log (for Markdown, Pandoc's last LaTeX run). The PDF and a
+    sidecar go to /tmp and ``endleaf-pdfcheck --sidecar`` reads them; its stdout is one
+    ``{items, log}`` object. Findings go out as one ENDLEAF_PDFLAYOUT stderr line, its log
+    lines as ENDLEAF_PDFLOG lines. A non-zero exit, a timeout or bad output gives one
+    ``pdfcheck error`` line. The binary's stderr is dropped. render_to_stdout deletes both files.
     """
-    try:
-        from colophon.overfull import overfull_rows
-        from colophon.pdf_layout_check import PDF_LOG_PREFIX, check_pdf, pdf_layout_line
+    from colophon.pdf_layout_check import PDF_LOG_PREFIX, pdf_layout_line
 
-        warnings = layout_warnings(log)
-        rows, _ = overfull_rows(log, body_start=body_start, body_lines=body_lines)
-        named = {row["page"] for row in rows if "page" in row}
-        named |= {item["page"] for item in warnings if isinstance(item.get("page"), int)}
-        result = check_pdf(
-            data,
-            template_id=job.template_id,
-            blocks=page_blocks(log),
-            marks=page_marks(log) if job.template_id == "fulldoc" else None,
-            shell_pages=shell_pages(log),
-            tex_pages=named,
+    try:
+        sidecar = _pdfcheck_sidecar(job, log, body_start, body_lines)
+        Path(PDFCHECK_PDF).write_bytes(data)
+        Path(PDFCHECK_SIDECAR).write_text(json.dumps(sidecar), encoding="utf-8")
+        completed = subprocess.run(
+            [PDFCHECK_BIN, "--sidecar", PDFCHECK_SIDECAR, PDFCHECK_PDF],
+            cwd="/tmp",
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=PDFCHECK_TIMEOUT_SEC,
+            check=False,
         )
-        for line in result.log_lines:
-            sys.stderr.write(PDF_LOG_PREFIX + line + "\n")
-        line = pdf_layout_line(result.items)
-        if line is not None:
-            sys.stderr.write(line + "\n")
+        if completed.returncode != 0:
+            raise RuntimeError("endleaf-pdfcheck exit")
+        items, lines = _pdfcheck_output(completed.stdout)
+        out = "".join(PDF_LOG_PREFIX + line + "\n" for line in lines)
+        layout = pdf_layout_line(items)
+        if layout is not None:
+            out += layout + "\n"
     except Exception:  # warn-only: a failed check never fails the render
-        sys.stderr.write("ENDLEAF_PDFLOG pdfcheck error\n")
+        sys.stderr.write(PDFCHECK_ERROR)
+        return
+    sys.stderr.write(out)
+
+
+def check_pdfcheck_binary():
+    """ENDLEAF-R82-IFACE image check: the binary answers --version, else the sandbox fails to start."""
+    completed = subprocess.run(
+        [PDFCHECK_BIN, "--version"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        timeout=PDFCHECK_TIMEOUT_SEC,
+        check=False,
+    )
+    answer = completed.stdout
+    if completed.returncode != 0 or not answer.startswith(b"endleaf-pdfcheck "):
+        raise RuntimeError("endleaf-pdfcheck --version failed: image error")
 
 
 def render_to_stdout(payload_bytes):
@@ -258,7 +323,12 @@ def render_to_stdout(payload_bytes):
             )
             status = "render_error"
         finally:
-            paths = list(plan.files) + [plan.output_path, "/tmp/job.tex"]
+            paths = list(plan.files) + [
+                plan.output_path,
+                "/tmp/job.tex",
+                PDFCHECK_PDF,
+                PDFCHECK_SIDECAR,
+            ]
             for pattern in ("*.log", "*.aux", "*.out", "*.toc", "*.xdv"):
                 paths.extend(str(path) for path in Path("/tmp").glob(pattern))
             for path in paths:
@@ -282,9 +352,7 @@ def render_to_stdout(payload_bytes):
 
 
 def main():
-    from colophon.pdf_layout_check import _preload
-
-    _preload()  # a bad image fails when the sandbox starts
+    check_pdfcheck_binary()  # a bad image fails when the sandbox starts
     raw = sys.stdin.buffer.read()
     code = render_to_stdout(raw)
     raise SystemExit(code)

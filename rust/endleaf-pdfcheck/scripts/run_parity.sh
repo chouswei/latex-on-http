@@ -1,6 +1,6 @@
 #!/bin/sh
 # Re-run every parity check. Usage (from the repo root):
-#   rust/pdfcheck-proto/scripts/run_parity.sh PYTHON PYREF PDF_LIST WORKDIR
+#   rust/endleaf-pdfcheck/scripts/run_parity.sh PYTHON PYREF PDF_LIST WORKDIR
 # PYTHON has the pinned pdfminer.six/shapely/scipy; PYREF is the reference driver
 # (one in-process check_pdf per PDF with budgets lifted); PDF_LIST names the PDFs.
 set -eu
