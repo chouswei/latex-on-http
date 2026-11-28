@@ -151,5 +151,5 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
   dictionary tokens) are tolerated in Rust instead of stopping the check.
 - Vertical writing (`Identity-V`) advances along y as pdfminer does, but the glyph quad is
   the same horizontal formula as the Python `add_glyph`; not exercised by the corpus.
-- `cargo fmt` and `cargo clippy` were not run: the build host's Rust 1.85 package ships
-  without rustfmt and clippy (see the run report).
+- `cargo fmt --check` and `cargo clippy --release -- -D warnings` are clean on Rust 1.100
+  (aarch64); the first commit was built on 1.85 without them.
