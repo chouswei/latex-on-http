@@ -656,6 +656,116 @@ fn ascii85(data: &[u8]) -> Vec<u8> {
     out
 }
 
+/// LZWDecode as pdfminer's `LZWDecoder`: MSB-first codes of 9..12 bits, 256 resets the table,
+/// 257 is skipped (reading goes on until the bits run out), an unknown code ends the output.
+/// `early` is /EarlyChange: 1 (the default) widens the code one entry early, as pdfminer
+/// always does; 0 widens at 512/1024/2048 entries (pdfminer ignores 0, the PDF spec does not).
+fn lzw(data: &[u8], early: bool) -> Vec<u8> {
+    let (w10, w11, w12) = if early {
+        (511, 1023, 2047)
+    } else {
+        (512, 1024, 2048)
+    };
+    let mut out = Vec::new();
+    let mut table: Vec<Vec<u8>> = Vec::new();
+    let mut prev: Vec<u8> = Vec::new();
+    let mut nbits = 9usize;
+    let mut bitpos = 0usize;
+    let total = data.len() * 8;
+    while bitpos + nbits <= total {
+        let mut code = 0usize;
+        for i in bitpos..bitpos + nbits {
+            code = (code << 1) | ((data[i / 8] >> (7 - i % 8)) & 1) as usize;
+        }
+        bitpos += nbits;
+        if code == 256 {
+            table = (0..=255u8).map(|c| vec![c]).collect();
+            table.push(Vec::new());
+            table.push(Vec::new());
+            prev.clear();
+            nbits = 9;
+            continue;
+        }
+        if code == 257 {
+            continue;
+        }
+        let x = if prev.is_empty() {
+            // pdfminer: `x = prevbuf = table[code]`; a missing entry raises there, so stop.
+            match table.get(code) {
+                Some(e) if !e.is_empty() => e.clone(),
+                _ => break,
+            }
+        } else {
+            let x = if code < table.len() {
+                table[code].clone()
+            } else if code == table.len() {
+                let mut e = prev.clone();
+                e.push(prev[0]);
+                e
+            } else {
+                break; // CorruptDataError: stop yielding
+            };
+            let mut e = prev.clone();
+            e.push(x[0]);
+            table.push(e);
+            match table.len() {
+                n if n == w10 => nbits = 10,
+                n if n == w11 => nbits = 11,
+                n if n == w12 => nbits = 12,
+                _ => {}
+            }
+            x
+        };
+        out.extend_from_slice(&x);
+        prev = x;
+    }
+    out
+}
+
+/// RunLengthDecode as pdfminer's `rldecode`; 128 or the end of data ends it, a truncated run
+/// keeps what was read.
+fn run_length(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < data.len() {
+        let len = data[i] as usize;
+        i += 1;
+        if len == 128 {
+            break;
+        }
+        if len < 128 {
+            let end = (i + len + 1).min(data.len());
+            out.extend_from_slice(&data[i..end]);
+            if end < i + len + 1 {
+                break;
+            }
+            i = end;
+        } else {
+            let Some(&b) = data.get(i) else { break };
+            out.extend(std::iter::repeat_n(b, 257 - len));
+            i += 1;
+        }
+    }
+    out
+}
+
+/// TIFF predictor 2 as pdfminer's `apply_tiff_predictor` (8 bits per component only; other
+/// depths raise there and are left as they are here).
+fn tiff_predictor(data: &[u8], colors: usize, bpc: usize, columns: usize) -> Vec<u8> {
+    if bpc != 8 {
+        return data.to_vec();
+    }
+    let bpp = colors;
+    let row = (columns * bpp).max(1);
+    let mut out = data.to_vec();
+    for line in out.chunks_mut(row) {
+        for i in bpp..line.len() {
+            line[i] = line[i].wrapping_add(line[i - bpp]);
+        }
+    }
+    out
+}
+
 fn png_predictor(data: &[u8], colors: usize, bpc: usize, columns: usize) -> Vec<u8> {
     let bpp = (colors * bpc).div_ceil(8).max(1);
     let row = (colors * bpc * columns).div_ceil(8);
@@ -722,15 +832,24 @@ pub fn decode_stream(st: &Stream) -> Rc<Vec<u8>> {
     };
     let mut data = st.raw.clone();
     for (n, f) in filters.iter().enumerate() {
+        let parm = parms.get(n).or_else(|| parms.first()).and_then(|p| p.as_ref());
         data = match f.as_str() {
             "FlateDecode" | "Fl" => flate(&data),
+            "LZWDecode" | "LZW" => {
+                let early = parm
+                    .and_then(|p| p.get("EarlyChange"))
+                    .and_then(|x| x.int())
+                    .unwrap_or(1);
+                lzw(&data, early != 0)
+            }
+            "RunLengthDecode" | "RL" => run_length(&data),
             "ASCIIHexDecode" | "AHx" => ascii_hex(&data),
             "ASCII85Decode" | "A85" => ascii85(&data),
-            _ => break, // DCT, JPX, JBIG2, CCITT, LZW, RunLength: kept raw (not needed for geometry)
+            _ => break, // DCT, JPX, JBIG2, CCITT: kept raw (images are boxes only)
         };
-        if let Some(Some(p)) = parms.get(n).or_else(|| parms.first()) {
+        if let Some(p) = parm {
             let pred = p.get("Predictor").and_then(|x| x.int()).unwrap_or(1);
-            if pred >= 10 {
+            if pred == 2 || pred >= 10 {
                 let colors = p.get("Colors").and_then(|x| x.int()).unwrap_or(1).max(1) as usize;
                 let bpc = p
                     .get("BitsPerComponent")
@@ -738,7 +857,11 @@ pub fn decode_stream(st: &Stream) -> Rc<Vec<u8>> {
                     .unwrap_or(8)
                     .max(1) as usize;
                 let cols = p.get("Columns").and_then(|x| x.int()).unwrap_or(1).max(1) as usize;
-                data = png_predictor(&data, colors, bpc, cols);
+                data = if pred == 2 {
+                    tiff_predictor(&data, colors, bpc, cols)
+                } else {
+                    png_predictor(&data, colors, bpc, cols)
+                };
             }
         }
     }
@@ -1316,5 +1439,110 @@ impl<'a> Doc<'a> {
             Some("Page") => out.push((id, props)),
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod decode_tests {
+    use super::*;
+
+    /// Plain LZW encoder (MSB first, clear code first, EOD last) for round trips.
+    fn lzw_encode(data: &[u8], early: bool) -> Vec<u8> {
+        use std::collections::HashMap;
+        let bump = if early { 1 } else { 0 };
+        let mut codes: Vec<(usize, usize)> = vec![(256, 9)];
+        let mut dict: HashMap<Vec<u8>, usize> = HashMap::new();
+        let mut next = 258usize;
+        let mut nbits = 9usize;
+        let mut cur: Vec<u8> = Vec::new();
+        for &b in data {
+            let mut cand = cur.clone();
+            cand.push(b);
+            if cand.len() == 1 || dict.contains_key(&cand) {
+                cur = cand;
+                continue;
+            }
+            let code = if cur.len() == 1 {
+                cur[0] as usize
+            } else {
+                dict[&cur]
+            };
+            codes.push((code, nbits));
+            dict.insert(cand, next);
+            next += 1;
+            // The decoder adds each entry one code late, so it widens one code after this.
+            if next == 513 - bump {
+                nbits = 10;
+            } else if next == 1025 - bump {
+                nbits = 11;
+            } else if next == 2049 - bump {
+                nbits = 12;
+            }
+            assert!(next < 4000, "test input too long for the encoder");
+            cur = vec![b];
+        }
+        if !cur.is_empty() {
+            let code = if cur.len() == 1 {
+                cur[0] as usize
+            } else {
+                dict[&cur]
+            };
+            codes.push((code, nbits));
+        }
+        codes.push((257, nbits));
+        let mut out = Vec::new();
+        let (mut acc, mut n) = (0u64, 0usize);
+        for (c, w) in codes {
+            acc = (acc << w) | c as u64;
+            n += w;
+            while n >= 8 {
+                out.push((acc >> (n - 8)) as u8);
+                n -= 8;
+            }
+        }
+        if n > 0 {
+            out.push((acc << (8 - n)) as u8);
+        }
+        out
+    }
+
+    fn sample(len: usize) -> Vec<u8> {
+        let mut x = 12345u32;
+        (0..len)
+            .map(|_| {
+                x = x.wrapping_mul(1103515245).wrapping_add(12345);
+                b"BT 12 Tf (abc) Tj ET q 1 0 0 1 re f Q\n"[(x >> 16) as usize % 38]
+            })
+            .collect()
+    }
+
+    #[test]
+    fn lzw_spec_example() {
+        let enc = [0x80, 0x0B, 0x60, 0x50, 0x22, 0x0C, 0x0C, 0x85, 0x01];
+        assert_eq!(lzw(&enc, true), b"\x2d\x2d\x2d\x2d\x2d\x41\x2d\x2d\x2d\x42");
+    }
+
+    #[test]
+    fn lzw_round_trip_both_early_changes() {
+        let data = sample(6000);
+        for early in [true, false] {
+            assert_eq!(lzw(&lzw_encode(&data, early), early), data, "early={early}");
+        }
+        // The two code-width schedules differ once the table passes 511 entries.
+        assert_ne!(lzw(&lzw_encode(&data, false), true), data);
+    }
+
+    #[test]
+    fn run_length_runs_and_eod() {
+        let enc = [2, b'a', b'b', b'c', 254, b'x', 128, 0, b'z'];
+        assert_eq!(run_length(&enc), b"abcxxx");
+        assert_eq!(run_length(&[1, b'q']), b"q"); // truncated literal keeps what was read
+    }
+
+    #[test]
+    fn tiff_predictor_two_rows() {
+        let enc = [1, 1, 1, 10, 0, 246];
+        assert_eq!(tiff_predictor(&enc, 1, 8, 3), [1, 2, 3, 10, 10, 0]);
+        assert_eq!(tiff_predictor(&[1, 2, 3, 4], 2, 8, 2), [1, 2, 4, 6]);
     }
 }

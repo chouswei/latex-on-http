@@ -138,8 +138,14 @@ rounding, `MAX_FINDINGS` and `pdf_more_findings`, budgets and `pdf_check_skipped
 - CID fonts without ToUnicode: only Adobe-Japan1 is mapped; GB1, CNS1, Korea1 and the
   TrueType `cmap` fallback for Adobe-Identity fonts give `(cid:N)` text (geometry is the
   same; only text-based rules such as captions, folios and stray source could differ).
-- Filters: Flate (with PNG predictors), ASCIIHex and ASCII85. LZW and RunLength streams
-  are left encoded; encrypted PDFs stop with `error PDFEncryptionError`.
+- Filters (ENDLEAF-R82-DECODE): Flate, LZW, RunLength, ASCIIHex and ASCII85, in filter
+  arrays, with the PNG (>= 10) and TIFF 2 predictors from DecodeParms. LZW follows pdfminer's
+  decoder (257 skipped, an unknown code ends the stream) and honours `/EarlyChange 0`, which
+  pdfminer ignores; the gap fixtures expect the correct (Flate twin) output there. TIFF 2
+  with other than 8 bits per component, and truncated RunLength runs, keep what they have
+  where pdfminer raises. DCT, JPX, JBIG2 and CCITT stay encoded (images are boxes only).
+  Encrypted PDFs stop with `error PDFEncryptionError` (no decryption; the CLI maps that to
+  the encrypted skip note).
 - Geometry stands in for GEOS: invalid node outlines are used as drawn instead of
   `buffer(0)`; `is_valid` is a simple ring test; the point used for the white-cover test
   of `pdf_label_on_stroke` follows GEOS InteriorPointLine on merged pieces, but may differ
