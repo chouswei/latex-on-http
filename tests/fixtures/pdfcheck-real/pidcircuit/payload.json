@@ -1,0 +1,6 @@
+{
+ "body": "\\begin{tikzpicture}[circuit pid ISO14617]\n  \\node[valve={}] (v) at (0,0) {};\n  \\node[valve={}] (w) at (3,0) {};\n  \\draw (v) -- (w);\n\\end{tikzpicture}\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "pidcircuit"
+}

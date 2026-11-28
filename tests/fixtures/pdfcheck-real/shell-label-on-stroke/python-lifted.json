@@ -1,0 +1,21 @@
+{
+ "items": [
+  {
+   "box": [
+    259.8,
+    128.7,
+    333.6,
+    138.7
+   ],
+   "code": "pdf_label_on_stroke",
+   "fenceNumber": 1,
+   "message": "pg1: label 'LABEL' sits on a stroked line",
+   "packages": [
+    "pdf"
+   ],
+   "page": 1,
+   "regionCount": 3
+  }
+ ],
+ "log": []
+}

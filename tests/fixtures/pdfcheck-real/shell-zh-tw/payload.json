@@ -1,0 +1,6 @@
+{
+ "body": "# 幫浦測試報告\n\n這是一份繁體中文文件，內含公式與圖。液位維持在範圍內。\n\n```{.tikz caption=\"圖一　幫浦迴路\"}\n\\begin{tikzpicture}\n\\draw (0,0) rectangle (4,1.5);\n\\node at (2,0.75) {幫浦測試報告};\n\\end{tikzpicture}\n```\n\n```\nprint('幫浦測試報告')\n```\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "document-shell"
+}

@@ -1,0 +1,6 @@
+{
+ "body": "# 水泵测试报告\n\n这是一份简体中文文档，包含公式与图。液位保持在范围内。\n\n```{.tikz caption=\"图一　水泵回路\"}\n\\begin{tikzpicture}\n\\draw (0,0) rectangle (4,1.5);\n\\node at (2,0.75) {水泵测试报告};\n\\end{tikzpicture}\n```\n\n```\nprint('水泵测试报告')\n```\n",
+ "lane": "Investor",
+ "outputFormat": "pdf",
+ "templateId": "document-shell"
+}
