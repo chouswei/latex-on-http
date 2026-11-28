@@ -1,0 +1,256 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg2: text runs 24.7 mm past the text block: 'this line runs far past the r…'",
+   "page": 2,
+   "box": [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ],
+   "regionCount": 1,
+   "overMm": 24.7
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck guard page=2 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    84.1,
+    235.4,
+    94.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    98.1,
+    235.4,
+    108.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    112.1,
+    235.4,
+    122.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    126.1,
+    235.4,
+    136.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    140.1,
+    235.4,
+    150.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    154.1,
+    235.4,
+    164.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    168.1,
+    235.4,
+    178.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    182.1,
+    235.4,
+    192.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    196.1,
+    235.4,
+    206.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    210.1,
+    235.4,
+    220.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    224.1,
+    235.4,
+    234.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    238.1,
+    235.4,
+    248.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    252.1,
+    235.4,
+    262.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    266.1,
+    235.4,
+    276.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    280.1,
+    235.4,
+    290.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    294.1,
+    235.4,
+    304.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    308.1,
+    235.4,
+    318.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    322.1,
+    235.4,
+    332.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    336.1,
+    235.4,
+    346.1
+   ]
+  ],
+  [
+   1,
+   "an ordinary line of body text sits here",
+   [
+    72.0,
+    350.1,
+    235.4,
+    360.1
+   ]
+  ],
+  [
+   1,
+   "1",
+   [
+    400.0,
+    744.1,
+    405.6,
+    754.1
+   ]
+  ],
+  [
+   2,
+   "short",
+   [
+    72.0,
+    84.1,
+    94.2,
+    94.1
+   ]
+  ],
+  [
+   2,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    104.1,
+    610.1,
+    114.1
+   ]
+  ]
+ ]
+}

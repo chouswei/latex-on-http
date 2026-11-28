@@ -1,0 +1,28 @@
+{
+ "items": [],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "Escaping label wide",
+   [
+    150.0,
+    172.1,
+    238.4,
+    182.1
+   ]
+  ],
+  [
+   1,
+   "in",
+   [
+    105.0,
+    156.1,
+    112.8,
+    166.1
+   ]
+  ]
+ ]
+}

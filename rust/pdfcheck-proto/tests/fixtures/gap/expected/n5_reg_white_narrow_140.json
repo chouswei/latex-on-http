@@ -1,0 +1,32 @@
+{
+ "items": [
+  {
+   "code": "pdf_label_on_stroke",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: label 'Pressure' sits on a stroked line",
+   "page": 1,
+   "box": [
+    100.0,
+    184.1,
+    140.0,
+    194.1
+   ],
+   "regionCount": 1
+  }
+ ],
+ "log": [],
+ "lines": [
+  [
+   1,
+   "Pressure",
+   [
+    100.0,
+    184.1,
+    140.0,
+    194.1
+   ]
+  ]
+ ]
+}

@@ -1,0 +1,56 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 28.2 mm past the text block: 'シフトJISの文字シフトJISの文字シフ'",
+   "page": 1,
+   "box": [
+    380.0,
+    482.9,
+    620.0,
+    494.9
+   ],
+   "regionCount": 1,
+   "overMm": 28.2
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck offpage page=1 glyphs=7"
+ ],
+ "lines": [
+  [
+   1,
+   "シフトJISの文字",
+   [
+    72.0,
+    82.9,
+    180.0,
+    94.9
+   ]
+  ],
+  [
+   1,
+   "第二行 12",
+   [
+    72.0,
+    122.9,
+    138.0,
+    134.9
+   ]
+  ],
+  [
+   1,
+   "シフトJISの文字シフトJISの文字シフ",
+   [
+    380.0,
+    482.9,
+    620.0,
+    494.9
+   ]
+  ]
+ ]
+}

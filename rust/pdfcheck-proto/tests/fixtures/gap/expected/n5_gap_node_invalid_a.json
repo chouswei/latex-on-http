@@ -1,0 +1,32 @@
+{
+ "items": [
+  {
+   "code": "pdf_label_on_stroke",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: label 'in' sits on a stroked line",
+   "page": 1,
+   "box": [
+    111.0,
+    185.1,
+    118.8,
+    195.1
+   ],
+   "regionCount": 1
+  }
+ ],
+ "log": [],
+ "lines": [
+  [
+   1,
+   "in",
+   [
+    111.0,
+    185.1,
+    118.8,
+    195.1
+   ]
+  ]
+ ]
+}

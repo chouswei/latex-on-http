@@ -1,0 +1,295 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 24.7 mm past the text block: 'this line runs far past the r…'",
+   "page": 1,
+   "box": [
+    400.0,
+    484.1,
+    610.1,
+    494.1
+   ],
+   "regionCount": 1,
+   "overMm": 24.7
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1"
+ ],
+ "lines": [
+  [
+   1,
+   "line 0 varies 0 to keep the table growing 0",
+   [
+    72.0,
+    54.1,
+    256.5,
+    64.1
+   ]
+  ],
+  [
+   1,
+   "line 1 varies 828 to keep the table growing 1",
+   [
+    72.0,
+    68.1,
+    267.7,
+    78.1
+   ]
+  ],
+  [
+   1,
+   "line 2 varies 643 to keep the table growing 2",
+   [
+    72.0,
+    82.1,
+    267.7,
+    92.1
+   ]
+  ],
+  [
+   1,
+   "line 3 varies 458 to keep the table growing 3",
+   [
+    72.0,
+    96.1,
+    267.7,
+    106.1
+   ]
+  ],
+  [
+   1,
+   "line 4 varies 273 to keep the table growing 4",
+   [
+    72.0,
+    110.1,
+    267.7,
+    120.1
+   ]
+  ],
+  [
+   1,
+   "line 5 varies 88 to keep the table growing 5",
+   [
+    72.0,
+    124.1,
+    262.1,
+    134.1
+   ]
+  ],
+  [
+   1,
+   "line 6 varies 916 to keep the table growing 6",
+   [
+    72.0,
+    138.1,
+    267.7,
+    148.1
+   ]
+  ],
+  [
+   1,
+   "line 7 varies 731 to keep the table growing 7",
+   [
+    72.0,
+    152.1,
+    267.7,
+    162.1
+   ]
+  ],
+  [
+   1,
+   "line 8 varies 546 to keep the table growing 8",
+   [
+    72.0,
+    166.1,
+    267.7,
+    176.1
+   ]
+  ],
+  [
+   1,
+   "line 9 varies 361 to keep the table growing 9",
+   [
+    72.0,
+    180.1,
+    267.7,
+    190.1
+   ]
+  ],
+  [
+   1,
+   "line 10 varies 176 to keep the table growing 10",
+   [
+    72.0,
+    194.1,
+    278.8,
+    204.1
+   ]
+  ],
+  [
+   1,
+   "line 11 varies 1004 to keep the table growing 11",
+   [
+    72.0,
+    208.1,
+    284.3,
+    218.1
+   ]
+  ],
+  [
+   1,
+   "line 12 varies 819 to keep the table growing 12",
+   [
+    72.0,
+    222.1,
+    278.8,
+    232.1
+   ]
+  ],
+  [
+   1,
+   "line 13 varies 634 to keep the table growing 13",
+   [
+    72.0,
+    236.1,
+    278.8,
+    246.1
+   ]
+  ],
+  [
+   1,
+   "line 14 varies 449 to keep the table growing 14",
+   [
+    72.0,
+    250.1,
+    278.8,
+    260.1
+   ]
+  ],
+  [
+   1,
+   "line 15 varies 264 to keep the table growing 15",
+   [
+    72.0,
+    264.1,
+    278.8,
+    274.1
+   ]
+  ],
+  [
+   1,
+   "line 16 varies 79 to keep the table growing 16",
+   [
+    72.0,
+    278.1,
+    273.2,
+    288.1
+   ]
+  ],
+  [
+   1,
+   "line 17 varies 907 to keep the table growing 17",
+   [
+    72.0,
+    292.1,
+    278.8,
+    302.1
+   ]
+  ],
+  [
+   1,
+   "line 18 varies 722 to keep the table growing 18",
+   [
+    72.0,
+    306.1,
+    278.8,
+    316.1
+   ]
+  ],
+  [
+   1,
+   "line 19 varies 537 to keep the table growing 19",
+   [
+    72.0,
+    320.1,
+    278.8,
+    330.1
+   ]
+  ],
+  [
+   1,
+   "line 20 varies 352 to keep the table growing 20",
+   [
+    72.0,
+    334.1,
+    278.8,
+    344.1
+   ]
+  ],
+  [
+   1,
+   "line 21 varies 167 to keep the table growing 21",
+   [
+    72.0,
+    348.1,
+    278.8,
+    358.1
+   ]
+  ],
+  [
+   1,
+   "line 22 varies 995 to keep the table growing 22",
+   [
+    72.0,
+    362.1,
+    278.8,
+    372.1
+   ]
+  ],
+  [
+   1,
+   "line 23 varies 810 to keep the table growing 23",
+   [
+    72.0,
+    376.1,
+    278.8,
+    386.1
+   ]
+  ],
+  [
+   1,
+   "line 24 varies 625 to keep the table growing 24",
+   [
+    72.0,
+    390.1,
+    278.8,
+    400.1
+   ]
+  ],
+  [
+   1,
+   "line 25 varies 440 to keep the table growing 25",
+   [
+    72.0,
+    404.1,
+    278.8,
+    414.1
+   ]
+  ],
+  [
+   1,
+   "this line runs far past the right edge of the block",
+   [
+    400.0,
+    484.1,
+    610.1,
+    494.1
+   ]
+  ]
+ ]
+}

@@ -1,0 +1,56 @@
+{
+ "items": [
+  {
+   "code": "pdf_margin_escape",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pg1: text runs 26.8 mm past the text block: '안녕하세요 세계안녕하세요 세계안녕하세요'",
+   "page": 1,
+   "box": [
+    380.0,
+    483.3,
+    616.0,
+    495.3
+   ],
+   "regionCount": 1,
+   "overMm": 26.8
+  }
+ ],
+ "log": [
+  "pdfcheck guard page=1 otsuEm=0.010 usedEm=0.1",
+  "pdfcheck offpage page=1 glyphs=2"
+ ],
+ "lines": [
+  [
+   1,
+   "안녕하세요 세계",
+   [
+    72.0,
+    83.3,
+    160.0,
+    95.3
+   ]
+  ],
+  [
+   1,
+   "레이아웃 검사 12",
+   [
+    72.0,
+    123.3,
+    167.0,
+    135.3
+   ]
+  ],
+  [
+   1,
+   "안녕하세요 세계안녕하세요 세계안녕하세요",
+   [
+    380.0,
+    483.3,
+    616.0,
+    495.3
+   ]
+  ]
+ ]
+}

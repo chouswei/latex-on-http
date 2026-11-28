@@ -1,0 +1,1274 @@
+[
+ {
+  "name": "n2_sidecar_part",
+  "node": "N2",
+  "pdf": "n2_sidecar_part.pdf",
+  "compare": "items",
+  "sidecar": true,
+  "note": "partId from the fulldoc marks, through --sidecar",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [
+   [
+    "p1",
+    "s",
+    1,
+    750.0,
+    "v"
+   ],
+   [
+    "p1",
+    "e",
+    1,
+    640.0,
+    "v"
+   ],
+   [
+    "p2",
+    "s",
+    1,
+    640.0,
+    "v"
+   ],
+   [
+    "p2",
+    "e",
+    1,
+    500.0,
+    "v"
+   ]
+  ],
+  "shellPages": {}
+ },
+ {
+  "name": "n2_sidecar_fence",
+  "node": "N2",
+  "pdf": "n2_sidecar_fence.pdf",
+  "compare": "items",
+  "sidecar": true,
+  "note": "fenceNumber from shellPages",
+  "template": "document-shell",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ],
+   "2": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ],
+   "3": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {
+   "1": 1,
+   "2": 3
+  }
+ },
+ {
+  "name": "n2_sidecar_plain",
+  "node": "N2",
+  "pdf": "n2_sidecar_plain.pdf",
+  "compare": "items",
+  "sidecar": true,
+  "note": "plain sidecar run, stdout is exactly {items, log}",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ],
+   "2": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n2_sidecar_texpages",
+  "node": "N2",
+  "pdf": "n2_sidecar_texpages.pdf",
+  "compare": "items",
+  "sidecar": true,
+  "note": "texPages from the sidecar silence a TeX-named page; the sidecar also carries an unknown key",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [
+   1
+  ],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n2_encrypted_skip",
+  "node": "N2",
+  "pdf": "n2_encrypted_skip.pdf",
+  "compare": "items",
+  "sidecar": true,
+  "note": "RC4 file: exactly one skip note, no decryption (accepted divergence from pdfminer)",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_gb1_ucs2",
+  "node": "N3",
+  "pdf": "n3_gb1_ucs2.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "STSong-Light UniGB-UCS2-H, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_cns1_ucs2",
+  "node": "N3",
+  "pdf": "n3_cns1_ucs2.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "MSung-Light UniCNS-UCS2-H, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_korea1_ucs2",
+  "node": "N3",
+  "pdf": "n3_korea1_ucs2.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "HYSMyeongJo-Medium UniKS-UCS2-H, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_japan1_ucs2",
+  "node": "N3",
+  "pdf": "n3_japan1_ucs2.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "HeiseiMin-W3 UniJIS-UCS2-H, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_japan1_vertical",
+  "node": "N3",
+  "pdf": "n3_japan1_vertical.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "HeiseiMin-W3 UniJIS-UCS2-V, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_gb1_gbk_euc",
+  "node": "N3",
+  "pdf": "n3_gb1_gbk_euc.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "STSong-Light GBK-EUC-H, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_japan1_rksj",
+  "node": "N3",
+  "pdf": "n3_japan1_rksj.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "HeiseiMin-W3 90ms-RKSJ-H, not embedded",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n3_truetype_identity",
+  "node": "N3",
+  "pdf": "n3_truetype_identity.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "Identity-H CIDFontType2 (embedded TrueType subset), no ToUnicode",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_reg_flate_twin",
+  "node": "N4",
+  "pdf": "n4_reg_flate_twin.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "the Flate twin all the filter variants must equal (passes today: regression)",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_lzw_early1",
+  "node": "N4",
+  "pdf": "n4_lzw_early1.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "LZW, EarlyChange 1 (the default)",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_lzw_early0",
+  "node": "N4",
+  "pdf": "n4_lzw_early0.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "LZW, EarlyChange 0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_lzw_png",
+  "node": "N4",
+  "pdf": "n4_lzw_png.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "LZW with the PNG Up predictor",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_lzw_tiff",
+  "node": "N4",
+  "pdf": "n4_lzw_tiff.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "LZW with TIFF predictor 2",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_lzw_flate",
+  "node": "N4",
+  "pdf": "n4_lzw_flate.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "filter array LZW then Flate",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_runlength",
+  "node": "N4",
+  "pdf": "n4_runlength.pdf",
+  "compare": "both",
+  "sidecar": false,
+  "note": "RunLength",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n4_encrypted",
+  "node": "N4",
+  "pdf": "n4_encrypted.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "RC4 copy: the skip note",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_bowtie",
+  "node": "N5",
+  "pdf": "n5_reg_node_bowtie.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: bowtie",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_touch8",
+  "node": "N5",
+  "pdf": "n5_reg_node_touch8.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: touch8",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_pentagram",
+  "node": "N5",
+  "pdf": "n5_reg_node_pentagram.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: pentagram",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_zero_area",
+  "node": "N5",
+  "pdf": "n5_reg_node_zero_area.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: zero_area",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_collinear_diag",
+  "node": "N5",
+  "pdf": "n5_reg_node_collinear_diag.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: collinear_diag",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_dup_vertices",
+  "node": "N5",
+  "pdf": "n5_reg_node_dup_vertices.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: dup_vertices",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_node_spike",
+  "node": "N5",
+  "pdf": "n5_reg_node_spike.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "node outline: spike",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_100p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_100p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=100.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_105p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_105p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=105.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_110p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_110p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=110.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_118p5",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_118p5.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=118.5",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_122p5",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_122p5.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=122.5",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_127p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_127p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=127.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_130p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_130p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=130.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_135p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_135p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=135.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_140p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_140p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=140.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_150p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_150p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=150.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_edge_160p0",
+  "node": "N5",
+  "pdf": "n5_reg_white_edge_160p0.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "white cover starting at x=160.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_narrow_100",
+  "node": "N5",
+  "pdf": "n5_reg_white_narrow_100.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "narrow white cover at x=100.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_narrow_110",
+  "node": "N5",
+  "pdf": "n5_reg_white_narrow_110.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "narrow white cover at x=110.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_narrow_120",
+  "node": "N5",
+  "pdf": "n5_reg_white_narrow_120.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "narrow white cover at x=120.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_narrow_130",
+  "node": "N5",
+  "pdf": "n5_reg_white_narrow_130.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "narrow white cover at x=130.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_narrow_140",
+  "node": "N5",
+  "pdf": "n5_reg_white_narrow_140.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "narrow white cover at x=140.0",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_white_bowtie",
+  "node": "N5",
+  "pdf": "n5_reg_white_bowtie.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid (bow-tie) white cover falls back to its bounding box",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_stroke_diagonal",
+  "node": "N5",
+  "pdf": "n5_reg_stroke_diagonal.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "diagonal stroke through a word",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_stroke_cross",
+  "node": "N5",
+  "pdf": "n5_reg_stroke_cross.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "two strokes cross one word",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_stroke_zigzag",
+  "node": "N5",
+  "pdf": "n5_reg_stroke_zigzag.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "polyline stroke, several pieces in the core",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_knn_grid8",
+  "node": "N5",
+  "pdf": "n5_reg_knn_grid8.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "8x8 grid of single glyphs, every neighbour ring tied",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_knn_rows",
+  "node": "N5",
+  "pdf": "n5_reg_knn_rows.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "rows of evenly spaced glyphs, ties at k=12 and k=24",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_knn_ring",
+  "node": "N5",
+  "pdf": "n5_reg_knn_ring.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "a hub glyph with eight glyphs at one distance",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_reg_knn_duplicates",
+  "node": "N5",
+  "pdf": "n5_reg_knn_duplicates.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "exactly duplicated glyph centres",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_node_invalid_a",
+  "node": "N5",
+  "pdf": "n5_gap_node_invalid_a.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_node_invalid_b",
+  "node": "N5",
+  "pdf": "n5_gap_node_invalid_b.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_node_invalid_c",
+  "node": "N5",
+  "pdf": "n5_gap_node_invalid_c.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_node_invalid_d",
+  "node": "N5",
+  "pdf": "n5_gap_node_invalid_d.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_node_invalid_e",
+  "node": "N5",
+  "pdf": "n5_gap_node_invalid_e.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_node_invalid_f",
+  "node": "N5",
+  "pdf": "n5_gap_node_invalid_f.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_white_invalid_a",
+  "node": "N5",
+  "pdf": "n5_gap_white_invalid_a.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_white_invalid_b",
+  "node": "N5",
+  "pdf": "n5_gap_white_invalid_b.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ },
+ {
+  "name": "n5_gap_white_invalid_c",
+  "node": "N5",
+  "pdf": "n5_gap_white_invalid_c.pdf",
+  "compare": "items",
+  "sidecar": false,
+  "note": "invalid outline: buffer(0) repair / is_valid fallback decides the finding",
+  "template": "fulldoc",
+  "blocks": {
+   "1": [
+    72.27,
+    72.27,
+    469.755,
+    650.43
+   ]
+  },
+  "texPages": [],
+  "marks": [],
+  "shellPages": {}
+ }
+]

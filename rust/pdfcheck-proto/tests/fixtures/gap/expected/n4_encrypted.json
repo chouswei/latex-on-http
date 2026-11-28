@@ -1,0 +1,13 @@
+{
+ "items": [
+  {
+   "code": "pdf_check_skipped",
+   "packages": [
+    "pdf"
+   ],
+   "message": "pdf layout check stopped (encrypted) before pg1"
+  }
+ ],
+ "log": [],
+ "lines": []
+}
